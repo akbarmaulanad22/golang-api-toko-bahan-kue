@@ -1,0 +1,52 @@
+package model
+
+type UserResponse struct {
+	Username  string `json:"username,omitempty"`
+	Token     string `json:"token,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Address   string `json:"address,omitempty"`
+	CreatedAt int64  `json:"created_at,omitempty"`
+	UpdatedAt int64  `json:"updated_at,omitempty"`
+}
+
+type VerifyUserRequest struct {
+	Token string `validate:"required,max=100"`
+}
+
+type RegisterUserRequest struct {
+	Username string `json:"username" validate:"required,max=100"`
+	Password string `json:"password" validate:"required,max=100"`
+	Name     string `json:"name" validate:"required,max=100"`
+	Address  string `json:"address" validate:"required,max=100"`
+}
+
+type LoginUserRequest struct {
+	Username string `json:"username" validate:"required,max=100"`
+	Password string `json:"password" validate:"required,max=100"`
+}
+
+type LogoutUserRequest struct {
+	Username string `json:"username" validate:"required,max=100"`
+}
+
+type SearchUserRequest struct {
+	Name     string `json:"name" validate:"required,max=100"`
+	Username string `json:"username" validate:"required,max=100"`
+	Page     int    `json:"page" validate:"min=1"`
+	Size     int    `json:"size" validate:"min=1,max=100"`
+}
+
+type GetUserRequest struct {
+	Username string `json:"username" validate:"required,max=100"`
+}
+
+type UpdateUserRequest struct {
+	Username string `json:"-" validate:"required,max=100"`
+	Password string `json:"password,omitempty" validate:"max=100"`
+	Name     string `json:"name,omitempty" validate:"max=100"`
+	Address  string `json:"address,omitempty" validate:"max=100"`
+}
+
+type DeleteUserRequest struct {
+	Username string `json:"username" validate:"required,max=100"`
+}
