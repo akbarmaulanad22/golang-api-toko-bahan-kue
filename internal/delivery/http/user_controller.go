@@ -137,8 +137,15 @@ func (c *UserController) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *UserController) Get(w http.ResponseWriter, r *http.Request) {
+	username := mux.Vars(r)["username"]
+
+	if username != "" {
+		http.Error(w, "invalid username", http.StatusBadRequest)
+		return
+	}
+
 	request := &model.GetUserRequest{
-		Username: mux.Vars(r)["username"],
+		Username: username,
 	}
 
 	response, err := c.UseCase.Get(r.Context(), request)
@@ -151,7 +158,13 @@ func (c *UserController) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *UserController) Update(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
+
+	username := mux.Vars(r)["username"]
+
+	if username != "" {
+		http.Error(w, "invalid username", http.StatusBadRequest)
+		return
+	}
 
 	request := new(model.UpdateUserRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -160,7 +173,8 @@ func (c *UserController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request.Username = auth.Username
+	request.Username = username
+
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Warnf("Failed to update user")
@@ -171,10 +185,18 @@ func (c *UserController) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *UserController) Delete(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
+	username := mux.Vars(r)["username"]
 
-	request := &model.DeleteUserRequest{
-		Username: auth.Username,
+	if username != "" {
+		http.Error(w, "invalid username", http.StatusBadRequest)
+		return
+	}
+
+	request := new(model.DeleteUserRequest)
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		c.Log.Warnf("Failed to parse request body: %+v", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
 	}
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {

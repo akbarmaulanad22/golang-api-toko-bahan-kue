@@ -14,7 +14,13 @@ type RouteConfig struct {
 	AuthMiddleware mux.MiddlewareFunc
 
 	// all field controller
-	UserController *http.UserController
+
+	/*
+		master data
+		...
+	*/
+	BranchController *http.BranchController
+	UserController   *http.UserController
 }
 
 func (route *RouteConfig) Setup() {
@@ -39,8 +45,16 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
 	authRouter.Use(route.AuthMiddleware)
 
+	// route master data
+	authRouter.HandleFunc("/branchs", route.BranchController.Create).Methods("POST")
+	authRouter.HandleFunc("/branchs", route.BranchController.List).Methods("GET")
+	authRouter.HandleFunc("/branchs/{id}", route.BranchController.Update).Methods("PUT")
+	authRouter.HandleFunc("/branchs/{id}", route.BranchController.Delete).Methods("DELETE")
+	// end route master data
+
 	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")
 	authRouter.HandleFunc("/users", route.UserController.List).Methods("GET")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Update).Methods("PUT")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Delete).Methods("DELETE")
+
 }

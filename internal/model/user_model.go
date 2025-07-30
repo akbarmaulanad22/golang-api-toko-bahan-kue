@@ -48,5 +48,5 @@ type UpdateUserRequest struct {
 }
 
 type DeleteUserRequest struct {
-	Username string `json:"username" validate:"required,max=100"`
+	Username string `json:"-" validate:"required,max=100"`
 }

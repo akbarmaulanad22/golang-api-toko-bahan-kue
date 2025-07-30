@@ -201,20 +201,20 @@ func (c *UserUseCase) Search(ctx context.Context, request *model.SearchUserReque
 		return nil, 0, errors.New("bad request")
 	}
 
-	contacts, total, err := c.UserRepository.Search(tx, request)
+	users, total, err := c.UserRepository.Search(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting contacts")
+		c.Log.WithError(err).Error("error getting users")
 		return nil, 0, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting contacts")
+		c.Log.WithError(err).Error("error getting users")
 		return nil, 0, errors.New("internal server error")
 	}
 
-	responses := make([]model.UserResponse, len(contacts))
-	for i, contact := range contacts {
-		responses[i] = *converter.UserToResponse(&contact)
+	responses := make([]model.UserResponse, len(users))
+	for i, user := range users {
+		responses[i] = *converter.UserToResponse(&user)
 	}
 
 	return responses, total, nil
@@ -229,18 +229,18 @@ func (c *UserUseCase) Get(ctx context.Context, request *model.GetUserRequest) (*
 		return nil, errors.New("bad request")
 	}
 
-	contact := new(entity.User)
-	if err := c.UserRepository.FindByUsername(tx, contact, request.Username); err != nil {
-		c.Log.WithError(err).Error("error getting contact")
+	user := new(entity.User)
+	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
+		c.Log.WithError(err).Error("error getting user")
 		return nil, errors.New("not found")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting contact")
+		c.Log.WithError(err).Error("error getting user")
 		return nil, errors.New("internal server error")
 	}
 
-	return converter.UserToResponse(contact), nil
+	return converter.UserToResponse(user), nil
 }
 
 func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserRequest) (*model.UserResponse, error) {
