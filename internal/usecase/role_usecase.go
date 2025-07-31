@@ -39,6 +39,17 @@ func (c *RoleUseCase) Create(ctx context.Context, request *model.CreateRoleReque
 		return nil, errors.New("bad request")
 	}
 
+	total, err := c.RoleRepository.CountByName(tx, request.Name)
+	if err != nil {
+		c.Log.Warnf("Failed count role from database : %+v", err)
+		return nil, errors.New("internal server error")
+	}
+
+	if total > 0 {
+		c.Log.Warn("Role already exists")
+		return nil, errors.New("conflict")
+	}
+
 	role := &entity.Role{
 		Name: request.Name,
 	}
@@ -60,15 +71,30 @@ func (c *RoleUseCase) Update(ctx context.Context, request *model.UpdateRoleReque
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
+
 	role := new(entity.Role)
 	if err := c.RoleRepository.FindById(tx, role, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting role")
 		return nil, errors.New("not found")
 	}
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+	if role.Name == request.Name {
+		return converter.RoleToResponse(role), nil
+	}
+
+	total, err := c.RoleRepository.CountByName(tx, request.Name)
+	if err != nil {
+		c.Log.Warnf("Failed count role from database : %+v", err)
+		return nil, errors.New("internal server error")
+	}
+
+	if total > 0 {
+		c.Log.Warn("Role already exists")
+		return nil, errors.New("conflict")
 	}
 
 	role.Name = request.Name
