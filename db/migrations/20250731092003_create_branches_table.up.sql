@@ -5,5 +5,6 @@ create table branches
     address    varchar(100) not null,
     created_at bigint       not null,
     updated_at bigint       not null,
-    primary key ( id )
+    primary key ( id ),
+    constraint UC_BRANCHES UNIQUE ( name, address )
 ) engine = InnoDB;

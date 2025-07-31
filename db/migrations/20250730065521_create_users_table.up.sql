@@ -7,5 +7,6 @@ create table users
     token      varchar(100) null,
     created_at bigint       not null,
     updated_at bigint       not null,
-    primary key ( username )
+    primary key ( username ),
+    unique ( username )
 ) engine = InnoDB;

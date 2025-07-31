@@ -4,5 +4,6 @@ create table roles
     name       varchar(100) not null,
     created_at bigint       not null,
     updated_at bigint       not null,
-    primary key ( id )
+    primary key ( id ),
+    unique ( name )
 ) engine = InnoDB;
