@@ -9,14 +9,13 @@ type BranchResponse struct {
 }
 
 type CreateBranchRequest struct {
-	ID      uint   `json:"id" validate:"required,max=100"`
 	Name    string `json:"name" validate:"required,max=100"`
 	Address string `json:"address" validate:"required,max=100"`
 }
 
 type SearchBranchRequest struct {
-	Name    string `json:"name" validate:"required,max=100"`
-	Address string `json:"address" validate:"required,max=100"`
+	Name    string `json:"name" validate:"max=100"`
+	Address string `json:"address" validate:"max=100"`
 	Page    int    `json:"page" validate:"min=1"`
 	Size    int    `json:"size" validate:"min=1,max=100"`
 }

@@ -66,5 +66,6 @@ func (l *logrusWriter) Printf(message string, args ...interface{}) {
 	l.Logger.Tracef(message, args...)
 }
 
-// migrate -database "mysql://root@tcp(localhost:3306)/tokobahankue" -path db/migrations up
-// migrate -database "mysql://root@tcp(localhost:3306)/tokobahankue" -path db/migrations down
+// migrate create -ext sql -dir db/migrations create_users_table
+// migrate -database "mysql://root@tcp(localhost:3306)/db_api_tokobahankue" -path db/migrations up
+// migrate -database "mysql://root@tcp(localhost:3306)/db_api_tokobahankue" -path db/migrations down

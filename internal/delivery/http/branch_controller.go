@@ -46,15 +46,25 @@ func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) {
 func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	pageInt, err := strconv.Atoi(params["page"])
+	pageStr, ok := params["page"]
+	if !ok || pageStr == "" {
+		pageStr = "1"
+	}
+
+	pageInt, err := strconv.Atoi(pageStr)
 	if err != nil {
-		http.Error(w, "invalid page", http.StatusBadRequest)
+		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
 		return
 	}
 
-	sizeInt, err := strconv.Atoi(params["size"])
+	sizeStr, ok := params["size"]
+	if !ok || sizeStr == "" {
+		sizeStr = "10"
+	}
+
+	sizeInt, err := strconv.Atoi(sizeStr)
 	if err != nil {
-		http.Error(w, "invalid size", http.StatusBadRequest)
+		http.Error(w, "invalid size parameter", http.StatusBadRequest)
 		return
 	}
 
@@ -69,6 +79,7 @@ func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.Log.WithError(err).Error("error searching branch")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
 	}
 
 	paging := &model.PageMetadata{
@@ -99,6 +110,7 @@ func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.Log.WithError(err).Error("error getting branch")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
 	}
 
 	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchResponse]{Data: response})
@@ -125,6 +137,7 @@ func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.Log.WithError(err).Warnf("Failed to update branch")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
 	}
 
 	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchResponse]{Data: response})
@@ -145,6 +158,7 @@ func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting branch")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
 	}
 
 	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})

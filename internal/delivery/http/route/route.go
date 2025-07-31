@@ -30,8 +30,11 @@ func (route *RouteConfig) Setup() {
 
 func (route *RouteConfig) SetupGuestRoute() {
 	// routes that do not require authentication
-	route.Router.HandleFunc("/register", route.UserController.Register).Methods("POST")
-	route.Router.HandleFunc("/login", route.UserController.Login).Methods("POST")
+
+	// auth
+	route.Router.HandleFunc("/gate/auth/login", route.UserController.Login).Methods("POST")
+	route.Router.HandleFunc("/gate/auth/register", route.UserController.Register).Methods("POST")
+	// end auth
 }
 
 func (route *RouteConfig) SetupAuthRoute() {
@@ -45,16 +48,18 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
 	authRouter.Use(route.AuthMiddleware)
 
-	// route master data
-	authRouter.HandleFunc("/branchs", route.BranchController.Create).Methods("POST")
-	authRouter.HandleFunc("/branchs", route.BranchController.List).Methods("GET")
-	authRouter.HandleFunc("/branchs/{id}", route.BranchController.Update).Methods("PUT")
-	authRouter.HandleFunc("/branchs/{id}", route.BranchController.Delete).Methods("DELETE")
-	// end route master data
+	// master data
+	authRouter.HandleFunc("/branches", route.BranchController.Create).Methods("POST")
+	authRouter.HandleFunc("/branches", route.BranchController.List).Methods("GET")
+	authRouter.HandleFunc("/branches/{id}", route.BranchController.Update).Methods("PUT")
+	authRouter.HandleFunc("/branches/{id}", route.BranchController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/branches/{id}", route.BranchController.Get).Methods("GET")
+	// end master data
 
 	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")
 	authRouter.HandleFunc("/users", route.UserController.List).Methods("GET")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Update).Methods("PUT")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/users/{username}", route.UserController.Get).Methods("GET")
 
 }

@@ -49,7 +49,9 @@ func (r *UserRepository) Search(db *gorm.DB, request *model.SearchUserRequest) (
 
 func (r *UserRepository) FilterUser(request *model.SearchUserRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		tx = tx.Where("username = ?", request.Username)
+		if username := request.Name; username != "" {
+			tx = tx.Where("username = ?", request.Username)
+		}
 
 		if name := request.Name; name != "" {
 			name = "%" + name + "%"

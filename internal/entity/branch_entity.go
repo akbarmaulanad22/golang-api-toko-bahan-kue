@@ -1,7 +1,7 @@
 package entity
 
 type Branch struct {
-	ID        string `gorm:"column:id;primaryKey"`
+	ID        uint   `gorm:"column:id;primaryKey"`
 	Name      string `gorm:"column:name"`
 	Address   string `gorm:"column:address"`
 	CreatedAt int64  `gorm:"column:created_at;autoCreateTime:milli"`

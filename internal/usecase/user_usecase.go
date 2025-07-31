@@ -67,7 +67,7 @@ func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by id : %+v", err)
+		c.Log.Warnf("Failed find user by username : %+v", err)
 		return nil, errors.New("not found")
 	}
 
@@ -90,7 +90,7 @@ func (c *UserUseCase) Login(ctx context.Context, request *model.LoginUserRequest
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by id : %+v", err)
+		c.Log.Warnf("Failed find user by username : %+v", err)
 		return nil, errors.New("unauthorized")
 	}
 
@@ -124,7 +124,7 @@ func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserReque
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by id : %+v", err)
+		c.Log.Warnf("Failed find user by username : %+v", err)
 		return false, errors.New("not found")
 	}
 
@@ -146,6 +146,8 @@ func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserReque
 // general CRUD
 
 func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserRequest) (*model.UserResponse, error) {
+	c.Log.Debugf("req : %+v", request)
+
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -252,9 +254,11 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 		return nil, errors.New("bad request")
 	}
 
+	c.Log.Debug(request.Username)
+
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by id : %+v", err)
+		c.Log.Warnf("Failed find user by username : %+v", err)
 		return nil, errors.New("not found")
 	}
 
