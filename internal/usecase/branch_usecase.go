@@ -61,15 +61,15 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
+
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting branch")
 		return nil, errors.New("not found")
-	}
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
 	}
 
 	branch.Name = request.Name

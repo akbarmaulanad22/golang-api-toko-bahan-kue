@@ -36,6 +36,7 @@ func Bootstrap(config *BootstrapConfig) {
 	branchRepository := repository.NewBranchRepository(config.Log)
 	roleRepository := repository.NewRoleRepository(config.Log)
 	categoryRepository := repository.NewCategoryRepository(config.Log)
+	distributorRepository := repository.NewDistributorRepository(config.Log)
 
 	// data repo
 	userRepository := repository.NewUserRepository(config.Log)
@@ -48,6 +49,7 @@ func Bootstrap(config *BootstrapConfig) {
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
 	roleUseCase := usecase.NewRoleUseCase(config.DB, config.Log, config.Validate, roleRepository)
 	categoryUseCase := usecase.NewCategoryUseCase(config.DB, config.Log, config.Validate, categoryRepository)
+	distributorUseCase := usecase.NewDistributorUseCase(config.DB, config.Log, config.Validate, distributorRepository)
 
 	// data usecase
 	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository)
@@ -58,6 +60,7 @@ func Bootstrap(config *BootstrapConfig) {
 	branchController := http.NewBranchController(branchUseCase, config.Log)
 	roleController := http.NewRoleController(roleUseCase, config.Log)
 	categoryController := http.NewCategoryController(categoryUseCase, config.Log)
+	distributorController := http.NewDistributorController(distributorUseCase, config.Log)
 
 	// master controller
 	userController := http.NewUserController(userUseCase, config.Log)
@@ -70,9 +73,10 @@ func Bootstrap(config *BootstrapConfig) {
 		AuthMiddleware: authMiddleware,
 
 		// master data controller
-		BranchController:   branchController,
-		RoleController:     roleController,
-		CategoryController: categoryController,
+		BranchController:      branchController,
+		RoleController:        roleController,
+		CategoryController:    categoryController,
+		DistributorController: distributorController,
 
 		//
 		UserController: userController,
