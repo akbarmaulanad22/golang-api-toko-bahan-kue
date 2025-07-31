@@ -19,6 +19,18 @@ func NewBranchRepository(log *logrus.Logger) *BranchRepository {
 	}
 }
 
+func (r *BranchRepository) CountByName(db *gorm.DB, name any) (int64, error) {
+	var total int64
+	err := db.Model(&entity.Branch{}).Where("name = ?", name).Count(&total).Error
+	return total, err
+}
+
+func (r *BranchRepository) CountByAddress(db *gorm.DB, address any) (int64, error) {
+	var total int64
+	err := db.Model(&entity.Branch{}).Where("address = ?", address).Count(&total).Error
+	return total, err
+}
+
 func (r *BranchRepository) Search(db *gorm.DB, request *model.SearchBranchRequest) ([]entity.Branch, int64, error) {
 	var users []entity.Branch
 	if err := db.Scopes(r.FilterBranch(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
