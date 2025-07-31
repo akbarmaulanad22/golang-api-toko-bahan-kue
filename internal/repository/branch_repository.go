@@ -35,7 +35,7 @@ func (r *BranchRepository) Search(db *gorm.DB, request *model.SearchBranchReques
 
 func (r *BranchRepository) FilterBranch(request *model.SearchBranchRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		if name := request.Address; name != "" {
+		if name := request.Name; name != "" {
 			name = "%" + name + "%"
 			tx = tx.Where("name LIKE ?", name)
 		}
