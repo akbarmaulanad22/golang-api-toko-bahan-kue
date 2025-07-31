@@ -39,6 +39,17 @@ func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDi
 		return nil, errors.New("bad request")
 	}
 
+	total, err := c.DistributorRepository.CountByNameAndAddress(tx, request.Name, request.Address)
+	if err != nil {
+		c.Log.Warnf("Failed count distributor from database : %+v", err)
+		return nil, errors.New("internal server error")
+	}
+
+	if total > 0 {
+		c.Log.Warn("Distributor already exists", total)
+		return nil, errors.New("conflict")
+	}
+
 	distributor := &entity.Distributor{
 		Name:    request.Name,
 		Address: request.Address,
@@ -71,6 +82,32 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 		c.Log.WithError(err).Error("error getting distributor")
 		return nil, errors.New("not found")
 	}
+
+	if distributor.Name == request.Name && distributor.Address == request.Address {
+		return converter.DistributorToResponse(distributor), nil
+	}
+
+	total, err := c.DistributorRepository.CountByNameAndAddress(tx, request.Name, request.Address)
+	if err != nil {
+		c.Log.Warnf("Failed count distributor from database : %+v", err)
+		return nil, errors.New("internal server error")
+	}
+
+	if total > 0 {
+		c.Log.Warn("Distributor already exists")
+		return nil, errors.New("conflict")
+	}
+
+	// totalAddress, err := c.DistributorRepository.CountByAddress(tx, request.Address)
+	// if err != nil {
+	// 	c.Log.Warnf("Failed count distributor from database : %+v", err)
+	// 	return nil, errors.New("internal server error")
+	// }
+
+	// if totalAddress > 0 {
+	// 	c.Log.Warn("Distributor already exists")
+	// 	return nil, errors.New("conflict")
+	// }
 
 	distributor.Name = request.Name
 	distributor.Address = request.Address
