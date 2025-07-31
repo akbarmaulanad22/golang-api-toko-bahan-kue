@@ -39,24 +39,13 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 		return nil, errors.New("bad request")
 	}
 
-	totalName, err := c.BranchRepository.CountByName(tx, request.Name)
+	total, err := c.BranchRepository.CountByNameAndAddress(tx, request.Name, request.Address)
 	if err != nil {
 		c.Log.Warnf("Failed count branch from database : %+v", err)
 		return nil, errors.New("internal server error")
 	}
 
-	if totalName > 0 {
-		c.Log.Warn("Branch already exists")
-		return nil, errors.New("conflict")
-	}
-
-	totalAddress, err := c.BranchRepository.CountByAddress(tx, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count branch from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if totalAddress > 0 {
+	if total > 0 {
 		c.Log.Warn("Branch already exists")
 		return nil, errors.New("conflict")
 	}
@@ -98,24 +87,13 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 		return converter.BranchToResponse(branch), nil
 	}
 
-	totalName, err := c.BranchRepository.CountByName(tx, request.Name)
+	totalName, err := c.BranchRepository.CountByNameAndAddress(tx, request.Name, request.Address)
 	if err != nil {
 		c.Log.Warnf("Failed count branch from database : %+v", err)
 		return nil, errors.New("internal server error")
 	}
 
 	if totalName > 0 {
-		c.Log.Warn("Branch already exists")
-		return nil, errors.New("conflict")
-	}
-
-	totalAddress, err := c.BranchRepository.CountByAddress(tx, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count branch from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if totalAddress > 0 {
 		c.Log.Warn("Branch already exists")
 		return nil, errors.New("conflict")
 	}

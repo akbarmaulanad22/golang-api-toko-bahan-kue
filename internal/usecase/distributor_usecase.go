@@ -98,17 +98,6 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 		return nil, errors.New("conflict")
 	}
 
-	// totalAddress, err := c.DistributorRepository.CountByAddress(tx, request.Address)
-	// if err != nil {
-	// 	c.Log.Warnf("Failed count distributor from database : %+v", err)
-	// 	return nil, errors.New("internal server error")
-	// }
-
-	// if totalAddress > 0 {
-	// 	c.Log.Warn("Distributor already exists")
-	// 	return nil, errors.New("conflict")
-	// }
-
 	distributor.Name = request.Name
 	distributor.Address = request.Address
 
