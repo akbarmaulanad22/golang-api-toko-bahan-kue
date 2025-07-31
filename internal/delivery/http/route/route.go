@@ -19,8 +19,9 @@ type RouteConfig struct {
 		master data
 		...
 	*/
-	BranchController *http.BranchController
-	RoleController   *http.RoleController
+	BranchController   *http.BranchController
+	RoleController     *http.RoleController
+	CategoryController *http.CategoryController
 
 	UserController *http.UserController
 }
@@ -62,6 +63,12 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/roles/{id}", route.RoleController.Update).Methods("PUT")
 	authRouter.HandleFunc("/roles/{id}", route.RoleController.Delete).Methods("DELETE")
 	authRouter.HandleFunc("/roles/{id}", route.RoleController.Get).Methods("GET")
+
+	authRouter.HandleFunc("/categories", route.CategoryController.Create).Methods("POST")
+	authRouter.HandleFunc("/categories", route.CategoryController.List).Methods("GET")
+	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Update).Methods("PUT")
+	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Get).Methods("GET")
 	// end master data
 
 	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")

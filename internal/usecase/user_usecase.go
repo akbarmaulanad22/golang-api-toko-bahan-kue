@@ -164,7 +164,7 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 	}
 
 	if total > 0 {
-		c.Log.Warnf("User already exists : %+v", err)
+		c.Log.Warn("User already exists")
 		return nil, errors.New("conflict")
 	}
 

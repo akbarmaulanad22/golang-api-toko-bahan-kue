@@ -31,5 +31,5 @@ type UpdateBranchRequest struct {
 }
 
 type DeleteBranchRequest struct {
-	ID uint `json:"id" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required,max=100"`
 }
