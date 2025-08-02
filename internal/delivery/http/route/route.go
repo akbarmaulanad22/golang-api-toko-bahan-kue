@@ -15,16 +15,15 @@ type RouteConfig struct {
 
 	// all field controller
 
-	/*
-		master data
-		...
-	*/
+	// master data
 	BranchController      *http.BranchController
 	RoleController        *http.RoleController
 	CategoryController    *http.CategoryController
 	DistributorController *http.DistributorController
+	// end master data
 
-	UserController *http.UserController
+	ProductController *http.ProductController
+	UserController    *http.UserController
 }
 
 func (route *RouteConfig) Setup() {
@@ -50,7 +49,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/logout", route.UserController.Logout).Methods("POST")
 
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
-	authRouter.Use(route.AuthMiddleware)
+	// authRouter.Use(route.AuthMiddleware)
 
 	// master data
 	authRouter.HandleFunc("/branches", route.BranchController.Create).Methods("POST")
@@ -77,6 +76,12 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Delete).Methods("DELETE")
 	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Get).Methods("GET")
 	// end master data
+
+	authRouter.HandleFunc("/products", route.ProductController.Create).Methods("POST")
+	authRouter.HandleFunc("/products", route.ProductController.List).Methods("GET")
+	authRouter.HandleFunc("/products/{sku}", route.ProductController.Update).Methods("PUT")
+	authRouter.HandleFunc("/products/{sku}", route.ProductController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/products/{sku}", route.ProductController.Get).Methods("GET")
 
 	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")
 	authRouter.HandleFunc("/users", route.UserController.List).Methods("GET")

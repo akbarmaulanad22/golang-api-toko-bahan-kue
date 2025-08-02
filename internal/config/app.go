@@ -30,20 +30,15 @@ type BootstrapConfig struct {
 
 func Bootstrap(config *BootstrapConfig) {
 
-	// setup repositories
-
 	// master data repository
 	branchRepository := repository.NewBranchRepository(config.Log)
 	roleRepository := repository.NewRoleRepository(config.Log)
 	categoryRepository := repository.NewCategoryRepository(config.Log)
 	distributorRepository := repository.NewDistributorRepository(config.Log)
 
-	// data repo
+	// data repository
+	productRepository := repository.NewProductRepository(config.Log)
 	userRepository := repository.NewUserRepository(config.Log)
-
-	// end setup repository
-
-	// setup use cases
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -52,9 +47,8 @@ func Bootstrap(config *BootstrapConfig) {
 	distributorUseCase := usecase.NewDistributorUseCase(config.DB, config.Log, config.Validate, distributorRepository)
 
 	// data usecase
+	productUseCase := usecase.NewProductUseCase(config.DB, config.Log, config.Validate, productRepository)
 	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository)
-
-	// setup controller
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -62,8 +56,9 @@ func Bootstrap(config *BootstrapConfig) {
 	categoryController := http.NewCategoryController(categoryUseCase, config.Log)
 	distributorController := http.NewDistributorController(distributorUseCase, config.Log)
 
-	// master controller
+	// data controller
 	userController := http.NewUserController(userUseCase, config.Log)
+	productController := http.NewProductController(productUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -78,8 +73,9 @@ func Bootstrap(config *BootstrapConfig) {
 		CategoryController:    categoryController,
 		DistributorController: distributorController,
 
-		//
-		UserController: userController,
+		// data controller
+		ProductController: productController,
+		UserController:    userController,
 	}
 	routeConfig.Setup()
 
