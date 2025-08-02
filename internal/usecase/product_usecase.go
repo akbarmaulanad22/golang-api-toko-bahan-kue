@@ -103,7 +103,19 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 	product.Name = request.Name
 
 	if err := c.ProductRepository.Update(tx, product); err != nil {
-		c.Log.WithError(err).Error("error updating product")
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'products.name'"): // name
+				c.Log.Warn("Product name already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
+		c.Log.WithError(err).Error("error creating product")
 		return nil, errors.New("internal server error")
 	}
 
