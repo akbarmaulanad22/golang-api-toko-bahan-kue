@@ -19,12 +19,6 @@ func NewBranchRepository(log *logrus.Logger) *BranchRepository {
 	}
 }
 
-func (r *BranchRepository) CountByNameAndAddress(db *gorm.DB, name any, address any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Branch{}).Where("name = ? AND address = ?", name, address).Count(&total).Error
-	return total, err
-}
-
 func (r *BranchRepository) Search(db *gorm.DB, request *model.SearchBranchRequest) ([]entity.Branch, int64, error) {
 	var users []entity.Branch
 	if err := db.Scopes(r.FilterBranch(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {

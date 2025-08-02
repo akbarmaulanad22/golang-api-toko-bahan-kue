@@ -19,12 +19,6 @@ func NewDistributorRepository(log *logrus.Logger) *DistributorRepository {
 	}
 }
 
-func (r *DistributorRepository) CountByNameAndAddress(db *gorm.DB, name any, address any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Distributor{}).Where("name = ? AND address = ?", name, address).Count(&total).Error
-	return total, err
-}
-
 func (r *DistributorRepository) Search(db *gorm.DB, request *model.SearchDistributorRequest) ([]entity.Distributor, int64, error) {
 	var users []entity.Distributor
 	if err := db.Scopes(r.FilterDistributor(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
