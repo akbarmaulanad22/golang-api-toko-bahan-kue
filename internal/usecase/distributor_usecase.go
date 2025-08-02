@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -39,23 +41,27 @@ func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDi
 		return nil, errors.New("bad request")
 	}
 
-	total, err := c.DistributorRepository.CountByNameAndAddress(tx, request.Name, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count distributor from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Distributor already exists", total)
-		return nil, errors.New("conflict")
-	}
-
 	distributor := &entity.Distributor{
 		Name:    request.Name,
 		Address: request.Address,
 	}
 
 	if err := c.DistributorRepository.Create(tx, distributor); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'distributors.name'"): // name
+				c.Log.Warn("distributor name already exists")
+				return nil, errors.New("conflict")
+			case strings.Contains(mysqlErr.Message, "for key 'distributors.address'"): // address
+				c.Log.Warn("distributor address already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating distributor")
 		return nil, errors.New("internal server error")
 	}
@@ -87,21 +93,25 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 		return converter.DistributorToResponse(distributor), nil
 	}
 
-	total, err := c.DistributorRepository.CountByNameAndAddress(tx, request.Name, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count distributor from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Distributor already exists")
-		return nil, errors.New("conflict")
-	}
-
 	distributor.Name = request.Name
 	distributor.Address = request.Address
 
 	if err := c.DistributorRepository.Update(tx, distributor); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'distributors.name'"): // name
+				c.Log.Warn("distributor name already exists")
+				return nil, errors.New("conflict")
+			case strings.Contains(mysqlErr.Message, "for key 'distributors.address'"): // address
+				c.Log.Warn("distributor address already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error updating distributor")
 		return nil, errors.New("internal server error")
 	}

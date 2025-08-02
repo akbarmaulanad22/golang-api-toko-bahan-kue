@@ -6,5 +6,6 @@ create table distributors
     created_at bigint       not null,
     updated_at bigint       not null,
     primary key ( id ),
-    constraint UC_DISTRIBUTORS UNIQUE ( name, address )
+    unique ( name ),
+    unique ( address )
 ) engine = InnoDB;
