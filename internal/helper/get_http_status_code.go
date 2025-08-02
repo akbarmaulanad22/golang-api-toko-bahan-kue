@@ -19,7 +19,7 @@ func GetStatusCode(err error) int {
 	}
 
 	// Contoh error validation
-	if strings.Contains(err.Error(), "bad request") {
+	if strings.Contains(err.Error(), "bad request") || strings.Contains(err.Error(), "invalid") {
 		return http.StatusBadRequest
 	}
 

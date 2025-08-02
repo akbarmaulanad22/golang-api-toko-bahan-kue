@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -146,8 +148,6 @@ func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserReque
 // general CRUD
 
 func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserRequest) (*model.UserResponse, error) {
-	c.Log.Debugf("req : %+v", request)
-
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -179,9 +179,25 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 		Password: string(password),
 		Name:     request.Name,
 		Address:  request.Address,
+		RoleID:   request.RoleID,
+		BranchID: request.BranchID,
 	}
 
 	if err := c.UserRepository.Create(tx, user); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`role_id`)") {
+					c.Log.Warn("role doesnt exists")
+					return nil, errors.New("invalid role id")
+				}
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
 		c.Log.Warnf("Failed create user to database : %+v", err)
 		return nil, errors.New("internal server error")
 	}
@@ -262,24 +278,35 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 		return nil, errors.New("not found")
 	}
 
-	if request.Name != "" {
-		user.Name = request.Name
-	}
+	user.Name = request.Name
+	user.Address = request.Address
+	user.RoleID = request.RoleID
+	user.BranchID = request.BranchID
 
-	if request.Address != "" {
-		user.Address = request.Address
+	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.Log.Warnf("Failed to generate bcrype hash : %+v", err)
+		return nil, errors.New("internal server error")
 	}
-
-	if request.Password != "" {
-		password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
-		if err != nil {
-			c.Log.Warnf("Failed to generate bcrype hash : %+v", err)
-			return nil, errors.New("internal server error")
-		}
-		user.Password = string(password)
-	}
+	user.Password = string(password)
 
 	if err := c.UserRepository.Update(tx, user); err != nil {
+
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`role_id`)") {
+					c.Log.Warn("role doesnt exists")
+					return nil, errors.New("invalid role id")
+				}
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
+
 		c.Log.Warnf("Failed save user : %+v", err)
 		return nil, errors.New("internal server error")
 	}

@@ -97,10 +97,10 @@ func (c *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *UserController) List(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+	params := r.URL.Query()
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	pageStr := params.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
 
@@ -110,8 +110,8 @@ func (c *UserController) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
 
@@ -121,9 +121,33 @@ func (c *UserController) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	roleIDStr := params.Get("role_id")
+	if roleIDStr == "" {
+		roleIDStr = "0"
+	}
+
+	roleIDInt, err := strconv.Atoi(roleIDStr)
+	if err != nil {
+		http.Error(w, "invalid role ID parameter", http.StatusBadRequest)
+		return
+	}
+
+	branchIDStr := params.Get("branch_id")
+	if branchIDStr == "" {
+		branchIDStr = "0"
+	}
+
+	branchIDInt, err := strconv.Atoi(branchIDStr)
+	if err != nil {
+		http.Error(w, "invalid branch ID parameter", http.StatusBadRequest)
+		return
+	}
+
 	request := &model.SearchUserRequest{
-		Username: params["username"],
-		Name:     params["name"],
+		Username: params.Get("username"),
+		Name:     params.Get("name"),
+		RoleID:   uint(roleIDInt),
+		BranchID: uint(branchIDInt),
 		Page:     pageInt,
 		Size:     sizeInt,
 	}

@@ -12,6 +12,8 @@ func UserToResponse(user *entity.User) *model.UserResponse {
 		Address:   user.Address,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
+		Role:      *RoleToResponse(&user.Role),
+		Branch:    *BranchToResponse(&user.Branch),
 	}
 }
 

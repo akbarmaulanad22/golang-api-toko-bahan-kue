@@ -7,6 +7,12 @@ create table users
     token      varchar(100) null,
     created_at bigint       not null,
     updated_at bigint       not null,
+
+    role_id    int(11)      not null,
+    branch_id  int(11)      not null,
+    
     primary key ( username ),
-    unique ( username )
+    unique ( username ),
+    foreign key ( role_id ) references roles ( id ),
+    foreign key ( branch_id ) references branches ( id )
 ) engine = InnoDB;
