@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -39,23 +41,27 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 		return nil, errors.New("bad request")
 	}
 
-	total, err := c.BranchRepository.CountByNameAndAddress(tx, request.Name, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count branch from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Branch already exists")
-		return nil, errors.New("conflict")
-	}
-
 	branch := &entity.Branch{
 		Name:    request.Name,
 		Address: request.Address,
 	}
 
 	if err := c.BranchRepository.Create(tx, branch); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'branches.name'"): // name
+				c.Log.Warn("Branch name already exists")
+				return nil, errors.New("conflict")
+			case strings.Contains(mysqlErr.Message, "for key 'branches.address'"): // address
+				c.Log.Warn("Branch address already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating branch")
 		return nil, errors.New("internal server error")
 	}
@@ -87,21 +93,25 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 		return converter.BranchToResponse(branch), nil
 	}
 
-	totalName, err := c.BranchRepository.CountByNameAndAddress(tx, request.Name, request.Address)
-	if err != nil {
-		c.Log.Warnf("Failed count branch from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if totalName > 0 {
-		c.Log.Warn("Branch already exists")
-		return nil, errors.New("conflict")
-	}
-
 	branch.Name = request.Name
 	branch.Address = request.Address
 
 	if err := c.BranchRepository.Update(tx, branch); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'branches.name'"): // name
+				c.Log.Warn("Branch name already exists")
+				return nil, errors.New("conflict")
+			case strings.Contains(mysqlErr.Message, "for key 'branches.address'"): // address
+				c.Log.Warn("Branch address already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error updating branch")
 		return nil, errors.New("internal server error")
 	}
