@@ -24,6 +24,7 @@ type RouteConfig struct {
 
 	ProductController *http.ProductController
 	UserController    *http.UserController
+	SizeController    *http.SizeController
 }
 
 func (route *RouteConfig) Setup() {
@@ -88,5 +89,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/users/{username}", route.UserController.Update).Methods("PUT")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Delete).Methods("DELETE")
 	authRouter.HandleFunc("/users/{username}", route.UserController.Get).Methods("GET")
+
+	authRouter.HandleFunc("/products/{productSKU}/sizes", route.SizeController.Create).Methods("POST")
+	authRouter.HandleFunc("/products/{productSKU}/sizes", route.SizeController.List).Methods("GET")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Update).Methods("PUT")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Get).Methods("GET")
 
 }
