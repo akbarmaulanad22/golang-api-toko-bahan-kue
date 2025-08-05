@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -27,12 +28,17 @@ func NewSaleController(useCase *usecase.SaleUseCase, logger *logrus.Logger) *Sal
 
 func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 
+	auth := middleware.GetUser(r)
+
 	var request model.CreateSaleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+
+	request.BranchID = auth.BranchID
+
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
 		c.Log.Warnf("Failed to create sale: %+v", err)

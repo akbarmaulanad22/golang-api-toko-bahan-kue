@@ -13,6 +13,6 @@ create table users
     
     primary key ( username ),
     unique ( username ),
-    foreign key ( role_id ) references roles ( id ),
-    foreign key ( branch_id ) references branches ( id )
+    foreign key ( role_id ) references roles ( id ) ON DELETE CASCADE ON UPDATE CASCADE,
+    foreign key ( branch_id ) references branches ( id ) ON DELETE CASCADE ON UPDATE CASCADE
 ) engine = InnoDB;

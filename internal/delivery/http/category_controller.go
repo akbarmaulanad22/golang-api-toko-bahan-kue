@@ -95,8 +95,14 @@ func (c *CategoryController) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *CategoryController) Get(w http.ResponseWriter, r *http.Request) {
+	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
 	request := &model.GetCategoryRequest{
-		Slug: mux.Vars(r)["slug"],
+		ID: uint(idInt),
 	}
 
 	response, err := c.UseCase.Get(r.Context(), request)
@@ -111,6 +117,12 @@ func (c *CategoryController) Get(w http.ResponseWriter, r *http.Request) {
 
 func (c *CategoryController) Update(w http.ResponseWriter, r *http.Request) {
 
+	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
 	request := new(model.UpdateCategoryRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
@@ -118,7 +130,7 @@ func (c *CategoryController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request.Slug = mux.Vars(r)["slug"]
+	request.ID = uint(idInt)
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
@@ -132,8 +144,14 @@ func (c *CategoryController) Update(w http.ResponseWriter, r *http.Request) {
 
 func (c *CategoryController) Delete(w http.ResponseWriter, r *http.Request) {
 
+	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
 	request := &model.DeleteCategoryRequest{
-		Slug: mux.Vars(r)["slug"],
+		ID: uint(idInt),
 	}
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {

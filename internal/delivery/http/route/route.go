@@ -51,7 +51,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/logout", route.UserController.Logout).Methods("POST")
 
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
-	// authRouter.Use(route.AuthMiddleware)
+	authRouter.Use(route.AuthMiddleware)
 
 	// master data
 	authRouter.HandleFunc("/branches", route.BranchController.Create).Methods("POST")
@@ -68,9 +68,9 @@ func (route *RouteConfig) SetupAuthRoute() {
 
 	authRouter.HandleFunc("/categories", route.CategoryController.Create).Methods("POST")
 	authRouter.HandleFunc("/categories", route.CategoryController.List).Methods("GET")
-	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Update).Methods("PUT")
-	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/categories/{slug}", route.CategoryController.Get).Methods("GET")
+	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Update).Methods("PUT")
+	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Get).Methods("GET")
 
 	authRouter.HandleFunc("/distributors", route.DistributorController.Create).Methods("POST")
 	authRouter.HandleFunc("/distributors", route.DistributorController.List).Methods("GET")

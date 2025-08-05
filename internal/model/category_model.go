@@ -1,7 +1,7 @@
 package model
 
 type CategoryResponse struct {
-	Slug      string `json:"slug,omitempty"`
+	ID        uint   `json:"id,omitempty"`
 	Name      string `json:"name,omitempty"`
 	CreatedAt int64  `json:"created_at,omitempty"`
 	UpdatedAt int64  `json:"updated_at,omitempty"`
@@ -18,14 +18,14 @@ type SearchCategoryRequest struct {
 }
 
 type GetCategoryRequest struct {
-	Slug string `json:"slug" validate:"required,max=100"`
+	ID uint `json:"id" validate:"required,max=100"`
 }
 
 type UpdateCategoryRequest struct {
-	Slug string `json:"-" validate:"required,max=100"`
+	ID   uint   `json:"-" validate:"max=100"`
 	Name string `json:"name,omitempty" validate:"max=100"`
 }
 
 type DeleteCategoryRequest struct {
-	Slug string `json:"-" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required,max=100"`
 }

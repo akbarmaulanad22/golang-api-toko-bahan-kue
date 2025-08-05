@@ -7,7 +7,7 @@ import (
 
 func CategoryToResponse(category *entity.Category) *model.CategoryResponse {
 	return &model.CategoryResponse{
-		Slug:      category.Slug,
+		ID:        category.ID,
 		Name:      category.Name,
 		CreatedAt: category.CreatedAt,
 		UpdatedAt: category.UpdatedAt,

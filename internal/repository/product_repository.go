@@ -32,12 +32,12 @@ func (r *ProductRepository) CountBySKU(db *gorm.DB, sku any) (int64, error) {
 // }
 
 func (r *ProductRepository) FindBySKU(db *gorm.DB, product *entity.Product, sku string) error {
-	return db.Preload("Category").Where("sku = ?", sku).First(product).Error
+	return db.Preload("Category").Preload("Sizes").Where("sku = ?", sku).First(product).Error
 }
 
 func (r *ProductRepository) Search(db *gorm.DB, request *model.SearchProductRequest) ([]entity.Product, int64, error) {
 	var products []entity.Product
-	if err := db.Scopes(r.FilterProduct(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Preload("Category").Find(&products).Error; err != nil {
+	if err := db.Scopes(r.FilterProduct(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Preload("Category").Preload("Sizes").Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -51,6 +51,8 @@ func (r *ProductRepository) Search(db *gorm.DB, request *model.SearchProductRequ
 
 func (r *ProductRepository) FilterProduct(request *model.SearchProductRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
+		// tx.Where("branch_id = ?", request.BranchID)
+
 		if name := request.Name; name != "" {
 			name = "%" + name + "%"
 			tx = tx.Where("name LIKE ?", name)

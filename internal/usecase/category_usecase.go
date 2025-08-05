@@ -9,7 +9,6 @@ import (
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gosimple/slug"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -40,8 +39,7 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 		return nil, errors.New("bad request")
 	}
 
-	newSlug := slug.Make(request.Name)
-	total, err := c.CategoryRepository.CountBySlug(tx, newSlug)
+	total, err := c.CategoryRepository.CountByName(tx, request.Name)
 	if err != nil {
 		c.Log.Warnf("Failed count user from database : %+v", err)
 		return nil, errors.New("internal server error")
@@ -54,7 +52,6 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 
 	category := &entity.Category{
 		Name: request.Name,
-		Slug: newSlug,
 	}
 
 	if err := c.CategoryRepository.Create(tx, category); err != nil {
@@ -80,7 +77,7 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 	}
 
 	category := new(entity.Category)
-	if err := c.CategoryRepository.FindBySlug(tx, category, request.Slug); err != nil {
+	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
 		return nil, errors.New("not found")
 	}
@@ -89,8 +86,7 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 		return converter.CategoryToResponse(category), nil
 	}
 
-	newSlug := slug.Make(request.Name)
-	total, err := c.CategoryRepository.CountBySlug(tx, newSlug)
+	total, err := c.CategoryRepository.CountByName(tx, request.Name)
 	if err != nil {
 		c.Log.Warnf("Failed count user from database : %+v", err)
 		return nil, errors.New("internal server error")
@@ -102,7 +98,6 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 	}
 
 	category.Name = request.Name
-	category.Slug = newSlug
 
 	if err := c.CategoryRepository.Update(tx, category); err != nil {
 		c.Log.WithError(err).Error("error updating category")
@@ -127,7 +122,7 @@ func (c *CategoryUseCase) Get(ctx context.Context, request *model.GetCategoryReq
 	}
 
 	category := new(entity.Category)
-	if err := c.CategoryRepository.FindBySlug(tx, category, request.Slug); err != nil {
+	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
 		return nil, errors.New("not found")
 	}
@@ -150,7 +145,7 @@ func (c *CategoryUseCase) Delete(ctx context.Context, request *model.DeleteCateg
 	}
 
 	category := new(entity.Category)
-	if err := c.CategoryRepository.FindBySlug(tx, category, request.Slug); err != nil {
+	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
 		return errors.New("not found")
 	}

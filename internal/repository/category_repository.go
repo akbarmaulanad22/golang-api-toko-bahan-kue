@@ -19,14 +19,14 @@ func NewCategoryRepository(log *logrus.Logger) *CategoryRepository {
 	}
 }
 
-func (r *CategoryRepository) CountBySlug(db *gorm.DB, slug any) (int64, error) {
+func (r *CategoryRepository) CountByName(db *gorm.DB, name any) (int64, error) {
 	var total int64
-	err := db.Model(&entity.Category{}).Where("slug = ?", slug).Count(&total).Error
+	err := db.Model(&entity.Category{}).Where("name = ?", name).Count(&total).Error
 	return total, err
 }
 
-func (r *CategoryRepository) FindBySlug(db *gorm.DB, user *entity.Category, slug string) error {
-	return db.Where("slug = ?", slug).First(user).Error
+func (r *CategoryRepository) FindByName(db *gorm.DB, user *entity.Category, name string) error {
+	return db.Where("name = ?", name).First(user).Error
 }
 
 func (r *CategoryRepository) Search(db *gorm.DB, request *model.SearchCategoryRequest) ([]entity.Category, int64, error) {

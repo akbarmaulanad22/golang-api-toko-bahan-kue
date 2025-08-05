@@ -50,12 +50,14 @@ func (c *UserUseCase) Verify(ctx context.Context, request *model.VerifyUserReque
 		return nil, errors.New("not found")
 	}
 
+	c.Log.Debugf("BRANCH ID: %d", user.BranchID)
+
 	if err := tx.Commit().Error; err != nil {
 		c.Log.Warnf("Failed commit transaction : %+v", err)
 		return nil, errors.New("internal server error")
 	}
 
-	return &model.Auth{Username: user.Username}, nil
+	return &model.Auth{Username: user.Username, BranchID: user.BranchID}, nil
 }
 
 func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest) (*model.UserResponse, error) {

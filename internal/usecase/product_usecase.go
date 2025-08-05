@@ -42,9 +42,9 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 	}
 
 	product := &entity.Product{
-		CategorySlug: request.CategorySlug,
-		SKU:          request.SKU,
-		Name:         request.Name,
+		CategoryID: request.CategoryID,
+		SKU:        request.SKU,
+		Name:       request.Name,
 	}
 
 	if err := c.ProductRepository.Create(tx, product); err != nil {
@@ -95,11 +95,11 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 		return nil, errors.New("not found")
 	}
 
-	if product.Name == request.Name && product.CategorySlug == request.CategorySlug {
+	if product.Name == request.Name && product.CategoryID == request.CategoryID {
 		return converter.ProductToResponse(product), nil
 	}
 
-	product.CategorySlug = request.CategorySlug
+	product.CategoryID = request.CategoryID
 	product.Name = request.Name
 
 	if err := c.ProductRepository.Update(tx, product); err != nil {

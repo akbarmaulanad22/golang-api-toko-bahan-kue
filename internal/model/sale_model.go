@@ -39,7 +39,7 @@ type CreateSaleRequest struct {
 	CashValue    int                       `json:"cash_value" validate:"required"`
 	DebitValue   int                       `json:"debit_value" validate:"required"`
 	PaidAt       int64                     `json:"-"`
-	BranchID     uint                      `json:"branch_id" validate:"required,max=100"`
+	BranchID     uint                      `json:"-" validate:"required"`
 	SaleDetails  []CreateSaleDetailRequest `json:"sale_details" validate:"required"`
 }
 

@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -44,6 +45,8 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := mux.Vars(r)
 
 	pageStr, ok := params["page"]
@@ -69,6 +72,7 @@ func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchProductRequest{
+		BranchID: auth.BranchID,
 		// Name: params["name"],
 		// SKU:  params["sku"],
 		Page: pageInt,
