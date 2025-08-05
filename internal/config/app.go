@@ -40,6 +40,7 @@ func Bootstrap(config *BootstrapConfig) {
 	productRepository := repository.NewProductRepository(config.Log)
 	userRepository := repository.NewUserRepository(config.Log)
 	sizeRepository := repository.NewSizeRepository(config.Log)
+	saleRepository := repository.NewSaleRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -51,6 +52,7 @@ func Bootstrap(config *BootstrapConfig) {
 	productUseCase := usecase.NewProductUseCase(config.DB, config.Log, config.Validate, productRepository)
 	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository)
 	sizeUseCase := usecase.NewSizeUseCase(config.DB, config.Log, config.Validate, sizeRepository)
+	saleUseCase := usecase.NewSaleUseCase(config.DB, config.Log, config.Validate, saleRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -62,6 +64,7 @@ func Bootstrap(config *BootstrapConfig) {
 	productController := http.NewProductController(productUseCase, config.Log)
 	userController := http.NewUserController(userUseCase, config.Log)
 	sizeController := http.NewSizeController(sizeUseCase, config.Log)
+	saleController := http.NewSaleController(saleUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -80,6 +83,7 @@ func Bootstrap(config *BootstrapConfig) {
 		ProductController: productController,
 		UserController:    userController,
 		SizeController:    sizeController,
+		SaleController:    saleController,
 	}
 	routeConfig.Setup()
 

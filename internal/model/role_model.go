@@ -22,7 +22,7 @@ type GetRoleRequest struct {
 }
 
 type UpdateRoleRequest struct {
-	ID   uint   `json:"-" id:"required,max=100"`
+	ID   uint   `json:"-" validate:"required,max=100"`
 	Name string `json:"name,omitempty" validate:"max=100"`
 }
 

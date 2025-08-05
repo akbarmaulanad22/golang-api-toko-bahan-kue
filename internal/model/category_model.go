@@ -22,7 +22,7 @@ type GetCategoryRequest struct {
 }
 
 type UpdateCategoryRequest struct {
-	Slug string `json:"-" slug:"required,max=100"`
+	Slug string `json:"-" validate:"required,max=100"`
 	Name string `json:"name,omitempty" validate:"max=100"`
 }
 

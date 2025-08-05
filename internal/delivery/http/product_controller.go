@@ -69,8 +69,8 @@ func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchProductRequest{
-		Name: params["name"],
-		SKU:  params["sku"],
+		// Name: params["name"],
+		// SKU:  params["sku"],
 		Page: pageInt,
 		Size: sizeInt,
 	}

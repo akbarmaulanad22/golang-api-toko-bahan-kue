@@ -25,7 +25,7 @@ type GetBranchRequest struct {
 }
 
 type UpdateBranchRequest struct {
-	ID      uint   `json:"-" id:"required,max=100"`
+	ID      uint   `json:"-" validate:"required,max=100"`
 	Name    string `json:"name,omitempty" validate:"max=100"`
 	Address string `json:"address,omitempty" validate:"max=100"`
 }

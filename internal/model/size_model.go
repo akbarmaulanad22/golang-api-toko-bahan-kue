@@ -25,7 +25,7 @@ type SearchSizeRequest struct {
 }
 
 type GetSizeRequest struct {
-	ID         uint   `json:"-" id:"required,max=100"`
+	ID         uint   `json:"-" validate:"required,max=100"`
 	ProductSKU string `json:"-" validate:"required,max=100"`
 }
 

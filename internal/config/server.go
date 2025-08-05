@@ -15,9 +15,9 @@ func NewServer(viper *viper.Viper, router *mux.Router) *http.Server {
 
 	// Konfigurasi CORS
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, // Ganti dengan origin Flutter Anda
+		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		AllowedHeaders: []string{"Content-Type", "Authorization", "ngrok-skip-browser-warning"},
 	})
 
 	// Gunakan middleware CORS

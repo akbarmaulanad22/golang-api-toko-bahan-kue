@@ -37,7 +37,7 @@ func (r *ProductRepository) FindBySKU(db *gorm.DB, product *entity.Product, sku 
 
 func (r *ProductRepository) Search(db *gorm.DB, request *model.SearchProductRequest) ([]entity.Product, int64, error) {
 	var products []entity.Product
-	if err := db.Scopes(r.FilterProduct(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&products).Error; err != nil {
+	if err := db.Scopes(r.FilterProduct(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Preload("Category").Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 

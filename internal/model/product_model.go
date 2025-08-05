@@ -27,7 +27,7 @@ type GetProductRequest struct {
 
 type UpdateProductRequest struct {
 	CategorySlug string `json:"category_slug,omitempty" validate:"max=100"`
-	SKU          string `json:"-" id:"required,max=100"`
+	SKU          string `json:"-" validate:"required,max=100"`
 	Name         string `json:"name,omitempty" validate:"max=100"`
 }
 
