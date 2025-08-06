@@ -48,7 +48,8 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter := route.Router.PathPrefix("/").Subrouter()
 	authRouter.Use(route.AuthMiddleware)
 
-	authRouter.HandleFunc("/logout", route.UserController.Logout).Methods("POST")
+	authRouter.HandleFunc("/gate/auth/logout", route.UserController.Logout).Methods("POST")
+	authRouter.HandleFunc("/gate/auth/me", route.UserController.Current).Methods("GET")
 
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
 	authRouter.Use(route.AuthMiddleware)

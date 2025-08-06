@@ -24,7 +24,11 @@ func (r *UserRepository) FindByToken(db *gorm.DB, user *entity.User, token strin
 }
 
 func (r *UserRepository) FindByUsername(db *gorm.DB, user *entity.User, username string) error {
-	return db.Where("username = ?", username).First(user).Error
+	return db.Where("username = ?", username).
+		Preload("Role").
+		Preload("Branch").
+		First(user).
+		Error
 }
 
 func (r *UserRepository) CountByUsername(db *gorm.DB, username any) (int64, error) {
