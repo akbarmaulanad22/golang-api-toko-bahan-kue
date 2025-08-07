@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
@@ -110,8 +111,20 @@ func (c *SaleUseCase) Update(ctx context.Context, request *model.UpdateSaleReque
 		return converter.SaleToResponse(sale), nil
 	}
 
-	sale.Status = request.Status
+	createdTime := time.UnixMilli(sale.CreatedAt)
+	now := time.Now()
 
+	// Hitung durasi sejak dibuat
+	duration := now.Sub(createdTime)
+
+	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
+	if sale.Status != model.PENDING && duration.Hours() >= 24 {
+		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
+		return nil, errors.New("forbidden")
+	}
+
+	// Lanjut update status
+	sale.Status = request.Status
 	if err := c.SaleRepository.Update(tx, sale); err != nil {
 		c.Log.WithError(err).Error("error updating sale")
 		return nil, errors.New("internal server error")

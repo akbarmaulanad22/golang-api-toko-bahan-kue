@@ -46,7 +46,7 @@ type CreateSaleRequest struct {
 type SearchSaleRequest struct {
 	Code         string        `json:"code" validate:"max=100"`
 	CustomerName string        `json:"customer_name" validate:"max=100"`
-	Status       StatusPayment `json:"status" validate:"oneof=PENDING COMPLETED CANCELLED"`
+	Status       StatusPayment `json:"status"`
 	StartAt      int64         `json:"start_at"`
 	EndAt        int64         `json:"end_at"`
 	Page         int           `json:"page" validate:"min=1"`

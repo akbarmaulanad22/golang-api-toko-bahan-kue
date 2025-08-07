@@ -8,8 +8,6 @@ import (
 )
 
 func GetStatusCode(err error) int {
-	// Contoh pengecekan error berdasarkan string atau tipe error khusus
-
 	if errors.Is(err, context.DeadlineExceeded) {
 		return http.StatusGatewayTimeout
 	}
@@ -36,6 +34,11 @@ func GetStatusCode(err error) int {
 	// Contoh error not found
 	if strings.Contains(err.Error(), "not found") {
 		return http.StatusNotFound
+	}
+
+	// Contoh error forbidden
+	if strings.Contains(err.Error(), "forbidden") {
+		return http.StatusForbidden
 	}
 
 	// Default fallback

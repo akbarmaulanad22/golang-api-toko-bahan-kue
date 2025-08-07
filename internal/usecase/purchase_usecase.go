@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
@@ -112,6 +113,19 @@ func (c *PurchaseUseCase) Update(ctx context.Context, request *model.UpdatePurch
 		return converter.PurchaseToResponse(purchase), nil
 	}
 
+	createdTime := time.UnixMilli(purchase.CreatedAt)
+	now := time.Now()
+
+	// Hitung durasi sejak dibuat
+	duration := now.Sub(createdTime)
+
+	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
+	if purchase.Status != model.PENDING && duration.Hours() >= 24 {
+		c.Log.WithField("purchase_code", purchase.Code).Error("error updating purchase: exceeded 24-hour window")
+		return nil, errors.New("forbidden")
+	}
+
+	// Lanjut update status
 	purchase.Status = request.Status
 
 	if err := c.PurchaseRepository.Update(tx, purchase); err != nil {

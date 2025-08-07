@@ -53,9 +53,9 @@ func (r *PurchaseRepository) FilterPurchase(request *model.SearchPurchaseRequest
 		}
 
 		startAt := request.StartAt
-		endAt := request.StartAt
+		endAt := request.EndAt
 		if startAt != 0 && endAt != 0 {
-			tx = tx.Where("paid_at BETWEEN = ? AND ? OR created_at BETWEEN = ? AND ?", startAt, endAt, startAt, endAt)
+			tx = tx.Where("paid_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?", startAt, endAt, startAt, endAt)
 		}
 
 		return tx

@@ -1,22 +1,5 @@
 package model
 
-// type StatusPayment string
-
-// const (
-// 	PENDING   StatusPayment = "PENDING"
-// 	COMPLETED StatusPayment = "COMPLETED"
-// 	CANCELLED StatusPayment = "CANCELLED"
-// )
-
-// func (ct *StatusPayment) Scan(value interface{}) error {
-// 	*ct = StatusPayment(value.([]byte))
-// 	return nil
-// }
-
-// func (ct StatusPayment) Value() (driver.Value, error) {
-// 	return string(ct), nil
-// }
-
 type PurchaseResponse struct {
 	Code        string        `json:"code,omitempty"`
 	SalesName   string        `json:"sales_name,omitempty"`
@@ -46,7 +29,7 @@ type CreatePurchaseRequest struct {
 type SearchPurchaseRequest struct {
 	Code      string        `json:"code" validate:"max=100"`
 	SalesName string        `json:"sales_name" validate:"max=100"`
-	Status    StatusPayment `json:"status" validate:"oneof=PENDING COMPLETED CANCELLED"`
+	Status    StatusPayment `json:"status"`
 	StartAt   int64         `json:"start_at"`
 	EndAt     int64         `json:"end_at"`
 	Page      int           `json:"page" validate:"min=1"`

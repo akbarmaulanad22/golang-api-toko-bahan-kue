@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -52,36 +53,56 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
-	pageInt, err := strconv.Atoi(params.Get("page"))
+	page := params.Get("page")
+	if page == "" {
+		page = "1"
+	}
+
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
 		return
 	}
 
-	sizeInt, err := strconv.Atoi(params.Get("size"))
+	size := params.Get("size")
+	if size == "" {
+		size = "10"
+	}
+
+	sizeInt, err := strconv.Atoi(size)
 	if err != nil {
 		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
 		return
 	}
 
-	startAtInt, err := strconv.Atoi(params.Get("start_at"))
-	if err != nil {
-		http.Error(w, "Invalid start at parameter", http.StatusBadRequest)
-		return
+	now := time.Now()
+	format := "2006-01-02"
+
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
+
+	if startAt == "" && endAt == "" {
+		// default: hari ini dan 30 hari ke depan
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		thirtyDaysLater := today.AddDate(0, 0, 30)
+
+		startAt = today.Format(format)
+		endAt = thirtyDaysLater.Format(format)
 	}
 
-	endAtInt, err := strconv.Atoi(params.Get("end_at"))
-	if err != nil {
-		http.Error(w, "Invalid end at parameter", http.StatusBadRequest)
-		return
-	}
+	// parse tanggal dari input user atau default di atas
+	startTime, _ := time.ParseInLocation(format, startAt, time.Local)
+	endTime, _ := time.ParseInLocation(format, endAt, time.Local)
+
+	// pastikan endTime sampai jam 23:59:59
+	endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
 
 	request := &model.SearchSaleRequest{
 		Code:         params.Get("code"),
 		CustomerName: params.Get("customer_name"),
 		Status:       model.StatusPayment(params.Get("status")),
-		StartAt:      int64(startAtInt),
-		EndAt:        int64(endAtInt),
+		StartAt:      startTime.UnixMilli(),
+		EndAt:        endTime.UnixMilli(),
 		Page:         pageInt,
 		Size:         sizeInt,
 	}
