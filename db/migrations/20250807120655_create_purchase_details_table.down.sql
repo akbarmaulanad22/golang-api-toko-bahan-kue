@@ -1,0 +1,1 @@
+drop table purchase_details;

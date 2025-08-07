@@ -22,10 +22,11 @@ type RouteConfig struct {
 	DistributorController *http.DistributorController
 	// end master data
 
-	ProductController *http.ProductController
-	UserController    *http.UserController
-	SizeController    *http.SizeController
-	SaleController    *http.SaleController
+	ProductController  *http.ProductController
+	UserController     *http.UserController
+	SizeController     *http.SizeController
+	SaleController     *http.SaleController
+	PurchaseController *http.PurchaseController
 }
 
 func (route *RouteConfig) Setup() {
@@ -102,5 +103,10 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
 	authRouter.HandleFunc("/sales/{code}", route.SaleController.Update).Methods("PUT")
 	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
+
+	authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
+	authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
+	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Update).Methods("PUT")
+	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
 
 }
