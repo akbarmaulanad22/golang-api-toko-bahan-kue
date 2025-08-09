@@ -188,3 +188,26 @@ func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleReque
 
 	return responses, total, nil
 }
+
+func (c *SaleUseCase) SearchReports(ctx context.Context, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, 0, errors.New("bad request")
+	}
+
+	salesReports, total, err := c.SaleRepository.SearchReports(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	return salesReports, total, nil
+}

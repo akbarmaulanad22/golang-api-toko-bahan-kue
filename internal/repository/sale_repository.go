@@ -67,3 +67,64 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 		return tx
 	}
 }
+
+func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
+
+	var reports []model.SaleReportResponse
+
+	query := `
+    SELECT
+        FROM_UNIXTIME(s.created_at / 1000) AS created_at,
+        b.id,
+        b.name AS branch_name,
+        s.code AS sale_code,
+        s.customer_name,
+        p.name AS product_name,
+        sd.qty,
+        sz.sell_price,
+        (sd.qty * sz.sell_price) AS total_price
+    FROM sales s
+    JOIN branches b ON s.branch_id = b.id
+    JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+    JOIN sizes sz ON sd.size_id = sz.id
+    JOIN products p ON sz.product_sku = p.sku
+    WHERE s.status = ?
+`
+
+	params := []interface{}{model.COMPLETED}
+
+	// Filter tanggal
+	if request.StartAt != "" && request.EndAt != "" {
+		query += " AND DATE(FROM_UNIXTIME(s.created_at / 1000)) BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	// Filter customer name
+	if request.Search != "" {
+		search := "%" + request.Search + "%"
+		query += "AND (s.customer_name LIKE ? OR p.name LIKE ? OR s.code LIKE ?)"
+		params = append(params, search, search, search)
+	}
+
+	// Filter branch
+	if request.BranchID != 0 {
+		query += " AND b.id = ?"
+		params = append(params, request.BranchID)
+	}
+
+	// Urutkan berdasarkan tanggal
+	query += " ORDER BY created_at ASC"
+
+	if err := db.Raw(query, params...).Scan(&reports).Error; err != nil {
+		return nil, 0, err
+	}
+
+	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
+	var total int64 = 0
+	if err := db.Raw(countQuery, params...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return reports, total, nil
+
+}

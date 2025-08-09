@@ -11,5 +11,5 @@ create table sizes
     
     primary key ( id ),
     constraint uc_sizes UNIQUE (name, product_sku),
-    foreign key ( product_sku ) references products ( sku )
+    foreign key ( product_sku ) references products ( sku ) ON DELETE CASCADE ON UPDATE CASCADE
 ) engine = InnoDB;

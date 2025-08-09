@@ -178,3 +178,68 @@ func (c *SaleController) Update(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
+
+func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+
+	page := params.Get("page")
+	if page == "" {
+		page = "1"
+	}
+
+	pageInt, err := strconv.Atoi(page)
+	if err != nil {
+		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
+		return
+	}
+
+	size := params.Get("size")
+	if size == "" {
+		size = "10"
+	}
+
+	sizeInt, err := strconv.Atoi(size)
+	if err != nil {
+		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
+		return
+	}
+
+	branchID := params.Get("branch_id")
+	if branchID == "" {
+		branchID = "0"
+	}
+
+	branchIDInt, err := strconv.Atoi(branchID)
+	if err != nil {
+		http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
+		return
+	}
+
+	request := &model.SearchSaleReportRequest{
+		BranchID: uint(branchIDInt),
+		Search:   params.Get("search"),
+		StartAt:  params.Get("start_at"),
+		EndAt:    params.Get("end_at"),
+		Page:     pageInt,
+		Size:     sizeInt,
+	}
+
+	responses, total, err := c.UseCase.SearchReports(r.Context(), request)
+	if err != nil {
+		c.Log.WithError(err).Error("error searching sales report")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	paging := &model.PageMetadata{
+		Page:      request.Page,
+		Size:      request.Size,
+		TotalItem: total,
+		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleReportResponse]{
+		Data:   responses,
+		Paging: paging,
+	})
+}

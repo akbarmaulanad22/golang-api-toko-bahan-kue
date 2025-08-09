@@ -1,6 +1,9 @@
 package model
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+	"time"
+)
 
 type StatusPayment string
 
@@ -60,4 +63,24 @@ type GetSaleRequest struct {
 type UpdateSaleRequest struct {
 	Code   string        `json:"-" validate:"required,max=100"`
 	Status StatusPayment `json:"status" validate:"required,oneof=PENDING COMPLETED CANCELLED"`
+}
+
+type SaleReportResponse struct {
+	CreatedAt    time.Time `json:"created_at"`
+	BranchName   string    `json:"branch_name"`
+	SaleCode     string    `json:"sale_code"`
+	ProductName  string    `json:"product_name"`
+	CustomerName string    `json:"customer_name"`
+	Qty          int       `json:"qty"`
+	SellPrice    float64   `json:"sell_price"`
+	TotalPrice   float64   `json:"total_price"`
+}
+
+type SearchSaleReportRequest struct {
+	BranchID uint   `json:"-"`
+	Search   string `json:"-"`
+	StartAt  string `json:"start_at"`
+	EndAt    string `json:"end_at"`
+	Page     int    `json:"page" validate:"min=1"`
+	Size     int    `json:"size" validate:"min=1,max=100"`
 }
