@@ -84,3 +84,18 @@ type SearchSaleReportRequest struct {
 	Page     int    `json:"page" validate:"min=1"`
 	Size     int    `json:"size" validate:"min=1,max=100"`
 }
+
+type BranchSalesReportResponse struct {
+	BranchName string  `json:"branch_name"`
+	TotalSales float64 `json:"total_sales"`
+}
+
+type BestSellingProductResponse struct {
+	ProductName string  `json:"product_name"`
+	TotalQty    int64   `json:"total_qty"`
+	TotalSales  float64 `json:"total_sales"`
+}
+
+type ListBestSellingProductRequest struct {
+	BranchID uint `json:"-"`
+}

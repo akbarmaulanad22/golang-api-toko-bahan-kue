@@ -109,6 +109,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Update).Methods("PUT")
 	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
 
-	authRouter.HandleFunc("/sales-report", route.SaleController.ListReport).Methods("GET")
-	// authRouter.HandleFunc("/sales-report/{branchID}/daily", route.SaleSummaryController.ListDailySaleSummary).Methods("GET")
+	authRouter.HandleFunc("/sales-and-product-reports/sales", route.SaleController.ListReport).Methods("GET")
+	authRouter.HandleFunc("/sales-and-product-reports/branch-sales", route.SaleController.ListBranchSaleReport).Methods("GET")
+	authRouter.HandleFunc("/sales-and-product-reports/best-selling-product", route.SaleController.ListBestSellingProduct).Methods("GET")
 }

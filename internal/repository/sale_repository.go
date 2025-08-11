@@ -83,11 +83,11 @@ func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleRep
         sd.qty,
         sz.sell_price,
         (sd.qty * sz.sell_price) AS total_price
-    FROM sales s
-    JOIN branches b ON s.branch_id = b.id
-    JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-    JOIN sizes sz ON sd.size_id = sz.id
-    JOIN products p ON sz.product_sku = p.sku
+		FROM sales s
+		JOIN branches b ON s.branch_id = b.id
+		JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+		JOIN sizes sz ON sd.size_id = sz.id
+		JOIN products p ON sz.product_sku = p.sku
     WHERE s.status = ?
 `
 
@@ -127,4 +127,83 @@ func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleRep
 
 	return reports, total, nil
 
+}
+
+func (r *SaleRepository) SummaryAllBranch(db *gorm.DB) ([]model.BranchSalesReportResponse, error) {
+
+	var branchSalesReport []model.BranchSalesReportResponse
+
+	query := `
+		SELECT 
+            b.name AS branch_name,
+            SUM(sd.qty * sz.sell_price) AS total_sales
+        FROM sales s
+        JOIN branches b ON s.branch_id = b.id
+        JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+        JOIN sizes sz ON sd.size_id = sz.id
+        GROUP BY b.name
+
+        UNION ALL
+
+        SELECT 
+            'Total Semua Cabang' AS branch_name,
+            SUM(sd.qty * sz.sell_price) AS total_sales
+        FROM sales s
+        JOIN branches b ON s.branch_id = b.id
+        JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+        JOIN sizes sz ON sd.size_id = sz.id
+        ORDER BY branch_name;
+	`
+
+	if err := db.Raw(query).Scan(&branchSalesReport).Error; err != nil {
+		return nil, err
+	}
+
+	return branchSalesReport, nil
+}
+
+func (r *SaleRepository) FindhBestSellingProductsGlobal(db *gorm.DB) ([]model.BestSellingProductResponse, error) {
+
+	query := `
+        SELECT 
+			p.sku,
+			p.name AS product_name,
+			SUM(sd.qty) AS total_qty,
+			SUM(sd.qty * sz.sell_price) AS total_sales
+		FROM sale_details sd
+		JOIN sales s ON sd.sale_code = s.code
+		JOIN sizes sz ON sd.size_id = sz.id
+		JOIN products p ON sz.product_sku = p.sku
+		WHERE s.status = 'COMPLETED' AND sd.is_cancelled = 0
+		GROUP BY p.sku, p.name
+		ORDER BY total_qty DESC
+		LIMIT 10;
+    `
+	var result []model.BestSellingProductResponse
+	err := db.Raw(query).Scan(&result).Error
+	return result, err
+}
+
+func (r *SaleRepository) FindhBestSellingProductsByBranchID(db *gorm.DB, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
+
+	query := `
+        SELECT 
+			p.sku,
+			p.name AS product_name,
+			SUM(sd.qty) AS total_qty,
+			SUM(sd.qty * sz.sell_price) AS total_sales
+		FROM sale_details sd
+		JOIN sales s ON sd.sale_code = s.code
+		JOIN sizes sz ON sd.size_id = sz.id
+		JOIN products p ON sz.product_sku = p.sku
+		WHERE s.status = 'COMPLETED' 
+		AND sd.is_cancelled = 0
+		AND s.branch_id = ?
+		GROUP BY p.sku, p.name
+		ORDER BY total_qty DESC
+		LIMIT 10;
+    `
+	var result []model.BestSellingProductResponse
+	err := db.Raw(query, request.BranchID).Scan(&result).Error
+	return result, err
 }

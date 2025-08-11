@@ -211,3 +211,55 @@ func (c *SaleUseCase) SearchReports(ctx context.Context, request *model.SearchSa
 
 	return salesReports, total, nil
 }
+
+func (c *SaleUseCase) BranchSalesReport(ctx context.Context) ([]model.BranchSalesReportResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	salesReports, err := c.SaleRepository.SummaryAllBranch(tx)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting branch sales report")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting branch sales report")
+		return nil, errors.New("internal server error")
+	}
+
+	return salesReports, nil
+}
+
+func (c *SaleUseCase) ListBestSellingProductByBranchID(ctx context.Context, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+	bestSellingProducts, err := c.SaleRepository.FindhBestSellingProductsByBranchID(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting best selling products")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting best selling products")
+		return nil, errors.New("internal server error")
+	}
+
+	return bestSellingProducts, nil
+}
+
+func (c *SaleUseCase) ListBestSellingProductGlobal(ctx context.Context) ([]model.BestSellingProductResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+	bestSellingProducts, err := c.SaleRepository.FindhBestSellingProductsGlobal(tx)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting best selling products")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting best selling products")
+		return nil, errors.New("internal server error")
+	}
+
+	return bestSellingProducts, nil
+}

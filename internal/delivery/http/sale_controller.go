@@ -243,3 +243,52 @@ func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
 		Paging: paging,
 	})
 }
+
+func (c *SaleController) ListBranchSaleReport(w http.ResponseWriter, r *http.Request) {
+
+	response, err := c.UseCase.BranchSalesReport(r.Context())
+	if err != nil {
+		c.Log.WithError(err).Error("error getting sale")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchSalesReportResponse]{Data: response})
+}
+
+func (c *SaleController) ListBestSellingProduct(w http.ResponseWriter, r *http.Request) {
+
+	params := r.URL.Query()
+
+	branchID := params.Get("branch_id")
+	if branchID == "" {
+		branchID = "0"
+	}
+
+	branchIDInt, _ := strconv.Atoi(branchID)
+
+	request := &model.ListBestSellingProductRequest{
+		BranchID: uint(branchIDInt),
+	}
+
+	if request.BranchID != 0 {
+		response, err := c.UseCase.ListBestSellingProductByBranchID(r.Context(), request)
+		if err != nil {
+			c.Log.WithError(err).Error("error getting best seller products")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+
+		json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
+		return
+	}
+
+	response, err := c.UseCase.ListBestSellingProductGlobal(r.Context())
+	if err != nil {
+		c.Log.WithError(err).Error("error getting best seller products")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
+}
