@@ -22,11 +22,12 @@ type RouteConfig struct {
 	DistributorController *http.DistributorController
 	// end master data
 
-	ProductController  *http.ProductController
-	UserController     *http.UserController
-	SizeController     *http.SizeController
-	SaleController     *http.SaleController
-	PurchaseController *http.PurchaseController
+	DashboardController *http.DashboardController
+	ProductController   *http.ProductController
+	UserController      *http.UserController
+	SizeController      *http.SizeController
+	SaleController      *http.SaleController
+	PurchaseController  *http.PurchaseController
 }
 
 func (route *RouteConfig) Setup() {
@@ -81,6 +82,8 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Get).Methods("GET")
 	// end master data
 
+	authRouter.HandleFunc("/dashboard", route.DashboardController.Get).Methods("GET")
+
 	authRouter.HandleFunc("/products", route.ProductController.Create).Methods("POST")
 	authRouter.HandleFunc("/products", route.ProductController.List).Methods("GET")
 	authRouter.HandleFunc("/products/{sku}", route.ProductController.Update).Methods("PUT")
@@ -112,4 +115,5 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales-and-product-reports/sales", route.SaleController.ListReport).Methods("GET")
 	authRouter.HandleFunc("/sales-and-product-reports/branch-sales", route.SaleController.ListBranchSaleReport).Methods("GET")
 	authRouter.HandleFunc("/sales-and-product-reports/best-selling-product", route.SaleController.ListBestSellingProduct).Methods("GET")
+
 }

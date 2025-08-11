@@ -37,6 +37,7 @@ func Bootstrap(config *BootstrapConfig) {
 	distributorRepository := repository.NewDistributorRepository(config.Log)
 
 	// data repository
+	dashboardRepository := repository.NewDashboardRepository(config.Log)
 	productRepository := repository.NewProductRepository(config.Log)
 	userRepository := repository.NewUserRepository(config.Log)
 	sizeRepository := repository.NewSizeRepository(config.Log)
@@ -50,6 +51,7 @@ func Bootstrap(config *BootstrapConfig) {
 	distributorUseCase := usecase.NewDistributorUseCase(config.DB, config.Log, config.Validate, distributorRepository)
 
 	// data usecase
+	dashboardUseCase := usecase.NewDashboardUseCase(config.DB, config.Log, config.Validate, dashboardRepository)
 	productUseCase := usecase.NewProductUseCase(config.DB, config.Log, config.Validate, productRepository)
 	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository)
 	sizeUseCase := usecase.NewSizeUseCase(config.DB, config.Log, config.Validate, sizeRepository)
@@ -63,6 +65,7 @@ func Bootstrap(config *BootstrapConfig) {
 	distributorController := http.NewDistributorController(distributorUseCase, config.Log)
 
 	// data controller
+	dashboardController := http.NewDashboardController(dashboardUseCase, config.Log)
 	productController := http.NewProductController(productUseCase, config.Log)
 	userController := http.NewUserController(userUseCase, config.Log)
 	sizeController := http.NewSizeController(sizeUseCase, config.Log)
@@ -83,11 +86,12 @@ func Bootstrap(config *BootstrapConfig) {
 		DistributorController: distributorController,
 
 		// data controller
-		ProductController:  productController,
-		UserController:     userController,
-		SizeController:     sizeController,
-		SaleController:     saleController,
-		PurchaseController: purchaseController,
+		DashboardController: dashboardController,
+		ProductController:   productController,
+		UserController:      userController,
+		SizeController:      sizeController,
+		SaleController:      saleController,
+		PurchaseController:  purchaseController,
 	}
 	routeConfig.Setup()
 

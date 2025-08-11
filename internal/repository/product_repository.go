@@ -25,12 +25,6 @@ func (r *ProductRepository) CountBySKU(db *gorm.DB, sku any) (int64, error) {
 	return total, err
 }
 
-// func (r *ProductRepository) CountByNameExceptSKU(db *gorm.DB, name any, SKU any) (int64, error) {
-// 	var total int64
-// 	err := db.Model(&entity.Product{}).Where("name = ? AND sku != ?", name, SKU).Count(&total).Error
-// 	return total, err
-// }
-
 func (r *ProductRepository) FindBySKU(db *gorm.DB, product *entity.Product, sku string) error {
 	return db.Preload("Category").Preload("Sizes").Where("sku = ?", sku).First(product).Error
 }
@@ -51,8 +45,6 @@ func (r *ProductRepository) Search(db *gorm.DB, request *model.SearchProductRequ
 
 func (r *ProductRepository) FilterProduct(request *model.SearchProductRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		// tx.Where("branch_id = ?", request.BranchID)
-
 		if name := request.Name; name != "" {
 			name = "%" + name + "%"
 			tx = tx.Where("name LIKE ?", name)

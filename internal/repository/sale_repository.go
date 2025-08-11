@@ -19,12 +19,6 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 	}
 }
 
-// func (r *SaleRepository) CountBySKU(db *gorm.DB, sku any) (int64, error) {
-// 	var total int64
-// 	err := db.Model(&entity.Sale{}).Where("sku = ?", sku).Count(&total).Error
-// 	return total, err
-// }
-
 func (r *SaleRepository) FindByCode(db *gorm.DB, sale *entity.Sale, code string) error {
 	return db.Preload("Branch").Where("code = ?", code).First(sale).Error
 }
