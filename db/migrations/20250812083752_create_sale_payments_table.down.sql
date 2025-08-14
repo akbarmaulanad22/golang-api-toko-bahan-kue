@@ -1,0 +1,1 @@
+drop table sale_payments;

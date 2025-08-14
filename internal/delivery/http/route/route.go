@@ -22,12 +22,13 @@ type RouteConfig struct {
 	DistributorController *http.DistributorController
 	// end master data
 
-	DashboardController *http.DashboardController
-	ProductController   *http.ProductController
-	UserController      *http.UserController
-	SizeController      *http.SizeController
-	SaleController      *http.SaleController
-	PurchaseController  *http.PurchaseController
+	DashboardController       *http.DashboardController
+	ProductController         *http.ProductController
+	UserController            *http.UserController
+	SizeController            *http.SizeController
+	SaleController            *http.SaleController
+	PurchaseController        *http.PurchaseController
+	FinancialReportController *http.FinancialReportController
 }
 
 func (route *RouteConfig) Setup() {
@@ -103,17 +104,19 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Get).Methods("GET")
 
 	authRouter.HandleFunc("/sales", route.SaleController.Create).Methods("POST")
-	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}", route.SaleController.Update).Methods("PUT")
-	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
+	// authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
+	// authRouter.HandleFunc("/sales/{code}", route.SaleController.Update).Methods("PUT")
+	// authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
 
-	authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
-	authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
-	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Update).Methods("PUT")
-	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
+	// authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
+	// authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
+	// authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Update).Methods("PUT")
+	// authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
 
 	authRouter.HandleFunc("/sales-and-product-reports/sales", route.SaleController.ListReport).Methods("GET")
 	authRouter.HandleFunc("/sales-and-product-reports/branch-sales", route.SaleController.ListBranchSaleReport).Methods("GET")
 	authRouter.HandleFunc("/sales-and-product-reports/best-selling-product", route.SaleController.ListBestSellingProduct).Methods("GET")
+
+	authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
 
 }

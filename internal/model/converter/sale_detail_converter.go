@@ -7,10 +7,9 @@ import (
 
 func SaleDetailToResponse(saleDetail *entity.SaleDetail) *model.SaleDetailResponse {
 	return &model.SaleDetailResponse{
-		SaleCode:    saleDetail.SaleCode,
 		SizeID:      saleDetail.SizeID,
 		Qty:         saleDetail.Qty,
+		SellPrice:   saleDetail.SellPrice,
 		IsCancelled: saleDetail.IsCancelled,
-		Size:        *SizeToResponse(&saleDetail.Size),
 	}
 }

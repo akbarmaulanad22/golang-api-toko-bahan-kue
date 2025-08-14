@@ -1,17 +1,10 @@
-create table sale_details
-(
-    qty             int(11)                                   not null,
-    is_cancelled    tinyint(1)                                not null,
-    cancelled_at    bigint                                    null,
-    
-    sale_code       varchar(100)                              not null,
-    size_id         int(11)                                   not null,
-    
-    primary key ( sale_code, size_id ),
-    constraint `constr_sale_details_sale_code_fk`
-        FOREIGN KEY `sale_fk` (`sale_code`) REFERENCES `sales` (`code`)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    constraint `constr_sale_details_size_id_fk`
-        FOREIGN KEY `size_fk` (`size_id`) REFERENCES `sizes` (`id`)
-        ON DELETE CASCADE ON UPDATE CASCADE
-) engine = InnoDB;
+CREATE TABLE sale_details (
+    sale_code       VARCHAR(100)    NOT NULL,
+    size_id         INT             NOT NULL,
+    qty             INT             NOT NULL,
+    sell_price      DECIMAL(15,2)   NOT NULL,
+    is_cancelled    BOOLEAN         NOT NULL    DEFAULT FALSE,
+    PRIMARY KEY (sale_code, size_id),
+    FOREIGN KEY (sale_code) REFERENCES sales(code) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (size_id) REFERENCES sizes(id) ON UPDATE CASCADE ON DELETE CASCADE
+);

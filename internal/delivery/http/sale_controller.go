@@ -5,13 +5,11 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"time"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
 
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,134 +48,134 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
 
-func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
+// func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
+// 	params := r.URL.Query()
 
-	page := params.Get("page")
-	if page == "" {
-		page = "1"
-	}
+// 	page := params.Get("page")
+// 	if page == "" {
+// 		page = "1"
+// 	}
 
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+// 	pageInt, err := strconv.Atoi(page)
+// 	if err != nil {
+// 		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	size := params.Get("size")
-	if size == "" {
-		size = "10"
-	}
+// 	size := params.Get("size")
+// 	if size == "" {
+// 		size = "10"
+// 	}
 
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
+// 	sizeInt, err := strconv.Atoi(size)
+// 	if err != nil {
+// 		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	now := time.Now()
-	format := "2006-01-02"
+// 	now := time.Now()
+// 	format := "2006-01-02"
 
-	startAt := params.Get("start_at")
-	endAt := params.Get("end_at")
+// 	startAt := params.Get("start_at")
+// 	endAt := params.Get("end_at")
 
-	if startAt == "" && endAt == "" {
-		// default: hari ini dan 30 hari ke depan
-		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		thirtyDaysLater := today.AddDate(0, 0, 30)
+// 	if startAt == "" && endAt == "" {
+// 		// default: hari ini dan 30 hari ke depan
+// 		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+// 		thirtyDaysLater := today.AddDate(0, 0, 30)
 
-		startAt = today.Format(format)
-		endAt = thirtyDaysLater.Format(format)
-	}
+// 		startAt = today.Format(format)
+// 		endAt = thirtyDaysLater.Format(format)
+// 	}
 
-	// parse tanggal dari input user atau default di atas
-	startTime, _ := time.ParseInLocation(format, startAt, time.Local)
-	endTime, _ := time.ParseInLocation(format, endAt, time.Local)
+// 	// parse tanggal dari input user atau default di atas
+// 	startTime, _ := time.ParseInLocation(format, startAt, time.Local)
+// 	endTime, _ := time.ParseInLocation(format, endAt, time.Local)
 
-	// pastikan endTime sampai jam 23:59:59
-	endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
+// 	// pastikan endTime sampai jam 23:59:59
+// 	endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
 
-	request := &model.SearchSaleRequest{
-		Code:         params.Get("code"),
-		CustomerName: params.Get("customer_name"),
-		Status:       model.StatusPayment(params.Get("status")),
-		StartAt:      startTime.UnixMilli(),
-		EndAt:        endTime.UnixMilli(),
-		Page:         pageInt,
-		Size:         sizeInt,
-	}
+// 	request := &model.SearchSaleRequest{
+// 		Code:         params.Get("code"),
+// 		CustomerName: params.Get("customer_name"),
+// 		Status:       model.StatusPayment(params.Get("status")),
+// 		StartAt:      startTime.UnixMilli(),
+// 		EndAt:        endTime.UnixMilli(),
+// 		Page:         pageInt,
+// 		Size:         sizeInt,
+// 	}
 
-	responses, total, err := c.UseCase.Search(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Error("error searching sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	responses, total, err := c.UseCase.Search(r.Context(), request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error searching sale")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	paging := &model.PageMetadata{
-		Page:      request.Page,
-		Size:      request.Size,
-		TotalItem: total,
-		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
-	}
+// 	paging := &model.PageMetadata{
+// 		Page:      request.Page,
+// 		Size:      request.Size,
+// 		TotalItem: total,
+// 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleResponse]{
-		Data:   responses,
-		Paging: paging,
-	})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleResponse]{
+// 		Data:   responses,
+// 		Paging: paging,
+// 	})
+// }
 
-func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+// func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
+// 	params := mux.Vars(r)
 
-	code, ok := params["code"]
-	if !ok || code == "" {
-		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
-		return
-	}
+// 	code, ok := params["code"]
+// 	if !ok || code == "" {
+// 		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	request := &model.GetSaleRequest{
-		Code: code,
-	}
+// 	request := &model.GetSaleRequest{
+// 		Code: code,
+// 	}
 
-	response, err := c.UseCase.Get(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	response, err := c.UseCase.Get(r.Context(), request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+// }
 
-func (c *SaleController) Update(w http.ResponseWriter, r *http.Request) {
+// func (c *SaleController) Update(w http.ResponseWriter, r *http.Request) {
 
-	params := mux.Vars(r)
+// 	params := mux.Vars(r)
 
-	code, ok := params["code"]
-	if !ok || code == "" {
-		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
-		return
-	}
+// 	code, ok := params["code"]
+// 	if !ok || code == "" {
+// 		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	request := new(model.UpdateSaleRequest)
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
+// 	request := new(model.UpdateSaleRequest)
+// 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+// 		c.Log.Warnf("Failed to parse request body: %+v", err)
+// 		http.Error(w, "bad request", http.StatusBadRequest)
+// 		return
+// 	}
 
-	request.Code = code
+// 	request.Code = code
 
-	response, err := c.UseCase.Update(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	response, err := c.UseCase.Update(r.Context(), request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Warnf("Failed to update sale")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+// }
 
 func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
@@ -246,7 +244,7 @@ func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
 
 func (c *SaleController) ListBranchSaleReport(w http.ResponseWriter, r *http.Request) {
 
-	response, err := c.UseCase.BranchSalesReport(r.Context())
+	response, err := c.UseCase.GetBranchSalesReport(r.Context())
 	if err != nil {
 		c.Log.WithError(err).Error("error getting sale")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))

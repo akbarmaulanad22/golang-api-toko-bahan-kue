@@ -22,15 +22,17 @@ type SaleUseCase struct {
 	Log            *logrus.Logger
 	Validate       *validator.Validate
 	SaleRepository *repository.SaleRepository
+	DebtRepository *repository.DebtRepository
 }
 
 func NewSaleUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Validate,
-	saleRepository *repository.SaleRepository) *SaleUseCase {
+	saleRepository *repository.SaleRepository, debtRepository *repository.DebtRepository) *SaleUseCase {
 	return &SaleUseCase{
 		DB:             db,
 		Log:            logger,
 		Validate:       validate,
 		SaleRepository: saleRepository,
+		DebtRepository: debtRepository,
 	}
 }
 
@@ -38,35 +40,29 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	// Validasi input
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, errors.New("bad request")
 	}
 
-	sale := &entity.Sale{
-		Code:         uuid.New().String(),
-		CustomerName: request.CustomerName,
-		Status:       request.Status,
-		CashValue:    request.CashValue,
-		DebitValue:   request.DebitValue,
-		// PaidAt:        0,
-		BranchID: request.BranchID,
+	if request.Debt != nil && len(request.Payments) > 0 {
+		c.Log.Warn("error please select one payment method")
+		return nil, errors.New("bad request")
 	}
 
-	for _, d := range request.SaleDetails {
-		sale.SaleDetails = append(sale.SaleDetails, entity.SaleDetail{
-			SaleCode:    sale.Code,
-			SizeID:      d.SizeID,
-			Qty:         d.Qty,
-			IsCancelled: false,
-		})
+	// Buat sale
+	saleCode := uuid.NewString()
+	sale := &entity.Sale{
+		Code:         saleCode,
+		CustomerName: request.CustomerName,
+		BranchID:     request.BranchID,
 	}
 
 	if err := c.SaleRepository.Create(tx, sale); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
 			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'sales.PRIMARY'"): // sku
+			case strings.Contains(mysqlErr.Message, "for key 'sales.PRIMARY'"):
 				c.Log.Warn("Code already exists")
 				return nil, errors.New("conflict")
 			default:
@@ -74,192 +70,216 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 				return nil, errors.New("conflict")
 			}
 		}
-
 		c.Log.WithError(err).Error("error creating sale")
 		return nil, errors.New("internal server error")
 	}
 
-	if err := c.SaleRepository.FindByCode(tx, sale, sale.Code); err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		return nil, errors.New("not found")
+	// Ambil harga dari sizes
+	var sizeIDs []uint
+	for _, d := range request.Details {
+		sizeIDs = append(sizeIDs, d.SizeID)
 	}
 
+	var sizes []entity.Size
+	if err := tx.Where("id IN ?", sizeIDs).Find(&sizes).Error; err != nil {
+		c.Log.WithError(err).Error("error getting sizes")
+		return nil, errors.New("internal server error")
+	}
+
+	sizeMap := make(map[uint]float64, len(sizes))
+	for _, s := range sizes {
+		sizeMap[s.ID] = s.SellPrice
+	}
+
+	// Sale details + total price
+	var (
+		details    = make([]entity.SaleDetail, len(request.Details))
+		totalPrice float64
+	)
+	for i, d := range request.Details {
+		price := sizeMap[d.SizeID]
+		totalPrice += price * float64(d.Qty)
+		details[i] = entity.SaleDetail{
+			SaleCode:  saleCode,
+			SizeID:    d.SizeID,
+			Qty:       d.Qty,
+			SellPrice: price,
+		}
+	}
+	if err := tx.CreateInBatches(&details, 100).Error; err != nil {
+		c.Log.WithError(err).Error("error creating bulk data sale details")
+		return nil, errors.New("internal server error")
+	}
+
+	// Sale payments
+	if len(request.Payments) > 0 {
+		var totalPayment float64
+		payments := make([]entity.SalePayment, len(request.Payments))
+		for i, p := range request.Payments {
+			payments[i] = entity.SalePayment{
+				SaleCode:      saleCode,
+				PaymentMethod: p.PaymentMethod,
+				Amount:        p.Amount,
+				Note:          p.Note,
+			}
+			totalPayment += p.Amount
+		}
+
+		if totalPayment <= totalPrice {
+			c.Log.Error("error payment is less than total price")
+			return nil, errors.New("bad request")
+		}
+
+		if err := tx.CreateInBatches(&payments, 100).Error; err != nil {
+			c.Log.WithError(err).Error("error creating bulk data sale payments")
+			return nil, errors.New("internal server error")
+		}
+
+	}
+
+	// Debt
+	if request.Debt != nil {
+		var dueDate int64
+		if request.Debt != nil && request.Debt.DueDate > 0 {
+			dueDate = request.Debt.DueDate
+		} else {
+			dueDate = time.Now().Add(7 * 24 * time.Hour).UnixMilli() // default 7 hari
+		}
+
+		debt := &entity.Debt{
+			ReferenceType: "SALE",
+			ReferenceCode: saleCode,
+			TotalAmount:   totalPrice,
+			PaidAmount:    0,
+			DueDate:       dueDate,
+			Status:        "PENDING",
+		}
+
+		if err := c.DebtRepository.Create(tx, debt); err != nil {
+			c.Log.WithError(err).Error("error creating debt")
+			return nil, errors.New("internal server error")
+		}
+
+		if len(request.Debt.DebtPayments) > 0 {
+			debtPayments := make([]entity.DebtPayment, len(request.Debt.DebtPayments))
+			for i, p := range request.Debt.DebtPayments {
+				debtPayments[i] = entity.DebtPayment{
+					DebtID:      debt.ID,
+					PaymentDate: time.Now().UnixMilli(),
+					Amount:      p.Amount,
+					Note:        p.Note,
+				}
+			}
+
+			if err := tx.CreateInBatches(&debtPayments, 100).Error; err != nil {
+				c.Log.WithError(err).Error("error creating debt payments")
+				return nil, errors.New("internal server error")
+			}
+		}
+	}
+
+	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error creating sale")
+		c.Log.WithError(err).Error("error committing transaction")
 		return nil, errors.New("internal server error")
 	}
 
 	return converter.SaleToResponse(sale), nil
 }
 
-func (c *SaleUseCase) Update(ctx context.Context, request *model.UpdateSaleRequest) (*model.SaleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
+// func (c *SaleUseCase) Update(ctx context.Context, request *model.UpdateSaleRequest) (*model.SaleResponse, error) {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
-	}
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		c.Log.WithError(err).Error("error validating request body")
+// 		return nil, errors.New("bad request")
+// 	}
 
-	sale := new(entity.Sale)
-	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		return nil, errors.New("not found")
-	}
+// 	sale := new(entity.Sale)
+// 	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		return nil, errors.New("not found")
+// 	}
 
-	if sale.Status == request.Status {
-		return converter.SaleToResponse(sale), nil
-	}
+// 	if sale.Status == request.Status {
+// 		return converter.SaleToResponse(sale), nil
+// 	}
 
-	createdTime := time.UnixMilli(sale.CreatedAt)
-	now := time.Now()
+// 	createdTime := time.UnixMilli(sale.CreatedAt)
+// 	now := time.Now()
 
-	// Hitung durasi sejak dibuat
-	duration := now.Sub(createdTime)
+// 	// Hitung durasi sejak dibuat
+// 	duration := now.Sub(createdTime)
 
-	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
-	if sale.Status != model.PENDING && duration.Hours() >= 24 {
-		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
-		return nil, errors.New("forbidden")
-	}
+// 	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
+// 	if sale.Status != model.PENDING && duration.Hours() >= 24 {
+// 		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
+// 		return nil, errors.New("forbidden")
+// 	}
 
-	// Lanjut update status
-	sale.Status = request.Status
-	if err := c.SaleRepository.Update(tx, sale); err != nil {
-		c.Log.WithError(err).Error("error updating sale")
-		return nil, errors.New("internal server error")
-	}
+// 	// Lanjut update status
+// 	sale.Status = request.Status
+// 	if err := c.SaleRepository.Update(tx, sale); err != nil {
+// 		c.Log.WithError(err).Error("error updating sale")
+// 		return nil, errors.New("internal server error")
+// 	}
 
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error updating sale")
-		return nil, errors.New("internal server error")
-	}
+// 	if err := tx.Commit().Error; err != nil {
+// 		c.Log.WithError(err).Error("error updating sale")
+// 		return nil, errors.New("internal server error")
+// 	}
 
-	return converter.SaleToResponse(sale), nil
-}
+// 	return converter.SaleToResponse(sale), nil
+// }
 
-func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*model.SaleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
+// func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*model.SaleResponse, error) {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
-	}
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		c.Log.WithError(err).Error("error validating request body")
+// 		return nil, errors.New("bad request")
+// 	}
 
-	sale := new(entity.Sale)
-	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		return nil, errors.New("not found")
-	}
+// 	sale := new(entity.Sale)
+// 	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		return nil, errors.New("not found")
+// 	}
 
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		return nil, errors.New("internal server error")
-	}
+// 	if err := tx.Commit().Error; err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		return nil, errors.New("internal server error")
+// 	}
 
-	return converter.SaleToResponse(sale), nil
-}
+// 	return converter.SaleToResponse(sale), nil
+// }
 
-func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
+// func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
 
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
-	}
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		c.Log.WithError(err).Error("error validating request body")
+// 		return nil, 0, errors.New("bad request")
+// 	}
 
-	sales, total, err := c.SaleRepository.Search(tx, request)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting sales")
-		return nil, 0, errors.New("internal server error")
-	}
+// 	sales, total, err := c.SaleRepository.Search(tx, request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error getting sales")
+// 		return nil, 0, errors.New("internal server error")
+// 	}
 
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting sales")
-		return nil, 0, errors.New("internal server error")
-	}
+// 	if err := tx.Commit().Error; err != nil {
+// 		c.Log.WithError(err).Error("error getting sales")
+// 		return nil, 0, errors.New("internal server error")
+// 	}
 
-	responses := make([]model.SaleResponse, len(sales))
-	for i, sale := range sales {
-		responses[i] = *converter.SaleToResponse(&sale)
-	}
+// 	responses := make([]model.SaleResponse, len(sales))
+// 	for i, sale := range sales {
+// 		responses[i] = *converter.SaleToResponse(&sale)
+// 	}
 
-	return responses, total, nil
-}
-
-func (c *SaleUseCase) SearchReports(ctx context.Context, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
-	}
-
-	salesReports, total, err := c.SaleRepository.SearchReports(tx, request)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting sales reports")
-		return nil, 0, errors.New("internal server error")
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting sales reports")
-		return nil, 0, errors.New("internal server error")
-	}
-
-	return salesReports, total, nil
-}
-
-func (c *SaleUseCase) BranchSalesReport(ctx context.Context) ([]model.BranchSalesReportResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
-	salesReports, err := c.SaleRepository.SummaryAllBranch(tx)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting branch sales report")
-		return nil, errors.New("internal server error")
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting branch sales report")
-		return nil, errors.New("internal server error")
-	}
-
-	return salesReports, nil
-}
-
-func (c *SaleUseCase) ListBestSellingProductByBranchID(ctx context.Context, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-	bestSellingProducts, err := c.SaleRepository.FindhBestSellingProductsByBranchID(tx, request)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting best selling products")
-		return nil, errors.New("internal server error")
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting best selling products")
-		return nil, errors.New("internal server error")
-	}
-
-	return bestSellingProducts, nil
-}
-
-func (c *SaleUseCase) ListBestSellingProductGlobal(ctx context.Context) ([]model.BestSellingProductResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-	bestSellingProducts, err := c.SaleRepository.FindhBestSellingProductsGlobal(tx)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting best selling products")
-		return nil, errors.New("internal server error")
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting best selling products")
-		return nil, errors.New("internal server error")
-	}
-
-	return bestSellingProducts, nil
-}
+// 	return responses, total, nil
+// }

@@ -20,7 +20,7 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 }
 
 func (r *SaleRepository) FindByCode(db *gorm.DB, sale *entity.Sale, code string) error {
-	return db.Preload("Branch").Where("code = ?", code).First(sale).Error
+	return db.Where("code = ?", code).First(sale).Error
 }
 
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
@@ -55,7 +55,7 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 		startAt := request.StartAt
 		endAt := request.EndAt
 		if startAt != 0 && endAt != 0 {
-			tx = tx.Where("paid_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?", startAt, endAt, startAt, endAt)
+			tx = tx.Where("created_at BETWEEN ? AND ?", startAt, endAt)
 		}
 
 		return tx
@@ -85,7 +85,7 @@ func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleRep
     WHERE s.status = ?
 `
 
-	params := []interface{}{model.COMPLETED}
+	params := []interface{}{"COMPLETED"}
 
 	// Filter tanggal
 	if request.StartAt != "" && request.EndAt != "" {

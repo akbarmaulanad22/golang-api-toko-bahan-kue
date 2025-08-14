@@ -9,12 +9,10 @@ func SaleToResponse(sale *entity.Sale) *model.SaleResponse {
 	return &model.SaleResponse{
 		Code:         sale.Code,
 		CustomerName: sale.CustomerName,
-		Status:       model.StatusPayment(sale.Status),
-		CashValue:    sale.CashValue,
-		DebitValue:   sale.DebitValue,
-		PaidAt:       sale.PaidAt,
+		Status:       sale.Status,
 		CreatedAt:    sale.CreatedAt,
-		CancelledAt:  sale.CancelledAt,
-		Branch:       *BranchToResponse(&sale.Branch),
+		BranchID:     sale.BranchID,
+		// Details:      []model.SaleDetailResponse{},
+		// Payments:     []model.SalePaymentResponse{},
 	}
 }
