@@ -125,7 +125,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			totalPayment += p.Amount
 		}
 
-		if totalPayment <= totalPrice {
+		if totalPayment < totalPrice {
 			c.Log.Error("error payment is less than total price")
 			return nil, errors.New("bad request")
 		}

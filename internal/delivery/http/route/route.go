@@ -22,13 +22,14 @@ type RouteConfig struct {
 	DistributorController *http.DistributorController
 	// end master data
 
-	DashboardController       *http.DashboardController
-	ProductController         *http.ProductController
-	UserController            *http.UserController
-	SizeController            *http.SizeController
-	SaleController            *http.SaleController
-	PurchaseController        *http.PurchaseController
-	FinancialReportController *http.FinancialReportController
+	DashboardController  *http.DashboardController
+	ProductController    *http.ProductController
+	UserController       *http.UserController
+	SizeController       *http.SizeController
+	SaleController       *http.SaleController
+	PurchaseController   *http.PurchaseController
+	SaleReportController *http.SaleReportController
+	// FinancialReportController *http.FinancialReportController
 }
 
 func (route *RouteConfig) Setup() {
@@ -129,13 +130,13 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
 
 	// laporan barang keluar [ list per barang ]
-	authRouter.HandleFunc("/sales-and-product-reports/sales", route.SaleController.ListReport).Methods("GET")
+	authRouter.HandleFunc("/sales-and-product-reports/daily", route.SaleReportController.ListDaily).Methods("GET")
 
 	// laporan keseluruhan barang keluar per cabang
-	authRouter.HandleFunc("/sales-and-product-reports/branch-sales", route.SaleController.ListBranchSaleReport).Methods("GET")
+	// authRouter.HandleFunc("/sales-and-product-reports/branch-sales", route.SaleController.ListBranchSaleReport).Methods("GET")
 
 	// laporan keseluruhan barang terlaris [ bisa filter berdasarkan cabang ]
-	authRouter.HandleFunc("/sales-and-product-reports/best-selling-product", route.SaleController.ListBestSellingProduct).Methods("GET")
+	// authRouter.HandleFunc("/sales-and-product-reports/best-selling-product", route.SaleController.ListBestSellingProduct).Methods("GET")
 
 	// laporan keuangan
 	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")

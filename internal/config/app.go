@@ -43,7 +43,8 @@ func Bootstrap(config *BootstrapConfig) {
 	sizeRepository := repository.NewSizeRepository(config.Log)
 	saleRepository := repository.NewSaleRepository(config.Log)
 	purchaseRepository := repository.NewPurchaseRepository(config.Log)
-	financialReportRepository := repository.NewFinancialReportRepository(config.Log)
+	saleReportRepository := repository.NewSaleReportRepository(config.Log)
+	// financialReportRepository := repository.NewFinancialReportRepository(config.Log)
 	debtRepository := repository.NewDebtRepository(config.Log)
 
 	// master data usecase
@@ -59,7 +60,8 @@ func Bootstrap(config *BootstrapConfig) {
 	sizeUseCase := usecase.NewSizeUseCase(config.DB, config.Log, config.Validate, sizeRepository)
 	saleUseCase := usecase.NewSaleUseCase(config.DB, config.Log, config.Validate, saleRepository, debtRepository)
 	purchaseUseCase := usecase.NewPurchaseUseCase(config.DB, config.Log, config.Validate, purchaseRepository)
-	financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
+	saleReportUseCase := usecase.NewSaleReportUseCase(config.DB, config.Log, config.Validate, saleReportRepository)
+	// financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -74,7 +76,8 @@ func Bootstrap(config *BootstrapConfig) {
 	sizeController := http.NewSizeController(sizeUseCase, config.Log)
 	saleController := http.NewSaleController(saleUseCase, config.Log)
 	purchaseController := http.NewPurchaseController(purchaseUseCase, config.Log)
-	financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
+	saleReportController := http.NewSaleReportController(saleReportUseCase, config.Log)
+	// financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -90,13 +93,14 @@ func Bootstrap(config *BootstrapConfig) {
 		DistributorController: distributorController,
 
 		// data controller
-		DashboardController:       dashboardController,
-		ProductController:         productController,
-		UserController:            userController,
-		SizeController:            sizeController,
-		SaleController:            saleController,
-		PurchaseController:        purchaseController,
-		FinancialReportController: financialReportController,
+		DashboardController:  dashboardController,
+		ProductController:    productController,
+		UserController:       userController,
+		SizeController:       sizeController,
+		SaleController:       saleController,
+		PurchaseController:   purchaseController,
+		SaleReportController: saleReportController,
+		// FinancialReportController: financialReportController,
 	}
 	routeConfig.Setup()
 

@@ -1,9 +1,5 @@
 package model
 
-import (
-	"time"
-)
-
 type SaleResponse struct {
 	Code         string                `json:"code,omitempty"`
 	CustomerName string                `json:"customer_name,omitempty"`
@@ -42,37 +38,37 @@ type CancelSaleRequest struct {
 	Code string `json:"-" validate:"required,max=100"`
 }
 
-type SaleReportResponse struct {
-	CreatedAt    time.Time `json:"created_at"`
-	BranchName   string    `json:"branch_name"`
-	SaleCode     string    `json:"sale_code"`
-	ProductName  string    `json:"product_name"`
-	CustomerName string    `json:"customer_name"`
-	Qty          int       `json:"qty"`
-	SellPrice    float64   `json:"sell_price"`
-	TotalPrice   float64   `json:"total_price"`
-}
+// type SaleReportResponse struct {
+// 	CreatedAt    time.Time `json:"created_at"`
+// 	BranchName   string    `json:"branch_name"`
+// 	SaleCode     string    `json:"sale_code"`
+// 	ProductName  string    `json:"product_name"`
+// 	CustomerName string    `json:"customer_name"`
+// 	Qty          int       `json:"qty"`
+// 	SellPrice    float64   `json:"sell_price"`
+// 	TotalPrice   float64   `json:"total_price"`
+// }
 
-type SearchSaleReportRequest struct {
-	BranchID uint   `json:"-"`
-	Search   string `json:"-"`
-	StartAt  string `json:"start_at"`
-	EndAt    string `json:"end_at"`
-	Page     int    `json:"page" validate:"min=1"`
-	Size     int    `json:"size" validate:"min=1,max=100"`
-}
+// type SearchSaleReportRequest struct {
+// 	BranchID uint   `json:"-"`
+// 	Search   string `json:"-"`
+// 	StartAt  string `json:"start_at"`
+// 	EndAt    string `json:"end_at"`
+// 	Page     int    `json:"page" validate:"min=1"`
+// 	Size     int    `json:"size" validate:"min=1,max=100"`
+// }
 
-type BranchSalesReportResponse struct {
-	BranchName string  `json:"branch_name"`
-	TotalSales float64 `json:"total_sales"`
-}
+// type BranchSalesReportResponse struct {
+// 	BranchName string  `json:"branch_name"`
+// 	TotalSales float64 `json:"total_sales"`
+// }
 
-type BestSellingProductResponse struct {
-	ProductName string  `json:"product_name"`
-	TotalQty    int64   `json:"total_qty"`
-	TotalSales  float64 `json:"total_sales"`
-}
+// type BestSellingProductResponse struct {
+// 	ProductName string  `json:"product_name"`
+// 	TotalQty    int64   `json:"total_qty"`
+// 	TotalSales  float64 `json:"total_sales"`
+// }
 
-type ListBestSellingProductRequest struct {
-	BranchID uint `json:"-"`
-}
+// type ListBestSellingProductRequest struct {
+// 	BranchID uint `json:"-"`
+// }

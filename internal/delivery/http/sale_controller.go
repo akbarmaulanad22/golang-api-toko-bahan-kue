@@ -185,116 +185,116 @@ func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
 
-func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
+// func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
+// 	params := r.URL.Query()
 
-	page := params.Get("page")
-	if page == "" {
-		page = "1"
-	}
+// 	page := params.Get("page")
+// 	if page == "" {
+// 		page = "1"
+// 	}
 
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+// 	pageInt, err := strconv.Atoi(page)
+// 	if err != nil {
+// 		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	size := params.Get("size")
-	if size == "" {
-		size = "10"
-	}
+// 	size := params.Get("size")
+// 	if size == "" {
+// 		size = "10"
+// 	}
 
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
+// 	sizeInt, err := strconv.Atoi(size)
+// 	if err != nil {
+// 		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	branchID := params.Get("branch_id")
-	if branchID == "" {
-		branchID = "0"
-	}
+// 	branchID := params.Get("branch_id")
+// 	if branchID == "" {
+// 		branchID = "0"
+// 	}
 
-	branchIDInt, err := strconv.Atoi(branchID)
-	if err != nil {
-		http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
-		return
-	}
+// 	branchIDInt, err := strconv.Atoi(branchID)
+// 	if err != nil {
+// 		http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	request := &model.SearchSaleReportRequest{
-		BranchID: uint(branchIDInt),
-		Search:   params.Get("search"),
-		StartAt:  params.Get("start_at"),
-		EndAt:    params.Get("end_at"),
-		Page:     pageInt,
-		Size:     sizeInt,
-	}
+// 	request := &model.SearchSaleReportRequest{
+// 		BranchID: uint(branchIDInt),
+// 		Search:   params.Get("search"),
+// 		StartAt:  params.Get("start_at"),
+// 		EndAt:    params.Get("end_at"),
+// 		Page:     pageInt,
+// 		Size:     sizeInt,
+// 	}
 
-	responses, total, err := c.UseCase.SearchReports(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Error("error searching sales report")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	responses, total, err := c.UseCase.SearchReports(r.Context(), request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error searching sales report")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	paging := &model.PageMetadata{
-		Page:      request.Page,
-		Size:      request.Size,
-		TotalItem: total,
-		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
-	}
+// 	paging := &model.PageMetadata{
+// 		Page:      request.Page,
+// 		Size:      request.Size,
+// 		TotalItem: total,
+// 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleReportResponse]{
-		Data:   responses,
-		Paging: paging,
-	})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleReportResponse]{
+// 		Data:   responses,
+// 		Paging: paging,
+// 	})
+// }
 
-func (c *SaleController) ListBranchSaleReport(w http.ResponseWriter, r *http.Request) {
+// func (c *SaleController) ListBranchSaleReport(w http.ResponseWriter, r *http.Request) {
 
-	response, err := c.UseCase.GetBranchSalesReport(r.Context())
-	if err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	response, err := c.UseCase.GetBranchSalesReport(r.Context())
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchSalesReportResponse]{Data: response})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchSalesReportResponse]{Data: response})
+// }
 
-func (c *SaleController) ListBestSellingProduct(w http.ResponseWriter, r *http.Request) {
+// func (c *SaleController) ListBestSellingProduct(w http.ResponseWriter, r *http.Request) {
 
-	params := r.URL.Query()
+// 	params := r.URL.Query()
 
-	branchID := params.Get("branch_id")
-	if branchID == "" {
-		branchID = "0"
-	}
+// 	branchID := params.Get("branch_id")
+// 	if branchID == "" {
+// 		branchID = "0"
+// 	}
 
-	branchIDInt, _ := strconv.Atoi(branchID)
+// 	branchIDInt, _ := strconv.Atoi(branchID)
 
-	request := &model.ListBestSellingProductRequest{
-		BranchID: uint(branchIDInt),
-	}
+// 	request := &model.ListBestSellingProductRequest{
+// 		BranchID: uint(branchIDInt),
+// 	}
 
-	if request.BranchID != 0 {
-		response, err := c.UseCase.ListBestSellingProductByBranchID(r.Context(), request)
-		if err != nil {
-			c.Log.WithError(err).Error("error getting best seller products")
-			http.Error(w, err.Error(), helper.GetStatusCode(err))
-			return
-		}
+// 	if request.BranchID != 0 {
+// 		response, err := c.UseCase.ListBestSellingProductByBranchID(r.Context(), request)
+// 		if err != nil {
+// 			c.Log.WithError(err).Error("error getting best seller products")
+// 			http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 			return
+// 		}
 
-		json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
-		return
-	}
+// 		json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
+// 		return
+// 	}
 
-	response, err := c.UseCase.ListBestSellingProductGlobal(r.Context())
-	if err != nil {
-		c.Log.WithError(err).Error("error getting best seller products")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	response, err := c.UseCase.ListBestSellingProductGlobal(r.Context())
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error getting best seller products")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.BestSellingProductResponse]{Data: response})
+// }

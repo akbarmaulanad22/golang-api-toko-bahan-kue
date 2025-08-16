@@ -9,7 +9,7 @@ create table users
     updated_at bigint       not null,
 
     role_id    int(11)      not null,
-    branch_id  int(11)      not null,
+    branch_id  int(11)      null,
     
     primary key ( username ),
     unique ( username ),

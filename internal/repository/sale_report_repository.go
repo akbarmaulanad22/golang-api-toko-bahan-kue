@@ -1,0 +1,138 @@
+package repository
+
+import (
+	"fmt"
+	"tokobahankue/internal/model"
+
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+)
+
+type SaleReportRepository struct {
+	Log *logrus.Logger
+}
+
+func NewSaleReportRepository(log *logrus.Logger) *SaleReportRepository {
+	return &SaleReportRepository{
+		Log: log,
+	}
+}
+
+func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesDailyReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
+	// Step 1: Ambil ringkasan transaksi
+	summaryRows := []struct {
+		Date              string
+		BranchID          uint
+		BranchName        string
+		TotalTransactions int
+		TotalProductsSold int
+		TotalRevenue      float64
+	}{}
+
+	query := `
+		SELECT 
+			DATE(FROM_UNIXTIME(s.created_at / 1000)) AS date,
+			b.id AS branch_id,
+			b.name AS branch_name,
+			COUNT(DISTINCT s.code) AS total_transactions,
+			SUM(CASE WHEN sd.is_cancelled = 0 THEN sd.qty ELSE 0 END) AS total_products_sold,
+			SUM(CASE WHEN sd.is_cancelled = 0 THEN sd.qty * sd.sell_price ELSE 0 END) AS total_revenue
+		FROM sales s
+		JOIN branches b ON s.branch_id = b.id
+		JOIN sale_details sd ON s.code = sd.sale_code
+		WHERE s.status = 'COMPLETED'
+	`
+
+	args := []interface{}{}
+
+	// Optional branch filter
+	if request.BranchID != nil {
+		query += " AND s.branch_id = ?"
+		args = append(args, *request.BranchID)
+	}
+
+	// Optional date filter
+	if !request.StartAt.IsZero() && !request.EndAt.IsZero() {
+		query += " AND s.created_at BETWEEN ? AND ?"
+		args = append(args, request.StartAt.UnixMilli(), request.EndAt.UnixMilli())
+	}
+
+	query += `
+		GROUP BY DATE(FROM_UNIXTIME(s.created_at / 1000)), b.id, b.name
+		ORDER BY date, branch_id
+	`
+
+	if err := db.Raw(query, args...).Scan(&summaryRows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Step 2: Ambil breakdown payment per metode
+	paymentRows := []struct {
+		Date          string
+		BranchID      uint
+		PaymentMethod string
+		TotalAmount   float64
+	}{}
+
+	paymentQuery := `
+		SELECT 
+			DATE(FROM_UNIXTIME(s.created_at / 1000)) AS date,
+			s.branch_id,
+			sp.payment_method,
+			SUM(sp.amount) AS total_amount
+		FROM sales s
+		JOIN sale_payments sp ON s.code = sp.sale_code
+		WHERE s.status = 'COMPLETED'
+	`
+
+	paymentArgs := []interface{}{}
+
+	if request.BranchID != nil {
+		paymentQuery += " AND s.branch_id = ?"
+		paymentArgs = append(paymentArgs, *request.BranchID)
+	}
+
+	if !request.StartAt.IsZero() && !request.EndAt.IsZero() {
+		paymentQuery += " AND s.created_at BETWEEN ? AND ?"
+		paymentArgs = append(paymentArgs, request.StartAt.UnixMilli(), request.EndAt.UnixMilli())
+	}
+
+	paymentQuery += `
+		GROUP BY DATE(FROM_UNIXTIME(s.created_at / 1000)), s.branch_id, sp.payment_method
+	`
+
+	if err := db.Raw(paymentQuery, paymentArgs...).Scan(&paymentRows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Step 3: Gabungkan summary + payment breakdown
+	resultMap := make(map[string]*model.SalesDailyReportResponse)
+
+	for _, row := range summaryRows {
+		key := fmt.Sprintf("%s-%d", row.Date, row.BranchID)
+		resultMap[key] = &model.SalesDailyReportResponse{
+			Date:              row.Date,
+			BranchID:          row.BranchID,
+			BranchName:        row.BranchName,
+			TotalTransactions: row.TotalTransactions,
+			TotalProductsSold: row.TotalProductsSold,
+			TotalRevenue:      row.TotalRevenue,
+			PaymentMethods:    make(map[string]float64),
+		}
+	}
+
+	for _, row := range paymentRows {
+		key := fmt.Sprintf("%s-%d", row.Date, row.BranchID)
+		if summary, ok := resultMap[key]; ok {
+			summary.PaymentMethods[row.PaymentMethod] = row.TotalAmount
+		}
+	}
+
+	// Convert ke slice
+	results := make([]model.SalesDailyReportResponse, 0, len(resultMap))
+	for _, v := range resultMap {
+		results = append(results, *v)
+	}
+
+	return results, int64(len(results)), nil
+}

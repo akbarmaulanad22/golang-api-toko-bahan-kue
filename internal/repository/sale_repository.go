@@ -68,142 +68,142 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 	}
 }
 
-func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
+// func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
 
-	var reports []model.SaleReportResponse
+// 	var reports []model.SaleReportResponse
 
-	query := `
-    SELECT
-        FROM_UNIXTIME(s.created_at / 1000) AS created_at,
-        b.id,
-        b.name AS branch_name,
-        s.code AS sale_code,
-        s.customer_name,
-        p.name AS product_name,
-        sd.qty,
-        sz.sell_price,
-        (sd.qty * sz.sell_price) AS total_price
-		FROM sales s
-		JOIN branches b ON s.branch_id = b.id
-		JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-		JOIN sizes sz ON sd.size_id = sz.id
-		JOIN products p ON sz.product_sku = p.sku
-    WHERE s.status = ?
-`
+// 	query := `
+//     SELECT
+//         FROM_UNIXTIME(s.created_at / 1000) AS created_at,
+//         b.id,
+//         b.name AS branch_name,
+//         s.code AS sale_code,
+//         s.customer_name,
+//         p.name AS product_name,
+//         sd.qty,
+//         sz.sell_price,
+//         (sd.qty * sz.sell_price) AS total_price
+// 		FROM sales s
+// 		JOIN branches b ON s.branch_id = b.id
+// 		JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+// 		JOIN sizes sz ON sd.size_id = sz.id
+// 		JOIN products p ON sz.product_sku = p.sku
+//     WHERE s.status = ?
+// `
 
-	params := []interface{}{"COMPLETED"}
+// 	params := []interface{}{"COMPLETED"}
 
-	// Filter tanggal
-	if request.StartAt != "" && request.EndAt != "" {
-		query += " AND DATE(FROM_UNIXTIME(s.created_at / 1000)) BETWEEN ? AND ?"
-		params = append(params, request.StartAt, request.EndAt)
-	}
+// 	// Filter tanggal
+// 	if request.StartAt != "" && request.EndAt != "" {
+// 		query += " AND DATE(FROM_UNIXTIME(s.created_at / 1000)) BETWEEN ? AND ?"
+// 		params = append(params, request.StartAt, request.EndAt)
+// 	}
 
-	// Filter customer name
-	if request.Search != "" {
-		search := "%" + request.Search + "%"
-		query += "AND (s.customer_name LIKE ? OR p.name LIKE ? OR s.code LIKE ?)"
-		params = append(params, search, search, search)
-	}
+// 	// Filter customer name
+// 	if request.Search != "" {
+// 		search := "%" + request.Search + "%"
+// 		query += "AND (s.customer_name LIKE ? OR p.name LIKE ? OR s.code LIKE ?)"
+// 		params = append(params, search, search, search)
+// 	}
 
-	// Filter branch
-	if request.BranchID != 0 {
-		query += " AND b.id = ?"
-		params = append(params, request.BranchID)
-	}
+// 	// Filter branch
+// 	if request.BranchID != 0 {
+// 		query += " AND b.id = ?"
+// 		params = append(params, request.BranchID)
+// 	}
 
-	// Urutkan berdasarkan tanggal
-	query += " ORDER BY created_at ASC"
+// 	// Urutkan berdasarkan tanggal
+// 	query += " ORDER BY created_at ASC"
 
-	if err := db.Raw(query, params...).Scan(&reports).Error; err != nil {
-		return nil, 0, err
-	}
+// 	if err := db.Raw(query, params...).Scan(&reports).Error; err != nil {
+// 		return nil, 0, err
+// 	}
 
-	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
-	var total int64 = 0
-	if err := db.Raw(countQuery, params...).Scan(&total).Error; err != nil {
-		return nil, 0, err
-	}
+// 	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
+// 	var total int64 = 0
+// 	if err := db.Raw(countQuery, params...).Scan(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
 
-	return reports, total, nil
+// 	return reports, total, nil
 
-}
+// }
 
-func (r *SaleRepository) SummaryAllBranch(db *gorm.DB) ([]model.BranchSalesReportResponse, error) {
+// func (r *SaleRepository) SummaryAllBranch(db *gorm.DB) ([]model.BranchSalesReportResponse, error) {
 
-	var branchSalesReport []model.BranchSalesReportResponse
+// 	var branchSalesReport []model.BranchSalesReportResponse
 
-	query := `
-		SELECT 
-            b.name AS branch_name,
-            SUM(sd.qty * sz.sell_price) AS total_sales
-        FROM sales s
-        JOIN branches b ON s.branch_id = b.id
-        JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-        JOIN sizes sz ON sd.size_id = sz.id
-        GROUP BY b.name
+// 	query := `
+// 		SELECT
+//             b.name AS branch_name,
+//             SUM(sd.qty * sz.sell_price) AS total_sales
+//         FROM sales s
+//         JOIN branches b ON s.branch_id = b.id
+//         JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+//         JOIN sizes sz ON sd.size_id = sz.id
+//         GROUP BY b.name
 
-        UNION ALL
+//         UNION ALL
 
-        SELECT 
-            'Total Semua Cabang' AS branch_name,
-            SUM(sd.qty * sz.sell_price) AS total_sales
-        FROM sales s
-        JOIN branches b ON s.branch_id = b.id
-        JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-        JOIN sizes sz ON sd.size_id = sz.id
-        ORDER BY branch_name;
-	`
+//         SELECT
+//             'Total Semua Cabang' AS branch_name,
+//             SUM(sd.qty * sz.sell_price) AS total_sales
+//         FROM sales s
+//         JOIN branches b ON s.branch_id = b.id
+//         JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
+//         JOIN sizes sz ON sd.size_id = sz.id
+//         ORDER BY branch_name;
+// 	`
 
-	if err := db.Raw(query).Scan(&branchSalesReport).Error; err != nil {
-		return nil, err
-	}
+// 	if err := db.Raw(query).Scan(&branchSalesReport).Error; err != nil {
+// 		return nil, err
+// 	}
 
-	return branchSalesReport, nil
-}
+// 	return branchSalesReport, nil
+// }
 
-func (r *SaleRepository) FindhBestSellingProductsGlobal(db *gorm.DB) ([]model.BestSellingProductResponse, error) {
+// func (r *SaleRepository) FindhBestSellingProductsGlobal(db *gorm.DB) ([]model.BestSellingProductResponse, error) {
 
-	query := `
-        SELECT 
-			p.sku,
-			p.name AS product_name,
-			SUM(sd.qty) AS total_qty,
-			SUM(sd.qty * sz.sell_price) AS total_sales
-		FROM sale_details sd
-		JOIN sales s ON sd.sale_code = s.code
-		JOIN sizes sz ON sd.size_id = sz.id
-		JOIN products p ON sz.product_sku = p.sku
-		WHERE s.status = 'COMPLETED' AND sd.is_cancelled = 0
-		GROUP BY p.sku, p.name
-		ORDER BY total_qty DESC
-		LIMIT 10;
-    `
-	var result []model.BestSellingProductResponse
-	err := db.Raw(query).Scan(&result).Error
-	return result, err
-}
+// 	query := `
+//         SELECT
+// 			p.sku,
+// 			p.name AS product_name,
+// 			SUM(sd.qty) AS total_qty,
+// 			SUM(sd.qty * sz.sell_price) AS total_sales
+// 		FROM sale_details sd
+// 		JOIN sales s ON sd.sale_code = s.code
+// 		JOIN sizes sz ON sd.size_id = sz.id
+// 		JOIN products p ON sz.product_sku = p.sku
+// 		WHERE s.status = 'COMPLETED' AND sd.is_cancelled = 0
+// 		GROUP BY p.sku, p.name
+// 		ORDER BY total_qty DESC
+// 		LIMIT 10;
+//     `
+// 	var result []model.BestSellingProductResponse
+// 	err := db.Raw(query).Scan(&result).Error
+// 	return result, err
+// }
 
-func (r *SaleRepository) FindhBestSellingProductsByBranchID(db *gorm.DB, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
+// func (r *SaleRepository) FindhBestSellingProductsByBranchID(db *gorm.DB, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
 
-	query := `
-        SELECT 
-			p.sku,
-			p.name AS product_name,
-			SUM(sd.qty) AS total_qty,
-			SUM(sd.qty * sz.sell_price) AS total_sales
-		FROM sale_details sd
-		JOIN sales s ON sd.sale_code = s.code
-		JOIN sizes sz ON sd.size_id = sz.id
-		JOIN products p ON sz.product_sku = p.sku
-		WHERE s.status = 'COMPLETED' 
-		AND sd.is_cancelled = 0
-		AND s.branch_id = ?
-		GROUP BY p.sku, p.name
-		ORDER BY total_qty DESC
-		LIMIT 10;
-    `
-	var result []model.BestSellingProductResponse
-	err := db.Raw(query, request.BranchID).Scan(&result).Error
-	return result, err
-}
+// 	query := `
+//         SELECT
+// 			p.sku,
+// 			p.name AS product_name,
+// 			SUM(sd.qty) AS total_qty,
+// 			SUM(sd.qty * sz.sell_price) AS total_sales
+// 		FROM sale_details sd
+// 		JOIN sales s ON sd.sale_code = s.code
+// 		JOIN sizes sz ON sd.size_id = sz.id
+// 		JOIN products p ON sz.product_sku = p.sku
+// 		WHERE s.status = 'COMPLETED'
+// 		AND sd.is_cancelled = 0
+// 		AND s.branch_id = ?
+// 		GROUP BY p.sku, p.name
+// 		ORDER BY total_qty DESC
+// 		LIMIT 10;
+//     `
+// 	var result []model.BestSellingProductResponse
+// 	err := db.Raw(query, request.BranchID).Scan(&result).Error
+// 	return result, err
+// }
