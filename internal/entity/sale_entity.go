@@ -8,5 +8,5 @@ type Sale struct {
 	CreatedAt    int64         `gorm:"column:created_at;autoCreateTime:milli"`
 	Details      []SaleDetail  `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Payments     []SalePayment `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Debt         *Debt         `gorm:"foreignKey:ReferenceCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Debt         *Debt         `gorm:"foreignKey:ReferenceCode;references:Code;"`
 }

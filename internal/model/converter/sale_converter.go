@@ -6,6 +6,11 @@ import (
 )
 
 func SaleToResponse(sale *entity.Sale) *model.SaleResponse {
+	var debtResp *model.DebtResponse
+	if sale.Debt != nil {
+		debtResp = DebtToResponse(sale.Debt)
+	}
+
 	payments := make([]model.SalePaymentResponse, len(sale.Payments))
 	for i, payment := range sale.Payments {
 		payments[i] = *SalePaymentToResponse(&payment)
@@ -24,6 +29,6 @@ func SaleToResponse(sale *entity.Sale) *model.SaleResponse {
 		BranchID:     sale.BranchID,
 		Details:      details,
 		Payments:     payments,
-		Debt:         DebtToResponse(sale.Debt),
+		Debt:         debtResp,
 	}
 }

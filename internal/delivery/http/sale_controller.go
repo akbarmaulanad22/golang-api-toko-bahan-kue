@@ -161,34 +161,29 @@ func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
 
-// func (c *SaleController) Update(w http.ResponseWriter, r *http.Request) {
+func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) {
 
-// 	params := mux.Vars(r)
+	params := mux.Vars(r)
 
-// 	code, ok := params["code"]
-// 	if !ok || code == "" {
-// 		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
-// 		return
-// 	}
+	code, ok := params["code"]
+	if !ok || code == "" {
+		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
+		return
+	}
 
-// 	request := new(model.UpdateSaleRequest)
-// 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-// 		c.Log.Warnf("Failed to parse request body: %+v", err)
-// 		http.Error(w, "bad request", http.StatusBadRequest)
-// 		return
-// 	}
+	request := model.CancelSaleRequest{
+		Code: code,
+	}
 
-// 	request.Code = code
+	response, err := c.UseCase.Cancel(r.Context(), &request)
+	if err != nil {
+		c.Log.WithError(err).Warnf("Failed to cancel sale")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
 
-// 	response, err := c.UseCase.Update(r.Context(), request)
-// 	if err != nil {
-// 		c.Log.WithError(err).Warnf("Failed to update sale")
-// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
-// 		return
-// 	}
-
-// 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
-// }
+	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+}
 
 func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
