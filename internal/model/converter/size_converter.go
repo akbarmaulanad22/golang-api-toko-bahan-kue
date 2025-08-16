@@ -13,6 +13,6 @@ func SizeToResponse(size *entity.Size) *model.SizeResponse {
 		BuyPrice:  size.BuyPrice,
 		CreatedAt: size.CreatedAt,
 		UpdatedAt: size.UpdatedAt,
-		// Product:   *ProductToResponse(&size.Product),
+		Product:   ProductToResponse(size.Product),
 	}
 }

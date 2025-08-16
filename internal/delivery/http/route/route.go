@@ -118,9 +118,9 @@ func (route *RouteConfig) SetupAuthRoute() {
 
 	// POS (order barang keluar)
 	authRouter.HandleFunc("/sales", route.SaleController.Create).Methods("POST")
-	// authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
+	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
 	// authRouter.HandleFunc("/sales/{code}", route.SaleController.Update).Methods("PUT")
-	// authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
+	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
 
 	// POS (order barang masuk)
 	// authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")

@@ -1,12 +1,12 @@
 package model
 
 type ProductResponse struct {
-	SKU       string           `json:"sku,omitempty"`
-	Name      string           `json:"name,omitempty"`
-	CreatedAt int64            `json:"created_at,omitempty"`
-	UpdatedAt int64            `json:"updated_at,omitempty"`
-	Category  CategoryResponse `json:"category"`
-	Sizes     []SizeResponse   `json:"sizes"`
+	SKU       string            `json:"sku,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	CreatedAt int64             `json:"created_at,omitempty"`
+	UpdatedAt int64             `json:"updated_at,omitempty"`
+	Category  *CategoryResponse `json:"category,omitempty"`
+	Sizes     []SizeResponse    `json:"sizes,omitempty"`
 }
 
 type CreateProductRequest struct {

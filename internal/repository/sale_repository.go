@@ -20,7 +20,11 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 }
 
 func (r *SaleRepository) FindByCode(db *gorm.DB, sale *entity.Sale, code string) error {
-	return db.Where("code = ?", code).First(sale).Error
+	return db.Where("code = ?", code).
+		Preload("Details.Size.Product.Category").
+		Preload("Payments").
+		Preload("Debt").
+		First(sale).Error
 }
 
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
@@ -39,6 +43,8 @@ func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) (
 
 func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
+		tx.Where("branch_id = ?", request.BranchID)
+
 		if code := request.Code; code != "" {
 			tx = tx.Where("code = ?", code)
 		}

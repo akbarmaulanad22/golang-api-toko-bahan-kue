@@ -11,5 +11,6 @@ func SaleDetailToResponse(saleDetail *entity.SaleDetail) *model.SaleDetailRespon
 		Qty:         saleDetail.Qty,
 		SellPrice:   saleDetail.SellPrice,
 		IsCancelled: saleDetail.IsCancelled,
+		Size:        SizeToResponse(saleDetail.Size),
 	}
 }

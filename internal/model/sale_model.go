@@ -5,14 +5,18 @@ import (
 )
 
 type SaleResponse struct {
-	Code         string `json:"code,omitempty"`
-	CustomerName string `json:"customer_name,omitempty"`
-	Status       string `json:"status,omitempty"`
-	CreatedAt    int64  `json:"created_at,omitempty"`
-	BranchID     uint   `json:"branch_id,omitempty"`
+	Code         string                `json:"code,omitempty"`
+	CustomerName string                `json:"customer_name,omitempty"`
+	Status       string                `json:"status,omitempty"`
+	CreatedAt    int64                 `json:"created_at,omitempty"`
+	BranchID     uint                  `json:"branch_id,omitempty"`
+	Details      []SaleDetailResponse  `json:"details,omitempty"`
+	Payments     []SalePaymentResponse `json:"payments,omitempty"`
+	Debt         *DebtResponse         `json:"debt,omitempty"`
 }
 
 type SearchSaleRequest struct {
+	BranchID     uint   `json:"branch_id"`
 	Code         string `json:"code" validate:"max=100"`
 	CustomerName string `json:"customer_name" validate:"max=100"`
 	Status       string `json:"status"`

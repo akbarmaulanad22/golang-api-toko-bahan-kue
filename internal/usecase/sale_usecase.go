@@ -187,6 +187,57 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	return converter.SaleToResponse(sale), nil
 }
 
+func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, 0, errors.New("bad request")
+	}
+
+	sales, total, err := c.SaleRepository.Search(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting sales")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting sales")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	responses := make([]model.SaleResponse, len(sales))
+	for i, sale := range sales {
+		responses[i] = *converter.SaleToResponse(&sale)
+	}
+
+	return responses, total, nil
+}
+
+func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*model.SaleResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
+
+	sale := new(entity.Sale)
+	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
+		c.Log.WithError(err).Error("error getting sale")
+		return nil, errors.New("not found")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting sale")
+		return nil, errors.New("internal server error")
+	}
+
+	return converter.SaleToResponse(sale), nil
+}
+
 // func (c *SaleUseCase) Update(ctx context.Context, request *model.UpdateSaleRequest) (*model.SaleResponse, error) {
 // 	tx := c.DB.WithContext(ctx).Begin()
 // 	defer tx.Rollback()
@@ -254,32 +305,4 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 // 	}
 
 // 	return converter.SaleToResponse(sale), nil
-// }
-
-// func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
-// 	tx := c.DB.WithContext(ctx).Begin()
-// 	defer tx.Rollback()
-
-// 	if err := c.Validate.Struct(request); err != nil {
-// 		c.Log.WithError(err).Error("error validating request body")
-// 		return nil, 0, errors.New("bad request")
-// 	}
-
-// 	sales, total, err := c.SaleRepository.Search(tx, request)
-// 	if err != nil {
-// 		c.Log.WithError(err).Error("error getting sales")
-// 		return nil, 0, errors.New("internal server error")
-// 	}
-
-// 	if err := tx.Commit().Error; err != nil {
-// 		c.Log.WithError(err).Error("error getting sales")
-// 		return nil, 0, errors.New("internal server error")
-// 	}
-
-// 	responses := make([]model.SaleResponse, len(sales))
-// 	for i, sale := range sales {
-// 		responses[i] = *converter.SaleToResponse(&sale)
-// 	}
-
-// 	return responses, total, nil
 // }

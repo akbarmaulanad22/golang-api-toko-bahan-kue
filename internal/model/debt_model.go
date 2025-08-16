@@ -7,7 +7,7 @@ import (
 )
 
 type DebtResponse struct {
-	ID            int                   `json:"id,omitempty"`
+	ID            uint                  `json:"id,omitempty"`
 	ReferenceType string                `json:"reference_type,omitempty"`
 	ReferenceCode string                `json:"reference_code,omitempty"`
 	TotalAmount   float64               `json:"total_amount,omitempty"`

@@ -16,7 +16,7 @@ func ProductToResponse(product *entity.Product) *model.ProductResponse {
 		Name:      product.Name,
 		CreatedAt: product.CreatedAt,
 		UpdatedAt: product.UpdatedAt,
-		Category:  *CategoryToResponse(&product.Category),
+		Category:  CategoryToResponse(product.Category),
 		Sizes:     sizes,
 	}
 }

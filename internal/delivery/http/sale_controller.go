@@ -5,11 +5,13 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
 
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -48,105 +50,116 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
 
-// func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
-// 	params := r.URL.Query()
+func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
 
-// 	page := params.Get("page")
-// 	if page == "" {
-// 		page = "1"
-// 	}
+	params := r.URL.Query()
 
-// 	pageInt, err := strconv.Atoi(page)
-// 	if err != nil {
-// 		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-// 		return
-// 	}
+	page := params.Get("page")
+	if page == "" {
+		page = "1"
+	}
 
-// 	size := params.Get("size")
-// 	if size == "" {
-// 		size = "10"
-// 	}
+	pageInt, err := strconv.Atoi(page)
+	if err != nil {
+		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
+		return
+	}
 
-// 	sizeInt, err := strconv.Atoi(size)
-// 	if err != nil {
-// 		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-// 		return
-// 	}
+	size := params.Get("size")
+	if size == "" {
+		size = "10"
+	}
 
-// 	now := time.Now()
-// 	format := "2006-01-02"
+	sizeInt, err := strconv.Atoi(size)
+	if err != nil {
+		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
+		return
+	}
 
-// 	startAt := params.Get("start_at")
-// 	endAt := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
-// 	if startAt == "" && endAt == "" {
-// 		// default: hari ini dan 30 hari ke depan
-// 		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-// 		thirtyDaysLater := today.AddDate(0, 0, 30)
+	var (
+		startDate int64 = 0
+		endDate   int64 = 0
+	)
 
-// 		startAt = today.Format(format)
-// 		endAt = thirtyDaysLater.Format(format)
-// 	}
+	if startAt != "" && endAt != "" {
+		now := time.Now()
+		format := "2006-01-02"
 
-// 	// parse tanggal dari input user atau default di atas
-// 	startTime, _ := time.ParseInLocation(format, startAt, time.Local)
-// 	endTime, _ := time.ParseInLocation(format, endAt, time.Local)
+		// default: hari ini dan 30 hari ke depan
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		thirtyDaysLater := today.AddDate(0, 0, 30)
 
-// 	// pastikan endTime sampai jam 23:59:59
-// 	endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
+		startAt = today.Format(format)
+		endAt = thirtyDaysLater.Format(format)
 
-// 	request := &model.SearchSaleRequest{
-// 		Code:         params.Get("code"),
-// 		CustomerName: params.Get("customer_name"),
-// 		Status:       model.StatusPayment(params.Get("status")),
-// 		StartAt:      startTime.UnixMilli(),
-// 		EndAt:        endTime.UnixMilli(),
-// 		Page:         pageInt,
-// 		Size:         sizeInt,
-// 	}
+		// parse tanggal dari input user atau default di atas
+		startTime, _ := time.ParseInLocation(format, startAt, time.Local)
+		endTime, _ := time.ParseInLocation(format, endAt, time.Local)
 
-// 	responses, total, err := c.UseCase.Search(r.Context(), request)
-// 	if err != nil {
-// 		c.Log.WithError(err).Error("error searching sale")
-// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
-// 		return
-// 	}
+		// pastikan endTime sampai jam 23:59:59
+		endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
 
-// 	paging := &model.PageMetadata{
-// 		Page:      request.Page,
-// 		Size:      request.Size,
-// 		TotalItem: total,
-// 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
-// 	}
+		startDate = startTime.UnixMilli()
+		endDate = endTime.UnixMilli()
+	}
 
-// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleResponse]{
-// 		Data:   responses,
-// 		Paging: paging,
-// 	})
-// }
+	request := &model.SearchSaleRequest{
+		BranchID:     auth.BranchID,
+		Code:         params.Get("code"),
+		CustomerName: params.Get("customer_name"),
+		Status:       params.Get("status"),
+		StartAt:      startDate,
+		EndAt:        endDate,
+		Page:         pageInt,
+		Size:         sizeInt,
+	}
 
-// func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
-// 	params := mux.Vars(r)
+	responses, total, err := c.UseCase.Search(r.Context(), request)
+	if err != nil {
+		c.Log.WithError(err).Error("error searching sale")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
 
-// 	code, ok := params["code"]
-// 	if !ok || code == "" {
-// 		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
-// 		return
-// 	}
+	paging := &model.PageMetadata{
+		Page:      request.Page,
+		Size:      request.Size,
+		TotalItem: total,
+		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
+	}
 
-// 	request := &model.GetSaleRequest{
-// 		Code: code,
-// 	}
+	json.NewEncoder(w).Encode(model.WebResponse[[]model.SaleResponse]{
+		Data:   responses,
+		Paging: paging,
+	})
+}
 
-// 	response, err := c.UseCase.Get(r.Context(), request)
-// 	if err != nil {
-// 		c.Log.WithError(err).Error("error getting sale")
-// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
-// 		return
-// 	}
+func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
 
-// 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
-// }
+	code, ok := params["code"]
+	if !ok || code == "" {
+		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
+		return
+	}
+
+	request := &model.GetSaleRequest{
+		Code: code,
+	}
+
+	response, err := c.UseCase.Get(r.Context(), request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting sale")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+}
 
 // func (c *SaleController) Update(w http.ResponseWriter, r *http.Request) {
 
