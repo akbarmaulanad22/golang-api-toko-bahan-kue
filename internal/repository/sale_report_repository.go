@@ -215,17 +215,17 @@ func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.Searc
 	var results []model.SalesTopSellerReportResponse
 
 	sql := `
-        SELECT 
-            p.sku AS product_sku,
+	SELECT 
+	p.sku AS product_sku,
             p.name AS product_name,
             SUM(sd.qty) AS total_qty,
             SUM(sd.qty * sz.sell_price) AS total_omzet
-        FROM sale_details sd
-        JOIN sales s ON s.code = sd.sale_code
+			FROM sale_details sd
+			JOIN sales s ON s.code = sd.sale_code
         JOIN sizes sz ON sz.id = sd.size_id
         JOIN products p ON p.sku = sz.product_sku
         WHERE s.status = 'COMPLETED'
-    `
+		`
 
 	var params []interface{}
 
@@ -240,6 +240,44 @@ func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.Searc
 	}
 
 	sql += " GROUP BY p.sku, p.name ORDER BY total_qty DESC"
+
+	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return results, int64(len(results)), nil
+}
+
+func (r *SaleReportRepository) SearchCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
+	var results []model.SalesCategoryResponse
+
+	sql := `
+		SELECT 
+			c.id AS category_id,
+			c.name AS category_name,
+			COALESCE(SUM(sd.qty), 0) AS total_qty,
+			COALESCE(SUM(sd.qty * sz.sell_price), 0) AS total_omzet
+		FROM sale_details sd
+		JOIN sales s ON s.code = sd.sale_code
+		JOIN sizes sz ON sz.id = sd.size_id
+		JOIN products p ON p.sku = sz.product_sku
+		JOIN categories c ON c.id = p.category_id
+		WHERE s.status = 'COMPLETED'
+	`
+
+	var params []interface{}
+
+	if request.StartAt > 0 && request.EndAt > 0 {
+		sql += " AND s.created_at BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	if request.BranchID != nil {
+		sql += " AND s.branch_id = ?"
+		params = append(params, *request.BranchID)
+	}
+
+	sql += " GROUP BY c.id, c.name ORDER BY total_qty DESC"
 
 	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
 		return nil, 0, err

@@ -74,6 +74,29 @@ func (c *SaleReportUseCase) SearchTopSeller(ctx context.Context, request *model.
 	return salesReports, total, nil
 }
 
+func (c *SaleReportUseCase) SearchCategory(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, 0, errors.New("bad request")
+	}
+
+	salesReports, total, err := c.SaleReportRepository.SearchCategory(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting top seller per category sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting top seller per category sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	return salesReports, total, nil
+}
+
 // func (c *SaleUseCase) GetBranchSalesReport(ctx context.Context) ([]model.BranchSalesReportResponse, error) {
 // 	tx := c.DB.WithContext(ctx).Begin()
 // 	defer tx.Rollback()

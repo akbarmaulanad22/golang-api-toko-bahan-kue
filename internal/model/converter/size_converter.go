@@ -6,6 +6,11 @@ import (
 )
 
 func SizeToResponse(size *entity.Size) *model.SizeResponse {
+	var productResp *model.ProductResponse
+	if size.Product != nil {
+		productResp = ProductToResponse(size.Product)
+	}
+
 	return &model.SizeResponse{
 		ID:        size.ID,
 		Name:      size.Name,
@@ -13,6 +18,6 @@ func SizeToResponse(size *entity.Size) *model.SizeResponse {
 		BuyPrice:  size.BuyPrice,
 		CreatedAt: size.CreatedAt,
 		UpdatedAt: size.UpdatedAt,
-		Product:   ProductToResponse(size.Product),
+		Product:   productResp,
 	}
 }

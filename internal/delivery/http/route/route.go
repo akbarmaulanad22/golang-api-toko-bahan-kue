@@ -132,9 +132,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// laporan barang keluar [ list per barang ]
 	authRouter.HandleFunc("/sales-and-product-reports/daily", route.SaleReportController.ListDaily).Methods("GET")
 
-	// laporan keseluruhan barang keluar [ list barang terlaris]
+	// laporan keseluruhan barang keluar [ list barang terlaris ]
 	authRouter.HandleFunc("/sales-and-product-reports/top-seller", route.SaleReportController.ListTopSeller).Methods("GET")
 
+	// laporan keseluruhan barang keluar [ list barang terlaris per category ]
+	authRouter.HandleFunc("/sales-and-product-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
 	// laporan keuangan
 	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
 

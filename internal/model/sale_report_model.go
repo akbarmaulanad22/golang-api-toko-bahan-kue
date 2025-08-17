@@ -37,3 +37,10 @@ type SalesTopSellerReportResponse struct {
 	TotalQty    int64   `json:"total_qty"`
 	TotalOmzet  float64 `json:"total_omzet"`
 }
+
+type SalesCategoryResponse struct {
+	CategoryID   uint    `json:"category_id"`
+	CategoryName string  `json:"category_name"`
+	TotalQty     int64   `json:"total_qty"`
+	TotalOmzet   float64 `json:"total_omzet"`
+}
