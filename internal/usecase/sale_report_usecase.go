@@ -28,7 +28,7 @@ func NewSaleReportUseCase(db *gorm.DB, logger *logrus.Logger, validate *validato
 	}
 }
 
-func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.SearchSalesDailyReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
+func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -39,12 +39,35 @@ func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.Sear
 
 	salesReports, total, err := c.SaleReportRepository.SearchDaily(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting sales reports")
+		c.Log.WithError(err).Error("error getting daily sales reports")
 		return nil, 0, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting sales reports")
+		c.Log.WithError(err).Error("error getting daily sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	return salesReports, total, nil
+}
+
+func (c *SaleReportUseCase) SearchTopSeller(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, 0, errors.New("bad request")
+	}
+
+	salesReports, total, err := c.SaleReportRepository.SearchTopSeller(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting top seller sales reports")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting top seller sales reports")
 		return nil, 0, errors.New("internal server error")
 	}
 

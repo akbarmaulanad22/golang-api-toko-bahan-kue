@@ -1,14 +1,12 @@
 package model
 
-import "time"
-
-type SearchSalesDailyReportRequest struct {
-	BranchID *uint     `json:"-"`
-	Search   string    `json:"-"`
-	StartAt  time.Time `json:"start_at"`
-	EndAt    time.Time `json:"end_at"`
-	Page     int       `json:"page" validate:"min=1"`
-	Size     int       `json:"size" validate:"min=1,max=100"`
+type SearchSalesReportRequest struct {
+	BranchID *uint `json:"-"`
+	// Search   string    `json:"-"`
+	StartAt int64 `json:"start_at"`
+	EndAt   int64 `json:"end_at"`
+	Page    int   `json:"page" validate:"min=1"`
+	Size    int   `json:"size" validate:"min=1,max=100"`
 }
 
 // type SalesDailyReportResponse struct {
@@ -31,4 +29,11 @@ type SalesDailyReportResponse struct {
 	TotalTransactions int     `json:"total_transactions"`
 	TotalProductsSold int     `json:"total_products_sold"`
 	TotalRevenue      float64 `json:"total_revenue"`
+}
+
+type SalesTopSellerReportResponse struct {
+	ProductSKU  string  `json:"product_sku"`
+	ProductName string  `json:"product_name"`
+	TotalQty    int64   `json:"total_qty"`
+	TotalOmzet  float64 `json:"total_omzet"`
 }

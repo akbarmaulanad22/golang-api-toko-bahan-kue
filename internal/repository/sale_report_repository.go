@@ -18,7 +18,7 @@ func NewSaleReportRepository(log *logrus.Logger) *SaleReportRepository {
 }
 
 // simple
-func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesDailyReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
+func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
 	rows := []struct {
 		Date              string
 		BranchID          uint
@@ -51,9 +51,9 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 	}
 
 	// filter tanggal
-	if !request.StartAt.IsZero() && !request.EndAt.IsZero() {
+	if request.StartAt > 0 && request.EndAt > 0 {
 		query += " AND s.created_at BETWEEN ? AND ?"
-		args = append(args, request.StartAt.UnixMilli(), request.EndAt.UnixMilli())
+		args = append(args, request.StartAt, request.EndAt)
 	}
 
 	query += `
@@ -82,7 +82,7 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 }
 
 // untuk data sangat detail sampai utang dan perbandingan harga jual vs uang masuk
-// func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesDailyReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
+// func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
 // 	// Step 1: Summary penjualan (transaksi, produk, revenue)
 // 	summaryRows := []struct {
 // 		Date              string
@@ -210,3 +210,40 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 
 // 	return results, int64(len(results)), nil
 // }
+
+func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
+	var results []model.SalesTopSellerReportResponse
+
+	sql := `
+        SELECT 
+            p.sku AS product_sku,
+            p.name AS product_name,
+            SUM(sd.qty) AS total_qty,
+            SUM(sd.qty * sz.sell_price) AS total_omzet
+        FROM sale_details sd
+        JOIN sales s ON s.code = sd.sale_code
+        JOIN sizes sz ON sz.id = sd.size_id
+        JOIN products p ON p.sku = sz.product_sku
+        WHERE s.status = 'COMPLETED'
+    `
+
+	var params []interface{}
+
+	if request.StartAt > 0 && request.EndAt > 0 {
+		sql += " AND s.created_at BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	if request.BranchID != nil {
+		sql += " AND s.branch_id = ?"
+		params = append(params, *request.BranchID)
+	}
+
+	sql += " GROUP BY p.sku, p.name ORDER BY total_qty DESC"
+
+	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return results, int64(len(results)), nil
+}
