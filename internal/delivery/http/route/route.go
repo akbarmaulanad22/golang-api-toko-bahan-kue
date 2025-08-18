@@ -29,6 +29,7 @@ type RouteConfig struct {
 	SaleController       *http.SaleController
 	PurchaseController   *http.PurchaseController
 	SaleReportController *http.SaleReportController
+	ExpenseController    *http.ExpenseController
 	// FinancialReportController *http.FinancialReportController
 }
 
@@ -139,5 +140,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales-and-product-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
 	// laporan keuangan
 	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
+
+	// pengeluaran
+	authRouter.HandleFunc("/expenses", route.ExpenseController.Create).Methods("POST")
+	authRouter.HandleFunc("/expenses", route.ExpenseController.List).Methods("GET")
+	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Update).Methods("PUT")
+	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Delete).Methods("DELETE")
 
 }
