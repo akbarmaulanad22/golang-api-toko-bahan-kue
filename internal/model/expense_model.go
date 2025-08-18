@@ -21,6 +21,7 @@ type UpdateExpenseRequest struct {
 }
 
 type SearchExpenseRequest struct {
+	BranchID    *uint  `json:"branch_id"`
 	Description string `json:"description" validate:"max=100"`
 	StartAt     int64  `json:"start_at"`
 	EndAt       int64  `json:"end_at"`

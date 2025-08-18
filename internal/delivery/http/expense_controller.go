@@ -48,10 +48,34 @@ func (c *ExpenseController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ExpenseController) List(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+	params := r.URL.Query()
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	auth := middleware.GetUser(r)
+
+	var branchID *uint
+
+	if auth.Role == "Owner" {
+		branchIDStr := params.Get("branch_id")
+		if branchIDStr != "" {
+			branchIDInt, err := strconv.Atoi(branchIDStr)
+			if err != nil {
+				http.Error(w, "Invalid branch ID parameter", http.StatusBadRequest)
+				return
+			}
+			tmp := uint(branchIDInt)
+			branchID = &tmp
+		} else {
+			branchID = nil // nil artinya semua cabang
+		}
+	} else {
+		tmp := auth.BranchID
+		branchID = &tmp
+	}
+
+	c.Log.Warnf("BRANCH ID = %d", branchID)
+
+	pageStr := params.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
 
@@ -61,8 +85,8 @@ func (c *ExpenseController) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
 
@@ -73,7 +97,8 @@ func (c *ExpenseController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchExpenseRequest{
-		Description: params["description"],
+		BranchID:    branchID,
+		Description: params.Get("description"),
 		Page:        pageInt,
 		Size:        sizeInt,
 	}

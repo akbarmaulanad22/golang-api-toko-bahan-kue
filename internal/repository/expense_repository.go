@@ -35,6 +35,10 @@ func (r *ExpenseRepository) Search(db *gorm.DB, request *model.SearchExpenseRequ
 
 func (r *ExpenseRepository) FilterExpense(request *model.SearchExpenseRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
+		if request.BranchID != nil {
+			tx = tx.Where("branch_id = ?", request.BranchID)
+		}
+
 		if description := request.Description; description != "" {
 			description = "%" + description + "%"
 			tx = tx.Where("description LIKE ?", description)

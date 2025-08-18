@@ -57,7 +57,7 @@ func (c *UserUseCase) Verify(ctx context.Context, request *model.VerifyUserReque
 		return nil, errors.New("internal server error")
 	}
 
-	return &model.Auth{Username: user.Username, BranchID: user.BranchID}, nil
+	return &model.Auth{Username: user.Username, BranchID: user.BranchID, Role: user.Role.Name}, nil
 }
 
 func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest) (*model.UserResponse, error) {
