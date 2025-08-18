@@ -50,3 +50,54 @@ func (r *ExpenseRepository) FilterExpense(request *model.SearchExpenseRequest) f
 		return tx
 	}
 }
+
+func (r *ExpenseRepository) ConsolidateReport(db *gorm.DB, request *model.SearchConsolidateExpenseRequest) (*model.ConsolidatedExpenseResponse, error) {
+	var reports []model.ExpenseReportResponse
+	var totalAll float64
+
+	baseQuery := `
+		SELECT b.id AS branch_id, b.name AS branch_name,
+		       COALESCE(SUM(e.amount), 0) AS total_expenses
+		FROM branches b
+		LEFT JOIN expenses e ON e.branch_id = b.id
+	`
+
+	// Kondisi filter tanggal
+	if request.StartAt != 0 && request.EndAt != 0 {
+		baseQuery += " AND e.created_at BETWEEN ? AND ?"
+	}
+
+	baseQuery += " GROUP BY b.id, b.name ORDER BY b.name"
+
+	// Query per cabang
+	var err error
+	if request.StartAt != 0 && request.EndAt != 0 {
+		err = db.Raw(baseQuery, request.StartAt, request.EndAt).Scan(&reports).Error
+	} else {
+		err = db.Raw(baseQuery).Scan(&reports).Error
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Query total semua cabang
+	totalQuery := `SELECT COALESCE(SUM(e.amount), 0) FROM expenses e`
+	if request.StartAt != 0 && request.EndAt != 0 {
+		totalQuery += " WHERE e.created_at BETWEEN ? AND ?"
+		if err := db.Raw(totalQuery, request.StartAt, request.EndAt).Scan(&totalAll).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := db.Raw(totalQuery).Scan(&totalAll).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	resp := &model.ConsolidatedExpenseResponse{
+		Data:             reports,
+		TotalAllBranches: totalAll,
+	}
+
+	return resp, nil
+
+}

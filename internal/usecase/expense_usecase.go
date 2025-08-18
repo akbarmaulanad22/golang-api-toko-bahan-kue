@@ -148,3 +148,26 @@ func (c *ExpenseUseCase) Search(ctx context.Context, request *model.SearchExpens
 
 	return responses, total, nil
 }
+
+func (c *ExpenseUseCase) ConsolidateReport(ctx context.Context, request *model.SearchConsolidateExpenseRequest) (*model.ConsolidatedExpenseResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
+
+	expenses, err := c.ExpenseRepository.ConsolidateReport(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting expenses consolidated report")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting expenses consolidated report")
+		return nil, errors.New("internal server error")
+	}
+
+	return expenses, nil
+}

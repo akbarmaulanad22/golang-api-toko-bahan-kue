@@ -145,3 +145,44 @@ func (c *ExpenseController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
 }
+
+func (c *ExpenseController) ConsolidatedReport(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	startStr := params["start_at"] // contoh: "2022-02-02"
+	endStr := params["end_at"]     // contoh: "2022-02-02"
+
+	var startAt int64
+	if startStr != "" {
+		startDate, err := helper.ParseDateToMilli(startStr, false)
+		if err != nil {
+			http.Error(w, "invalid start_at format, expected YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		startAt = startDate
+	}
+
+	var endAt int64
+	if endStr != "" {
+		endDate, err := helper.ParseDateToMilli(endStr, false)
+		if err != nil {
+			http.Error(w, "invalid end_at format, expected YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		endAt = endDate
+	}
+
+	request := &model.SearchConsolidateExpenseRequest{
+		StartAt: startAt,
+		EndAt:   endAt,
+	}
+
+	responses, err := c.UseCase.ConsolidateReport(r.Context(), request)
+	if err != nil {
+		c.Log.WithError(err).Error("error searching expense")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(responses)
+}

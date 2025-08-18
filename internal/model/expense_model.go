@@ -31,3 +31,19 @@ type SearchExpenseRequest struct {
 type DeleteExpenseRequest struct {
 	ID uint `json:"-" validate:"required"`
 }
+
+type SearchConsolidateExpenseRequest struct {
+	StartAt int64 `json:"start_at"`
+	EndAt   int64 `json:"end_at"`
+}
+
+type ExpenseReportResponse struct {
+	BranchID      uint    `json:"branch_id"`
+	BranchName    string  `json:"branch_name"`
+	TotalExpenses float64 `json:"total_expenses"`
+}
+
+type ConsolidatedExpenseResponse struct {
+	Data             []ExpenseReportResponse `json:"data"`
+	TotalAllBranches float64                 `json:"total_all_branches"`
+}

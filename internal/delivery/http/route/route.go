@@ -142,6 +142,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
 
 	// pengeluaran
+	authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	authRouter.HandleFunc("/expenses", route.ExpenseController.Create).Methods("POST")
 	authRouter.HandleFunc("/expenses", route.ExpenseController.List).Methods("GET")
 	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Update).Methods("PUT")
