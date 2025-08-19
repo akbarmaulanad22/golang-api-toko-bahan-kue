@@ -30,6 +30,7 @@ type RouteConfig struct {
 	PurchaseController   *http.PurchaseController
 	SaleReportController *http.SaleReportController
 	ExpenseController    *http.ExpenseController
+	CapitalController    *http.CapitalController
 	// FinancialReportController *http.FinancialReportController
 }
 
@@ -138,6 +139,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 
 	// laporan keseluruhan barang keluar [ list barang terlaris per category ]
 	authRouter.HandleFunc("/sales-and-product-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
+
 	// laporan keuangan
 	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
 
@@ -147,5 +149,12 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/expenses", route.ExpenseController.List).Methods("GET")
 	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Update).Methods("PUT")
 	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Delete).Methods("DELETE")
+
+	// pencatatan modal masuk/keluar
+	// authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
+	authRouter.HandleFunc("/capitals", route.CapitalController.Create).Methods("POST")
+	authRouter.HandleFunc("/capitals", route.CapitalController.List).Methods("GET")
+	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Update).Methods("PUT")
+	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Delete).Methods("DELETE")
 
 }

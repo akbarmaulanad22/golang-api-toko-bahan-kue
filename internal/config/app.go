@@ -45,6 +45,7 @@ func Bootstrap(config *BootstrapConfig) {
 	purchaseRepository := repository.NewPurchaseRepository(config.Log)
 	saleReportRepository := repository.NewSaleReportRepository(config.Log)
 	expenseRepository := repository.NewExpenseRepository(config.Log)
+	capitalRepository := repository.NewCapitalRepository(config.Log)
 	// financialReportRepository := repository.NewFinancialReportRepository(config.Log)
 	debtRepository := repository.NewDebtRepository(config.Log)
 
@@ -63,6 +64,7 @@ func Bootstrap(config *BootstrapConfig) {
 	purchaseUseCase := usecase.NewPurchaseUseCase(config.DB, config.Log, config.Validate, purchaseRepository)
 	saleReportUseCase := usecase.NewSaleReportUseCase(config.DB, config.Log, config.Validate, saleReportRepository)
 	expenseUseCase := usecase.NewExpenseUseCase(config.DB, config.Log, config.Validate, expenseRepository)
+	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository)
 	// financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
 
 	// master data controller
@@ -80,6 +82,7 @@ func Bootstrap(config *BootstrapConfig) {
 	purchaseController := http.NewPurchaseController(purchaseUseCase, config.Log)
 	saleReportController := http.NewSaleReportController(saleReportUseCase, config.Log)
 	expenseController := http.NewExpenseController(expenseUseCase, config.Log)
+	capitalController := http.NewCapitalController(capitalUseCase, config.Log)
 	// financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
 
 	// setup middleware
@@ -104,6 +107,7 @@ func Bootstrap(config *BootstrapConfig) {
 		PurchaseController:   purchaseController,
 		SaleReportController: saleReportController,
 		ExpenseController:    expenseController,
+		CapitalController:    capitalController,
 		// FinancialReportController: financialReportController,
 	}
 	routeConfig.Setup()

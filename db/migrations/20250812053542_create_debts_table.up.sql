@@ -7,6 +7,5 @@ CREATE TABLE debts (
     due_date            BIGINT NOT NULL,                          
     status              ENUM('PENDING','PAID', 'VOID')  DEFAULT 'PENDING',
     created_at          BIGINT                  NOT NULL,
-    updated_at          BIGINT                  NOT NULL,
-    FOREIGN KEY (reference_code) REFERENCES sales(code) ON UPDATE CASCADE ON DELETE CASCADE 
+    updated_at          BIGINT                  NOT NULL
 );
