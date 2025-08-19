@@ -46,6 +46,7 @@ func Bootstrap(config *BootstrapConfig) {
 	saleReportRepository := repository.NewSaleReportRepository(config.Log)
 	expenseRepository := repository.NewExpenseRepository(config.Log)
 	capitalRepository := repository.NewCapitalRepository(config.Log)
+	cashBankTransactionRepository := repository.NewCashBankTransactionRepository(config.Log)
 	// financialReportRepository := repository.NewFinancialReportRepository(config.Log)
 	debtRepository := repository.NewDebtRepository(config.Log)
 
@@ -65,6 +66,7 @@ func Bootstrap(config *BootstrapConfig) {
 	saleReportUseCase := usecase.NewSaleReportUseCase(config.DB, config.Log, config.Validate, saleReportRepository)
 	expenseUseCase := usecase.NewExpenseUseCase(config.DB, config.Log, config.Validate, expenseRepository)
 	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository)
+	cashBankTransactionUseCase := usecase.NewCashBankTransactionUseCase(config.DB, config.Log, config.Validate, cashBankTransactionRepository)
 	// financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
 
 	// master data controller
@@ -83,6 +85,7 @@ func Bootstrap(config *BootstrapConfig) {
 	saleReportController := http.NewSaleReportController(saleReportUseCase, config.Log)
 	expenseController := http.NewExpenseController(expenseUseCase, config.Log)
 	capitalController := http.NewCapitalController(capitalUseCase, config.Log)
+	cashBankTransactionController := http.NewCashBankTransactionController(cashBankTransactionUseCase, config.Log)
 	// financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
 
 	// setup middleware
@@ -91,24 +94,22 @@ func Bootstrap(config *BootstrapConfig) {
 	routeConfig := route.RouteConfig{
 		Router:         config.Router,
 		AuthMiddleware: authMiddleware,
-
 		// master data controller
 		BranchController:      branchController,
 		RoleController:        roleController,
 		CategoryController:    categoryController,
 		DistributorController: distributorController,
-
 		// data controller
-		DashboardController:  dashboardController,
-		ProductController:    productController,
-		UserController:       userController,
-		SizeController:       sizeController,
-		SaleController:       saleController,
-		PurchaseController:   purchaseController,
-		SaleReportController: saleReportController,
-		ExpenseController:    expenseController,
-		CapitalController:    capitalController,
-		// FinancialReportController: financialReportController,
+		DashboardController:           dashboardController,
+		ProductController:             productController,
+		UserController:                userController,
+		SizeController:                sizeController,
+		SaleController:                saleController,
+		PurchaseController:            purchaseController,
+		SaleReportController:          saleReportController,
+		ExpenseController:             expenseController,
+		CapitalController:             capitalController,
+		CashBankTransactionController: cashBankTransactionController,
 	}
 	routeConfig.Setup()
 

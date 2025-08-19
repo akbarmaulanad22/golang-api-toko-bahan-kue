@@ -1,0 +1,1 @@
+drop table cash_bank_transactions;

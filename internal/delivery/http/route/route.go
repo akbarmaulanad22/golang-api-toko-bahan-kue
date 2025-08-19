@@ -22,15 +22,16 @@ type RouteConfig struct {
 	DistributorController *http.DistributorController
 	// end master data
 
-	DashboardController  *http.DashboardController
-	ProductController    *http.ProductController
-	UserController       *http.UserController
-	SizeController       *http.SizeController
-	SaleController       *http.SaleController
-	PurchaseController   *http.PurchaseController
-	SaleReportController *http.SaleReportController
-	ExpenseController    *http.ExpenseController
-	CapitalController    *http.CapitalController
+	DashboardController           *http.DashboardController
+	ProductController             *http.ProductController
+	UserController                *http.UserController
+	SizeController                *http.SizeController
+	SaleController                *http.SaleController
+	PurchaseController            *http.PurchaseController
+	SaleReportController          *http.SaleReportController
+	ExpenseController             *http.ExpenseController
+	CapitalController             *http.CapitalController
+	CashBankTransactionController *http.CashBankTransactionController
 	// FinancialReportController *http.FinancialReportController
 }
 
@@ -156,5 +157,8 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/capitals", route.CapitalController.List).Methods("GET")
 	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Update).Methods("PUT")
 	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Delete).Methods("DELETE")
+
+	// pencatatan penerimaan/pengeluaran uang
+	authRouter.HandleFunc("/cash-bank-transactions", route.CashBankTransactionController.List).Methods("GET")
 
 }
