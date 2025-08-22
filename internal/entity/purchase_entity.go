@@ -8,7 +8,5 @@ type Purchase struct {
 	DistributorID uint   `gorm:"column:distributor_id"`
 	CreatedAt     int64  `gorm:"column:created_at;autoCreateTime:milli"`
 
-	// Branch      Branch           `gorm:"foreignKey:BranchID;references:ID"`
-	// Distributor Distributor      `gorm:"foreignKey:DistributorID;references:ID"`
 	Details []PurchaseDetail `gorm:"foreignKey:PurchaseCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }

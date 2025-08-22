@@ -140,8 +140,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	// Debt
 	if request.Debt != nil {
 		var dueDate int64
-		if request.Debt != nil && request.Debt.DueDate > 0 {
-			dueDate = request.Debt.DueDate
+		if request.Debt.DueDate > 0 {
+			dueDate = int64(request.Debt.DueDate)
 		} else {
 			dueDate = time.Now().Add(7 * 24 * time.Hour).UnixMilli() // default 7 hari
 		}

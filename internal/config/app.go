@@ -68,6 +68,7 @@ func Bootstrap(config *BootstrapConfig) {
 	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository)
 	cashBankTransactionUseCase := usecase.NewCashBankTransactionUseCase(config.DB, config.Log, config.Validate, cashBankTransactionRepository)
 	// financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
+	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -87,6 +88,7 @@ func Bootstrap(config *BootstrapConfig) {
 	capitalController := http.NewCapitalController(capitalUseCase, config.Log)
 	cashBankTransactionController := http.NewCashBankTransactionController(cashBankTransactionUseCase, config.Log)
 	// financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
+	debtController := http.NewDebtController(debtUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -110,6 +112,7 @@ func Bootstrap(config *BootstrapConfig) {
 		ExpenseController:             expenseController,
 		CapitalController:             capitalController,
 		CashBankTransactionController: cashBankTransactionController,
+		DebtController:                debtController,
 	}
 	routeConfig.Setup()
 
