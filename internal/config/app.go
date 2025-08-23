@@ -47,7 +47,7 @@ func Bootstrap(config *BootstrapConfig) {
 	expenseRepository := repository.NewExpenseRepository(config.Log)
 	capitalRepository := repository.NewCapitalRepository(config.Log)
 	cashBankTransactionRepository := repository.NewCashBankTransactionRepository(config.Log)
-	// financialReportRepository := repository.NewFinancialReportRepository(config.Log)
+	financeRepository := repository.NewFinanceRepository(config.Log)
 	debtRepository := repository.NewDebtRepository(config.Log)
 
 	// master data usecase
@@ -67,7 +67,7 @@ func Bootstrap(config *BootstrapConfig) {
 	expenseUseCase := usecase.NewExpenseUseCase(config.DB, config.Log, config.Validate, expenseRepository)
 	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository)
 	cashBankTransactionUseCase := usecase.NewCashBankTransactionUseCase(config.DB, config.Log, config.Validate, cashBankTransactionRepository)
-	// financialReportUseCase := usecase.NewFinancialReportUseCase(config.DB, config.Log, config.Validate, financialReportRepository)
+	financeUseCase := usecase.NewFinanceUseCase(config.DB, config.Log, config.Validate, financeRepository)
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 
 	// master data controller
@@ -87,7 +87,7 @@ func Bootstrap(config *BootstrapConfig) {
 	expenseController := http.NewExpenseController(expenseUseCase, config.Log)
 	capitalController := http.NewCapitalController(capitalUseCase, config.Log)
 	cashBankTransactionController := http.NewCashBankTransactionController(cashBankTransactionUseCase, config.Log)
-	// financialReportController := http.NewFinancialReportController(financialReportUseCase, config.Log)
+	financeController := http.NewFinanceController(financeUseCase, config.Log)
 	debtController := http.NewDebtController(debtUseCase, config.Log)
 
 	// setup middleware
@@ -112,6 +112,7 @@ func Bootstrap(config *BootstrapConfig) {
 		ExpenseController:             expenseController,
 		CapitalController:             capitalController,
 		CashBankTransactionController: cashBankTransactionController,
+		FinanceController:             financeController,
 		DebtController:                debtController,
 	}
 	routeConfig.Setup()

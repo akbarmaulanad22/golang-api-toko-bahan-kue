@@ -33,7 +33,7 @@ type RouteConfig struct {
 	CapitalController             *http.CapitalController
 	CashBankTransactionController *http.CashBankTransactionController
 	DebtController                *http.DebtController
-	// FinancialReportController *http.FinancialReportController
+	FinanceController             *http.FinanceController
 }
 
 func (route *RouteConfig) Setup() {
@@ -162,5 +162,9 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// pencatatan penerimaan/pengeluaran uang
 	authRouter.HandleFunc("/cash-bank-transactions", route.CashBankTransactionController.List).Methods("GET")
 
+	// utang / piutang
 	authRouter.HandleFunc("/debt", route.DebtController.List).Methods("GET")
+
+	// ringkasan laporan keuangan [ owner only ]
+	authRouter.HandleFunc("/finance-report", route.FinanceController.GetSummary).Methods("GET")
 }
