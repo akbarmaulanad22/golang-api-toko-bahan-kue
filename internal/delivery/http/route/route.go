@@ -166,5 +166,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/debt", route.DebtController.List).Methods("GET")
 
 	// ringkasan laporan keuangan [ owner only ]
-	authRouter.HandleFunc("/finance-report", route.FinanceController.GetSummary).Methods("GET")
+	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")
+	// laporan keuangan laba rugi [ owner, admin cabang ]
+	authRouter.HandleFunc("/finance-report/profit-loss", route.FinanceController.GetProfitLoss).Methods("GET")
 }

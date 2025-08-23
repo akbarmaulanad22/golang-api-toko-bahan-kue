@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -64,4 +65,51 @@ func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceSummaryOwnerResponse]{Data: response})
+}
+
+func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request) {
+
+	auth := middleware.GetUser(r)
+
+	params := r.URL.Query()
+
+	startAtStr := params.Get("start_at")
+	endAtStr := params.Get("end_at")
+
+	var (
+		startAtMili int64
+		endAtMili   int64
+	)
+
+	if startAtStr != "" && endAtStr != "" {
+		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+		if err != nil {
+			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		startAtMili = startMilli
+
+		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		if err != nil {
+			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+
+		endAtMili = endMilli
+	}
+
+	request := model.SearchFinanceProfitLossRequest{
+		StartAt:  startAtMili,
+		EndAt:    endAtMili,
+		BranchID: auth.BranchID,
+	}
+
+	response, err := c.UseCase.GetProfitLoss(r.Context(), &request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting count card finance")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceProfitLossResponse]{Data: response})
 }

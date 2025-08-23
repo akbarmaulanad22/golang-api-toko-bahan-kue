@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"time"
 	"tokobahankue/internal/model"
 
 	"github.com/sirupsen/logrus"
@@ -129,7 +130,7 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.SearchFi
 
 	out := &model.FinanceSummaryOwnerResponse{
 		ReportType:    "owner_summary",
-		Period:        fmt.Sprintf("%d to %d", request.StartAt, request.EndAt),
+		Period:        fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
 		TotalSales:    totalSales,
 		TotalHPP:      totalHPP,
 		TotalExpenses: totalExpenses,
@@ -137,4 +138,84 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.SearchFi
 		ByBranch:      byBranch,
 	}
 	return out, nil
+}
+
+func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.SearchFinanceProfitLossRequest) (*model.FinanceProfitLossResponse, error) {
+	var totalSales float64
+	var totalHPP float64
+	var totalExpenses int64
+
+	// --- Sales ---
+	querySales := `
+		SELECT COALESCE(SUM(sd.qty * sd.sell_price), 0)
+		FROM sale_details sd
+		JOIN sales s ON s.code = sd.sale_code
+		WHERE s.status = 'COMPLETED'
+		  AND sd.is_cancelled = 0
+	`
+	querySales, argsSales := buildFilter(querySales, request.StartAt, request.EndAt, request.Role, request.BranchID, "s")
+	if err := db.Raw(querySales, argsSales...).Scan(&totalSales).Error; err != nil {
+		return nil, err
+	}
+
+	// --- HPP ---
+	queryHPP := `
+		SELECT COALESCE(SUM(pd.qty * pd.buy_price), 0)
+		FROM purchase_details pd
+		JOIN purchases p ON p.code = pd.purchase_code
+		WHERE p.status = 'COMPLETED'
+		  AND pd.is_cancelled = 0
+	`
+	queryHPP, argsHPP := buildFilter(queryHPP, request.StartAt, request.EndAt, request.Role, request.BranchID, "p")
+	if err := db.Raw(queryHPP, argsHPP...).Scan(&totalHPP).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Expenses ---
+	queryExp := `
+		SELECT COALESCE(SUM(e.amount), 0)
+		FROM expenses e
+		WHERE 1=1
+	`
+	queryExp, argsExp := buildFilter(queryExp, request.StartAt, request.EndAt, request.Role, request.BranchID, "e")
+	if err := db.Raw(queryExp, argsExp...).Scan(&totalExpenses).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Response ---
+	pl := &model.FinanceProfitLossResponse{
+		ReportType:  "profit_loss",
+		Period:      fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
+		Sales:       totalSales,
+		HPP:         totalHPP,
+		GrossProfit: totalSales - totalHPP,
+		Expenses:    totalExpenses,
+		NetProfit:   totalSales - totalHPP - float64(totalExpenses),
+	}
+
+	return pl, nil
+}
+
+func buildFilter(base string, startAt, endAt int64, role string, branchID uint, alias string) (string, []interface{}) {
+	args := []interface{}{}
+	// date filter
+	if startAt > 0 && endAt > 0 {
+		base += fmt.Sprintf(" AND %s.created_at BETWEEN ? AND ? ", alias)
+		args = append(args, startAt, endAt)
+	}
+	// branch filter
+	if role != "Owner" {
+		base += fmt.Sprintf(" AND %s.branch_id = ? ", alias)
+		args = append(args, branchID)
+	}
+	return base, args
+}
+
+func formatDate(ms int64) string {
+	if ms == 0 {
+		return ""
+	}
+	// ubah ms ke detik
+	t := time.Unix(ms/1000, 0)
+	return t.Format("2006-01-02")
 }
