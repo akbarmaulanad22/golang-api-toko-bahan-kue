@@ -60,7 +60,7 @@ func (r *BranchInventoryRepository) ListOwnerInventoryByBranch(db *gorm.DB) ([]m
 
 	// Transform ke nested
 	branchMap := make(map[uint]*model.BranchInventoryResponse)
-	productMap := make(map[string]*model.BranchInventoryProductResponse) // key: branchID_sku
+	productMap := make(map[string]*model.BranchInventoryProductResponse) // key: request.BranchID_sku
 
 	for _, row := range rows {
 		// Branch
@@ -102,6 +102,84 @@ func (r *BranchInventoryRepository) ListOwnerInventoryByBranch(db *gorm.DB) ([]m
 		branches = append(branches, *b)
 	}
 	return branches, nil
+}
+
+func (r *BranchInventoryRepository) ListAdminInventory(db *gorm.DB, request *model.BranchInventoryAdminRequest) (*model.BranchInventoryResponse, error) {
+	type result struct {
+		ID          uint
+		BranchID    uint
+		BranchName  string
+		ProductSKU  uint
+		ProductName string
+		SizeID      uint
+		Size        string
+		Stock       int
+		CreatedAt   int64
+		UpdatedAt   int64
+	}
+
+	var rows []result
+	query := `
+		SELECT 
+			bi.id        AS id,
+			b.id         AS branch_id,
+			b.name       AS branch_name,
+			p.sku        AS product_sku,
+			p.name       AS product_name,
+			s.id         AS size_id,
+			s.name       AS size,
+			bi.stock,
+			bi.created_at,
+			bi.updated_at
+		FROM branch_inventory bi
+		JOIN branches b ON bi.branch_id = b.id
+		JOIN sizes s    ON bi.size_id = s.id
+		JOIN products p ON s.product_sku = p.sku
+		WHERE bi.branch_id = ?
+		ORDER BY p.sku, s.id;
+	`
+	if err := db.Raw(query, request.BranchID).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	if len(rows) == 0 {
+		// kalau kosong tetap return struct kosong, bukan nil
+		return &model.BranchInventoryResponse{
+			BranchID: request.BranchID,
+			Products: []model.BranchInventoryProductResponse{},
+		}, nil
+	}
+
+	// Transform ke nested
+	resp := &model.BranchInventoryResponse{
+		ID:         rows[0].ID,
+		BranchID:   rows[0].BranchID,
+		BranchName: rows[0].BranchName,
+		Products:   []model.BranchInventoryProductResponse{},
+		CreatedAt:  rows[0].CreatedAt,
+		UpdatedAt:  rows[0].UpdatedAt,
+	}
+
+	productMap := make(map[uint]*model.BranchInventoryProductResponse, 0)
+	for _, row := range rows {
+		if _, ok := productMap[row.ProductSKU]; !ok {
+			product := model.BranchInventoryProductResponse{
+				ProductSKU:  row.ProductSKU,
+				ProductName: row.ProductName,
+				Sizes:       []model.BranchInventorySizeResponse{},
+			}
+			resp.Products = append(resp.Products, product)
+			productMap[row.ProductSKU] = &resp.Products[len(resp.Products)-1]
+		}
+
+		productMap[row.ProductSKU].Sizes = append(productMap[row.ProductSKU].Sizes, model.BranchInventorySizeResponse{
+			SizeID: row.SizeID,
+			Size:   row.Size,
+			Stock:  row.Stock,
+		})
+	}
+
+	return resp, nil
 }
 
 // func (r *BranchInventoryRepository) CreateOrUp(db *gorm.DB, user *entity.BranchInventory, name string) error {

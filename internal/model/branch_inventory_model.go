@@ -21,6 +21,10 @@ type BranchInventoryProductResponse struct {
 	Sizes       []BranchInventorySizeResponse `json:"sizes"`
 }
 
+type BranchInventoryAdminRequest struct {
+	BranchID uint `json:"-" validate:"required"`
+}
+
 // type CreateBranchInventoryRequest struct {
 // 	Name    string `json:"name" validate:"required,max=100"`
 // 	Address string `json:"address" validate:"required,max=100"`

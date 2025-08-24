@@ -174,5 +174,6 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
 
 	// stok barang
-	authRouter.HandleFunc("/inventory", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
+	authRouter.HandleFunc("/inventory/owner", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
+	authRouter.HandleFunc("/inventory/admin", route.BranchInventoryController.ListAdminInventory).Methods("GET")
 }
