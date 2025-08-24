@@ -1,0 +1,1 @@
+drop table branch_inventory;

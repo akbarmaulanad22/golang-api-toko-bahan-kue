@@ -28,7 +28,7 @@ func NewFinanceUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.V
 	}
 }
 
-func (c *FinanceUseCase) GetOwnerSummary(ctx context.Context, request *model.SearchFinanceSummaryOwnerRequest) (*model.FinanceSummaryOwnerResponse, error) {
+func (c *FinanceUseCase) GetOwnerSummary(ctx context.Context, request *model.GetFinanceSummaryOwnerRequest) (*model.FinanceSummaryOwnerResponse, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -46,11 +46,29 @@ func (c *FinanceUseCase) GetOwnerSummary(ctx context.Context, request *model.Sea
 	return dailyFinances, nil
 }
 
-func (c *FinanceUseCase) GetProfitLoss(ctx context.Context, request *model.SearchFinanceProfitLossRequest) (*model.FinanceProfitLossResponse, error) {
+func (c *FinanceUseCase) GetProfitLoss(ctx context.Context, request *model.GetFinanceBasicRequest) (*model.FinanceProfitLossResponse, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
 	dailyFinances, err := c.FinanceRepository.GetProfitLoss(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting finances profit loss")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting finances profit loss")
+		return nil, errors.New("internal server error")
+	}
+
+	return dailyFinances, nil
+}
+
+func (c *FinanceUseCase) GetCashFlow(ctx context.Context, request *model.GetFinanceBasicRequest) (*model.FinanceCashFlowResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	dailyFinances, err := c.FinanceRepository.GetCashFlow(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finances profit loss")
 		return nil, errors.New("internal server error")

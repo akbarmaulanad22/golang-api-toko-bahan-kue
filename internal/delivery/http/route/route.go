@@ -34,6 +34,7 @@ type RouteConfig struct {
 	CashBankTransactionController *http.CashBankTransactionController
 	DebtController                *http.DebtController
 	FinanceController             *http.FinanceController
+	BranchInventoryController     *http.BranchInventoryController
 }
 
 func (route *RouteConfig) Setup() {
@@ -169,4 +170,9 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")
 	// laporan keuangan laba rugi [ owner, admin cabang ]
 	authRouter.HandleFunc("/finance-report/profit-loss", route.FinanceController.GetProfitLoss).Methods("GET")
+	// laporan keuangan arus kas [ owner, admin cabang ]
+	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
+
+	// stok barang
+	authRouter.HandleFunc("/inventory", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
 }

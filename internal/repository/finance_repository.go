@@ -19,7 +19,7 @@ func NewFinanceRepository(log *logrus.Logger) *FinanceRepository {
 	}
 }
 
-func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.SearchFinanceSummaryOwnerRequest) (*model.FinanceSummaryOwnerResponse, error) {
+func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinanceSummaryOwnerRequest) (*model.FinanceSummaryOwnerResponse, error) {
 	var totalSales float64
 	var totalHPP float64
 	var totalExpenses int64
@@ -140,7 +140,7 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.SearchFi
 	return out, nil
 }
 
-func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.SearchFinanceProfitLossRequest) (*model.FinanceProfitLossResponse, error) {
+func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.GetFinanceBasicRequest) (*model.FinanceProfitLossResponse, error) {
 	var totalSales float64
 	var totalHPP float64
 	var totalExpenses int64
@@ -194,6 +194,74 @@ func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.SearchFina
 	}
 
 	return pl, nil
+}
+
+func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBasicRequest) (*model.FinanceCashFlowResponse, error) {
+	var cashIn, cashOut, balance float64
+
+	// --- Query Total ---
+	query := `
+		SELECT 
+		  COALESCE(SUM(CASE WHEN cbt.type = 'IN' THEN cbt.amount ELSE 0 END), 0) AS cash_in,
+		  COALESCE(SUM(CASE WHEN cbt.type = 'OUT' THEN cbt.amount ELSE 0 END), 0) AS cash_out,
+		  COALESCE(SUM(CASE WHEN cbt.type = 'IN' THEN cbt.amount ELSE -cbt.amount END), 0) AS balance
+		FROM cash_bank_transactions cbt
+		WHERE 1=1
+	`
+
+	args := []interface{}{}
+	if request.StartAt > 0 && request.EndAt > 0 {
+		query += " AND cbt.created_at BETWEEN ? AND ? "
+		args = append(args, request.StartAt, request.EndAt)
+	}
+	if request.Role != "Owner" {
+		query += " AND cbt.branch_id = ? "
+		args = append(args, request.BranchID)
+	}
+
+	if err := db.Raw(query, args...).Row().Scan(&cashIn, &cashOut, &balance); err != nil {
+		return nil, err
+	}
+
+	resp := &model.FinanceCashFlowResponse{
+		ReportType: "cash_flow",
+		Period:     fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
+		CashIn:     cashIn,
+		CashOut:    cashOut,
+		Balance:    balance,
+	}
+
+	// --- Owner: breakdown per cabang ---
+	if request.Role == "Owner" {
+		var byBranch []model.BranchCashFlow
+		queryBranch := `
+			SELECT 
+			  cbt.branch_id,
+			  b.name AS branch_name,
+			  COALESCE(SUM(CASE WHEN cbt.type = 'IN' THEN cbt.amount ELSE 0 END), 0) AS cash_in,
+			  COALESCE(SUM(CASE WHEN cbt.type = 'OUT' THEN cbt.amount ELSE 0 END), 0) AS cash_out,
+			  COALESCE(SUM(CASE WHEN cbt.type = 'IN' THEN cbt.amount ELSE -cbt.amount END), 0) AS balance
+			FROM cash_bank_transactions cbt
+			JOIN branches b ON b.id = cbt.branch_id
+			WHERE 1=1
+		`
+
+		argsBranch := []interface{}{}
+		if request.StartAt > 0 && request.EndAt > 0 {
+			queryBranch += " AND cbt.created_at BETWEEN ? AND ? "
+			argsBranch = append(argsBranch, request.StartAt, request.EndAt)
+		}
+
+		queryBranch += " GROUP BY cbt.branch_id, b.name ORDER BY b.name"
+
+		if err := db.Raw(queryBranch, argsBranch...).Scan(&byBranch).Error; err != nil {
+			return nil, err
+		}
+
+		resp.ByBranch = byBranch
+	}
+
+	return resp, nil
 }
 
 func buildFilter(base string, startAt, endAt int64, role string, branchID uint, alias string) (string, []interface{}) {
