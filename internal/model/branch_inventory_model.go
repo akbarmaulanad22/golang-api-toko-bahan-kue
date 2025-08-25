@@ -26,6 +26,17 @@ type BranchInventoryAdminRequest struct {
 }
 
 // type CreateBranchInventoryRequest struct {
+// 	Stock    int  `json:"stock" validate:"required"`
+// 	BranchID uint `json:"-" validate:"required"`
+// 	SizeID   uint `json:"size_id" validate:"required"`
+// }
+
+// type UpdateStockBranchInventoryRequest struct {
+// 	ChangeQty         int  `json:"change_qty" validate:"required"`
+// 	BranchInventoryID uint `json:"branch_inventory_id" validate:"required"`
+// }
+
+// type CreateBranchInventoryRequest struct {
 // 	Name    string `json:"name" validate:"required,max=100"`
 // 	Address string `json:"address" validate:"required,max=100"`
 // }

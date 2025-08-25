@@ -50,6 +50,7 @@ func Bootstrap(config *BootstrapConfig) {
 	financeRepository := repository.NewFinanceRepository(config.Log)
 	debtRepository := repository.NewDebtRepository(config.Log)
 	branchInventoryRepository := repository.NewBranchInventoryRepository(config.Log)
+	inventoryMovementRepository := repository.NewInventoryMovementRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -71,6 +72,7 @@ func Bootstrap(config *BootstrapConfig) {
 	financeUseCase := usecase.NewFinanceUseCase(config.DB, config.Log, config.Validate, financeRepository)
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 	branchInventoryUseCase := usecase.NewBranchInventoryUseCase(config.DB, config.Log, config.Validate, branchInventoryRepository)
+	inventoryMovementUseCase := usecase.NewInventoryMovementUseCase(config.DB, config.Log, config.Validate, inventoryMovementRepository, branchInventoryRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -92,6 +94,7 @@ func Bootstrap(config *BootstrapConfig) {
 	financeController := http.NewFinanceController(financeUseCase, config.Log)
 	debtController := http.NewDebtController(debtUseCase, config.Log)
 	branchInventoryController := http.NewBranchInventoryController(branchInventoryUseCase, config.Log)
+	InventoryMovementController := http.NewInventoryMovementController(inventoryMovementUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -118,6 +121,7 @@ func Bootstrap(config *BootstrapConfig) {
 		FinanceController:             financeController,
 		DebtController:                debtController,
 		BranchInventoryController:     branchInventoryController,
+		InventoryMovementController:   InventoryMovementController,
 	}
 	routeConfig.Setup()
 

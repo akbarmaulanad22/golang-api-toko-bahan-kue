@@ -35,6 +35,7 @@ type RouteConfig struct {
 	DebtController                *http.DebtController
 	FinanceController             *http.FinanceController
 	BranchInventoryController     *http.BranchInventoryController
+	InventoryMovementController   *http.InventoryMovementController
 }
 
 func (route *RouteConfig) Setup() {
@@ -174,6 +175,10 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
 
 	// stok barang
-	authRouter.HandleFunc("/inventory/owner", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
-	authRouter.HandleFunc("/inventory/admin", route.BranchInventoryController.ListAdminInventory).Methods("GET")
+	authRouter.HandleFunc("/branch-inventory/owner", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
+	authRouter.HandleFunc("/branch-inventory/admin", route.BranchInventoryController.ListAdminInventory).Methods("GET")
+
+	// pergerakan stok barang masuk/keluar
+	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")
+
 }

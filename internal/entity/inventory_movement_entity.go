@@ -2,7 +2,7 @@ package entity
 
 type InventoryMovement struct {
 	ID                uint   `gorm:"column:id;primaryKey"`
-	ChangeQty         uint   `gorm:"column:change_qty"`
+	ChangeQty         int    `gorm:"column:change_qty"`
 	BranchInventoryID uint   `gorm:"column:branch_inventory_id"`
 	ReferenceType     string `gorm:"column:reference_type"`
 	ReferenceKey      string `gorm:"column:reference_key"`

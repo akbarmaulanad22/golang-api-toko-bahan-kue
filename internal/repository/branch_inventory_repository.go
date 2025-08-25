@@ -20,6 +20,17 @@ func NewBranchInventoryRepository(log *logrus.Logger) *BranchInventoryRepository
 	}
 }
 
+func (r *BranchInventoryRepository) FindByBranchIDAndSizeID(db *gorm.DB, branchInventory *entity.BranchInventory, branchID, sizeID uint) error {
+	return db.Where("branch_id = ? AND size_id = ?", branchID, sizeID).Take(branchInventory).Error
+}
+
+func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID uint, changeQty int) error {
+	return db.Model(&entity.BranchInventory{}).
+		Where("id = ?", branchInventoryID).
+		UpdateColumn("stock", gorm.Expr("stock + ?", changeQty)).
+		Error
+}
+
 func (r *BranchInventoryRepository) ListOwnerInventoryByBranch(db *gorm.DB) ([]model.BranchInventoryResponse, error) {
 	// Flat query result
 	type result struct {
