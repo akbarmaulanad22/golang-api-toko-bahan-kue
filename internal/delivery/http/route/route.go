@@ -173,10 +173,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/finance-report/profit-loss", route.FinanceController.GetProfitLoss).Methods("GET")
 	// laporan keuangan arus kas [ owner, admin cabang ]
 	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
+	// laporan keuangan neraca [ owner, admin cabang ]
+	authRouter.HandleFunc("/finance-report/balance-sheet", route.FinanceController.GetBalanceSheet).Methods("GET")
 
 	// stok barang
-	authRouter.HandleFunc("/branch-inventory/owner", route.BranchInventoryController.ListOwnerInventoryByBranch).Methods("GET")
-	authRouter.HandleFunc("/branch-inventory/admin", route.BranchInventoryController.ListAdminInventory).Methods("GET")
+	authRouter.HandleFunc("/branch-inventory", route.BranchInventoryController.List).Methods("GET")
 
 	// pergerakan stok barang masuk/keluar
 	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")

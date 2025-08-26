@@ -81,3 +81,21 @@ func (c *FinanceUseCase) GetCashFlow(ctx context.Context, request *model.GetFina
 
 	return dailyFinances, nil
 }
+
+func (c *FinanceUseCase) GetBalanceSheet(ctx context.Context, request *model.GetFinanceBalanceSheetRequest) (*model.FinanceBalanceSheetResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	dailyFinances, err := c.FinanceRepository.GetBalanceSheet(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting finances balance sheet")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting finances balance sheet")
+		return nil, errors.New("internal server error")
+	}
+
+	return dailyFinances, nil
+}

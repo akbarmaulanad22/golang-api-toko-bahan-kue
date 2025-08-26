@@ -3,6 +3,8 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -161,4 +163,58 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 	}
 
 	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceCashFlowResponse]{Data: response})
+}
+
+func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Request) {
+
+	auth := middleware.GetUser(r)
+	params := r.URL.Query()
+
+	// --- As Of ---
+	asOfStr := params.Get("as_of")
+	if asOfStr == "" {
+		asOfStr = time.Now().Format("2006-01-02")
+	}
+
+	asOfMilli, err := helper.ParseDateToMilli(asOfStr, false)
+	if err != nil {
+		http.Error(w, "Invalid as_of format. Use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
+	// --- Branch Filter ---
+	var branchID uint
+	if auth.Role == "Owner" {
+		// Owner boleh pilih branch_id dari query
+		branchIDStr := params.Get("branch_id")
+		if branchIDStr != "" {
+			id, err := strconv.Atoi(branchIDStr)
+			if err != nil {
+				http.Error(w, "Invalid branch_id", http.StatusBadRequest)
+				return
+			}
+			branchID = uint(id)
+		} else {
+			branchID = 0 // berarti all branches
+		}
+	} else {
+		// Admin cabang HARUS pakai branch_id dari auth
+		branchID = auth.BranchID
+	}
+
+	// --- Build request ---
+	request := model.GetFinanceBalanceSheetRequest{
+		AsOf:     asOfMilli,
+		BranchID: branchID,
+		Role:     auth.Role,
+	}
+
+	response, err := c.UseCase.GetBalanceSheet(r.Context(), &request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting finance balance sheet")
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceBalanceSheetResponse]{Data: response})
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -24,21 +25,24 @@ func NewBranchInventoryController(useCase *usecase.BranchInventoryUseCase, logge
 	}
 }
 
-func (c *BranchInventoryController) ListOwnerInventoryByBranch(w http.ResponseWriter, r *http.Request) {
+func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) {
 
-	responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
-	if err != nil {
-		c.Log.WithError(err).Error("error searching branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
+	auth := middleware.GetUser(r)
+
+	if auth.Role == "Owner" {
+		responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
+		if err != nil {
+			c.Log.WithError(err).Error("error searching branch")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+
+		json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryResponse]{
+			Data: responses,
+		})
+
 		return
 	}
-
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryResponse]{
-		Data: responses,
-	})
-}
-
-func (c *BranchInventoryController) ListAdminInventory(w http.ResponseWriter, r *http.Request) {
 
 	branchID := mux.Vars(r)["branchID"]
 	if branchID == "" {

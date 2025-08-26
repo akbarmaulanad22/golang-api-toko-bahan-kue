@@ -57,3 +57,43 @@ type FinanceCashFlowResponse struct {
 	Balance    float64          `json:"balance"`
 	ByBranch   []BranchCashFlow `json:"by_branch,omitempty"`
 }
+
+type FinanceBalanceSheetResponse struct {
+	ReportType  string      `json:"report_type"`
+	AsOf        string      `json:"as_of"`
+	BranchID    *uint       `json:"branch_id,omitempty"`
+	BranchName  string      `json:"branch_name,omitempty"`
+	Assets      Assets      `json:"assets"`
+	Liabilities Liabilities `json:"liabilities"`
+	Equity      Equity      `json:"equity"`
+	Balance     Balance     `json:"balance"`
+}
+
+type Assets struct {
+	CashAndBank        float64 `json:"cash_and_bank"`
+	AccountsReceivable float64 `json:"accounts_receivable"`
+	Inventory          float64 `json:"inventory"`
+	TotalCurrentAssets float64 `json:"total_current_assets"`
+}
+
+type Liabilities struct {
+	AccountsPayable         float64 `json:"accounts_payable"`
+	TotalCurrentLiabilities float64 `json:"total_current_liabilities"`
+}
+
+type Equity struct {
+	OwnerCapital     float64 `json:"owner_capital"`
+	RetainedEarnings float64 `json:"retained_earnings"`
+	TotalEquity      float64 `json:"total_equity"`
+}
+
+type Balance struct {
+	TotalAssets           float64 `json:"total_assets"`
+	LiabilitiesPlusEquity float64 `json:"liabilities_plus_equity"`
+}
+
+type GetFinanceBalanceSheetRequest struct {
+	BranchID uint   `json:"-"` // opsional (kalau owner bisa kosong artinya semua cabang)
+	Role     string `json:"-"` // "Owner" atau "Admin"
+	AsOf     int64  `json:"-"` // timestamp mili → akan diformat jadi "YYYY-MM-DD"
+}

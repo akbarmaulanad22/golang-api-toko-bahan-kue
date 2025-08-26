@@ -264,6 +264,188 @@ func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBa
 	return resp, nil
 }
 
+func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinanceBalanceSheetRequest) (*model.FinanceBalanceSheetResponse, error) {
+	// Konversi timestamp ke string date (asOf date)
+	asOfDate := time.UnixMilli(request.AsOf).Format("2006-01-02")
+
+	// --- Cash & Bank ---
+	var cashBank float64
+	queryCash := `
+		SELECT COALESCE(SUM(amount), 0) 
+		FROM cash_bank_transactions
+		WHERE created_at <= ?`
+	argsCash := []interface{}{request.AsOf}
+	if request.Role != "Owner" || request.BranchID != 0 {
+		queryCash += " AND branch_id = ?"
+		argsCash = append(argsCash, request.BranchID)
+	}
+	if err := db.Raw(queryCash, argsCash...).Scan(&cashBank).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Accounts Receivable (piutang dari SALE) ---
+	var receivable float64
+	if request.Role == "Owner" && request.BranchID == 0 {
+		// Semua cabang
+		if err := db.Raw(`
+			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			FROM debts d
+			WHERE d.reference_type = 'SALE'
+			  AND d.status = 'UNPAID'
+			  AND d.due_date <= ?`,
+			request.AsOf).Scan(&receivable).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		// Filter cabang
+		if err := db.Raw(`
+			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			FROM debts d
+			JOIN sales s ON d.reference_code = s.code
+			WHERE d.reference_type = 'SALE'
+			  AND d.status = 'UNPAID'
+			  AND d.due_date <= ?
+			  AND s.branch_id = ?`,
+			request.AsOf, request.BranchID).Scan(&receivable).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	// --- Accounts Payable (utang dari PURCHASE) ---
+	var payable float64
+	if request.Role == "Owner" && request.BranchID == 0 {
+		if err := db.Raw(`
+			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			FROM debts d
+			WHERE d.reference_type = 'PURCHASE'
+			  AND d.status = 'UNPAID'
+			  AND d.due_date <= ?`,
+			request.AsOf).Scan(&payable).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := db.Raw(`
+			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			FROM debts d
+			JOIN purchases p ON d.reference_code = p.code
+			WHERE d.reference_type = 'PURCHASE'
+			  AND d.status = 'UNPAID'
+			  AND d.due_date <= ?
+			  AND p.branch_id = ?`,
+			request.AsOf, request.BranchID).Scan(&payable).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	// --- Inventory ---
+	var inventory float64
+	queryInv := `
+		SELECT COALESCE(SUM(bi.stock * s.buy_price), 0)
+		FROM branch_inventory bi
+		JOIN sizes s ON bi.size_id = s.id
+		WHERE 1=1`
+	argsInv := []interface{}{}
+	if request.Role != "Owner" || request.BranchID != 0 {
+		queryInv += " AND bi.branch_id = ?"
+		argsInv = append(argsInv, request.BranchID)
+	}
+	if err := db.Raw(queryInv, argsInv...).Scan(&inventory).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Owner Capital ---
+	var capital float64
+	queryCap := `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM capitals
+		WHERE created_at <= ?`
+	argsCap := []interface{}{request.AsOf}
+	if request.Role != "Owner" || request.BranchID != 0 {
+		queryCap += " AND branch_id = ?"
+		argsCap = append(argsCap, request.BranchID)
+	}
+	if err := db.Raw(queryCap, argsCap...).Scan(&capital).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Retained Earnings (Laba ditahan) ---
+	var retainedEarnings float64
+
+	salesCond := ""
+	purchCond := ""
+	expCond := ""
+	argsRE := []interface{}{request.AsOf, request.AsOf, request.AsOf}
+
+	if request.Role != "Owner" || request.BranchID != 0 {
+		salesCond = " AND s.branch_id = ?"
+		purchCond = " AND p.branch_id = ?"
+		expCond = " AND e.branch_id = ?"
+		argsRE = append(argsRE, request.BranchID, request.BranchID, request.BranchID)
+	}
+
+	queryRE := fmt.Sprintf(`
+	SELECT 
+		COALESCE((
+			(SELECT SUM(sd.qty * sd.sell_price) 
+			 FROM sale_details sd 
+			 JOIN sales s ON s.code = sd.sale_code
+			 WHERE s.status = 'COMPLETED' 
+			   AND s.created_at <= ? %s)
+			-
+			(SELECT SUM(pd.qty * pd.buy_price)
+			 FROM purchase_details pd
+			 JOIN purchases p ON p.code = pd.purchase_code
+			 WHERE p.status = 'COMPLETED' 
+			   AND p.created_at <= ? %s)
+			-
+			(SELECT SUM(amount)
+			 FROM expenses e
+			 WHERE e.created_at <= ? %s)
+		),0)`, salesCond, purchCond, expCond)
+
+	if err := db.Raw(queryRE, argsRE...).Scan(&retainedEarnings).Error; err != nil {
+		return nil, err
+	}
+
+	// --- Build response ---
+	resp := &model.FinanceBalanceSheetResponse{
+		ReportType: "balance_sheet",
+		AsOf:       asOfDate,
+		BranchID:   nil,
+		BranchName: "All Branches",
+		Assets: model.Assets{
+			CashAndBank:        cashBank,
+			AccountsReceivable: receivable,
+			Inventory:          inventory,
+			TotalCurrentAssets: cashBank + receivable + inventory,
+		},
+		Liabilities: model.Liabilities{
+			AccountsPayable:         payable,
+			TotalCurrentLiabilities: payable,
+		},
+		Equity: model.Equity{
+			OwnerCapital:     capital,
+			RetainedEarnings: retainedEarnings,
+			TotalEquity:      capital + retainedEarnings,
+		},
+	}
+	resp.Balance = model.Balance{
+		TotalAssets:           resp.Assets.TotalCurrentAssets,
+		LiabilitiesPlusEquity: resp.Liabilities.TotalCurrentLiabilities + resp.Equity.TotalEquity,
+	}
+
+	// Kalau filter cabang, ganti branch_id dan branch_name
+	if request.Role != "Owner" || request.BranchID != 0 {
+		resp.BranchID = &request.BranchID
+		var branchName string
+		if err := db.Raw("SELECT name FROM branches WHERE id = ?", request.BranchID).Scan(&branchName).Error; err == nil {
+			resp.BranchName = branchName
+		}
+	}
+
+	return resp, nil
+}
+
 func buildFilter(base string, startAt, endAt int64, role string, branchID uint, alias string) (string, []interface{}) {
 	args := []interface{}{}
 	// date filter
