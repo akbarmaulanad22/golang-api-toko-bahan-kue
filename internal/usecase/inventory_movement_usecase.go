@@ -95,3 +95,26 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 		Movements:     responses,
 	}, nil
 }
+
+func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.SearchInventoryMovementRequest) ([]model.InventoryMovementResponse, int64, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, 0, errors.New("bad request")
+	}
+
+	inventoryMovements, total, err := c.InventoryMovementRepository.Search(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting inventory movements")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting inventory movements")
+		return nil, 0, errors.New("internal server error")
+	}
+
+	return inventoryMovements, total, nil
+}
