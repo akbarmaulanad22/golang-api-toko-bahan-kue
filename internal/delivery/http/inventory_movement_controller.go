@@ -147,3 +147,49 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 		Paging: paging,
 	})
 }
+
+func (c *InventoryMovementController) SummaryByBranch(w http.ResponseWriter, r *http.Request) {
+
+	params := r.URL.Query()
+
+	startAtStr := params.Get("start_at")
+	endAtStr := params.Get("end_at")
+
+	var (
+		startAtMili int64
+		endAtMili   int64
+	)
+
+	if startAtStr != "" && endAtStr != "" {
+		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+		if err != nil {
+			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		startAtMili = startMilli
+
+		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		if err != nil {
+			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+
+		endAtMili = endMilli
+	}
+
+	request := &model.SearchInventoryMovementRequest{
+		Page:    1,
+		Size:    1,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+	}
+
+	response, err := c.UseCase.SummaryByBranch(r.Context(), request)
+	if err != nil {
+		c.Log.Warnf("Failed to create capital: %+v", err)
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(response)
+}

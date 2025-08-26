@@ -38,3 +38,20 @@ type SearchInventoryMovementRequest struct {
 	Page     int    `json:"page" validate:"min=1"`
 	Size     int    `json:"size" validate:"min=1,max=100"`
 }
+
+type InventoryMovementBranchSummary struct {
+	BranchID   uint   `json:"branch_id"`
+	BranchName string `json:"branch_name"`
+	TotalIn    int64  `json:"total_in"`
+	TotalOut   int64  `json:"total_out"`
+}
+
+type InventoryMovementSummaryAll struct {
+	TotalIn  int64 `json:"total_in"`
+	TotalOut int64 `json:"total_out"`
+}
+
+type InventoryMovementSummaryResponse struct {
+	Data             []InventoryMovementBranchSummary `json:"data"`
+	TotalAllBranches InventoryMovementSummaryAll      `json:"total_all_branches"`
+}

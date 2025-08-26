@@ -118,3 +118,26 @@ func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.Se
 
 	return inventoryMovements, total, nil
 }
+
+func (c *InventoryMovementUseCase) SummaryByBranch(ctx context.Context, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
+
+	inventoryMovements, err := c.InventoryMovementRepository.SummaryByBranch(tx, request)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting inventory movements")
+		return nil, errors.New("internal server error")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error getting inventory movements")
+		return nil, errors.New("internal server error")
+	}
+
+	return inventoryMovements, nil
+}
