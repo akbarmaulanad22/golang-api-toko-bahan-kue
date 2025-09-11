@@ -126,7 +126,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// POS (order barang keluar)
 	authRouter.HandleFunc("/sales", route.SaleController.Create).Methods("POST")
 	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}", route.SaleController.Cancel).Methods("DELETE")
+	// authRouter.HandleFunc("/sales/{code}", route.SaleController.Cancel).Methods("DELETE")
 	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
 
 	// POS (order barang masuk)
@@ -166,6 +166,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 
 	// utang / piutang
 	authRouter.HandleFunc("/debt", route.DebtController.List).Methods("GET")
+	authRouter.HandleFunc("/debt/{id}", route.DebtController.Get).Methods("GET")
 
 	// ringkasan laporan keuangan [ owner only ]
 	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")

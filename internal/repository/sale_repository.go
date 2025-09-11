@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -19,22 +20,257 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 	}
 }
 
-func (r *SaleRepository) FindByCode(db *gorm.DB, sale *entity.Sale, code string) error {
-	return db.Where("code = ?", code).
-		Preload("Details.Size.Product.Category").
-		Preload("Payments").
-		Preload("Debt").
-		First(sale).Error
+func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleResponse, error) {
+	query := `
+		SELECT 
+			s.code, s.customer_name, s.status, s.created_at,
+			b.name AS branch_name,
+			sd.size_id, sd.qty, sd.sell_price AS item_sell_price,
+			sz.name AS size_name, sz.sell_price AS size_sell_price,
+			p.sku AS product_sku, p.name AS product_name,
+			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
+		FROM sales s
+		JOIN branches b ON s.branch_id = b.id
+		JOIN sale_details sd ON s.code = sd.sale_code
+		JOIN sizes sz ON sd.size_id = sz.id
+		JOIN products p ON sz.product_sku = p.sku
+		LEFT JOIN sale_payments sp ON s.code = sp.sale_code
+		WHERE s.code = ?
+	`
+
+	rows, err := db.Raw(query, code).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sale *model.SaleResponse
+
+	for rows.Next() {
+		var (
+			saleCode, customerName, status, branchName string
+			createdAt                                  int64
+			sizeID, qty                                int
+			itemSellPrice, sizeSellPrice               float64
+			sizeName, productSKU, productName          string
+
+			paymentMethod, note sql.NullString
+			amount              sql.NullFloat64
+			paymentCreatedAt    sql.NullInt64
+		)
+
+		if err := rows.Scan(
+			&saleCode, &customerName, &status, &createdAt, &branchName,
+			&sizeID, &qty, &itemSellPrice,
+			&sizeName, &sizeSellPrice,
+			&productSKU, &productName,
+			&paymentMethod, &amount, &note, &paymentCreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		// inisialisasi sekali
+		if sale == nil {
+			sale = &model.SaleResponse{
+				Code:         saleCode,
+				CustomerName: customerName,
+				Status:       status,
+				CreatedAt:    createdAt,
+				BranchName:   branchName,
+				TotalQty:     0,
+				TotalPrice:   0,
+				Items:        []model.SaleItemResponse{},
+				Payments:     []model.SalePaymentResponse{},
+			}
+		}
+
+		// tambahkan item
+		sale.Items = append(sale.Items, model.SaleItemResponse{
+			Size: &model.SizeResponse{
+				Name:      sizeName,
+				SellPrice: sizeSellPrice,
+			},
+			Product: &model.ProductResponse{
+				SKU:  productSKU,
+				Name: productName,
+			},
+			Qty:   qty,
+			Price: itemSellPrice,
+		})
+
+		// akumulasi total qty & price
+		sale.TotalQty += qty
+		sale.TotalPrice += float64(qty) * itemSellPrice
+
+		// tambahkan payment kalau ada
+		if paymentMethod.Valid && paymentCreatedAt.Valid {
+			sale.Payments = append(sale.Payments, model.SalePaymentResponse{
+				PaymentMethod: paymentMethod.String,
+				Amount:        amount.Float64,
+				Note:          note.String,
+				CreatedAt:     paymentCreatedAt.Int64,
+			})
+		}
+	}
+
+	if sale == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return sale, nil
 }
+
+// func buildSaleFilter(req *model.SearchSaleRequest) (string, []interface{}) {
+// 	clauses := []string{"1=1"} // selalu valid
+// 	args := []interface{}{}
+
+// 	if req.BranchID > 0 {
+// 		clauses = append(clauses, "s.branch_id = ?")
+// 		args = append(args, req.BranchID)
+// 	}
+// 	if req.Code != "" {
+// 		clauses = append(clauses, "s.code = ?")
+// 		args = append(args, req.Code)
+// 	}
+// 	if req.CustomerName != "" {
+// 		clauses = append(clauses, "s.customer_name LIKE ?")
+// 		args = append(args, "%"+req.CustomerName+"%")
+// 	}
+// 	if req.Status != "" {
+// 		clauses = append(clauses, "s.status = ?")
+// 		args = append(args, req.Status)
+// 	}
+// 	if req.StartAt != 0 && req.EndAt != 0 {
+// 		clauses = append(clauses, "s.created_at BETWEEN ? AND ?")
+// 		args = append(args, req.StartAt, req.EndAt)
+// 	}
+
+// 	return strings.Join(clauses, " AND "), args
+// }
+
+// func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
+// 	// --- build filter ---
+// 	whereClause, whereArgs := buildSaleFilter(request)
+
+// 	// --- count total ---
+// 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM sales s WHERE %s", whereClause)
+// 	var total int64
+// 	if err := db.Raw(countQuery, whereArgs...).Scan(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	// --- ambil data utama ---
+// 	selectQuery := fmt.Sprintf(`
+// 		SELECT
+// 			s.code, s.customer_name, s.status, s.created_at,
+// 			b.name AS branch_name,
+// 			sd.size_id, sd.qty, sd.sell_price AS item_sell_price,
+// 			sz.name AS size_name, sz.sell_price AS size_sell_price,
+// 			p.sku AS product_sku, p.name AS product_name,
+// 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
+// 		FROM sales s
+// 		JOIN branches b ON s.branch_id = b.id
+// 		JOIN sale_details sd ON s.code = sd.sale_code
+// 		JOIN sizes sz ON sd.size_id = sz.id
+// 		JOIN products p ON sz.product_sku = p.sku
+// 		LEFT JOIN sale_payments sp ON s.code = sp.sale_code
+// 		WHERE %s
+// 		ORDER BY s.created_at DESC
+// 		LIMIT ? OFFSET ?`, whereClause)
+
+// 	args := append(whereArgs, request.Size, (request.Page-1)*request.Size)
+
+// 	rows, err := db.Raw(selectQuery, args...).Rows()
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+// 	defer rows.Close()
+
+// 	// --- mapping hasil ---
+// 	salesMap := make(map[string]*model.SaleResponse)
+
+// 	for rows.Next() {
+// 		var (
+// 			saleCode, customerName, status, branchName string
+// 			createdAt                                  int64
+// 			sizeID, qty                                int
+// 			itemSellPrice, sizeSellPrice               float64
+
+// 			sizeName, productSKU, productName string
+
+// 			// kolom payment bisa NULL, jadi pakai sql.Null*
+// 			paymentMethod    sql.NullString
+// 			note             sql.NullString
+// 			amount           sql.NullFloat64
+// 			paymentCreatedAt sql.NullInt64
+// 		)
+
+// 		if err := rows.Scan(
+// 			&saleCode, &customerName, &status, &createdAt, &branchName,
+// 			&sizeID, &qty, &itemSellPrice,
+// 			&sizeName, &sizeSellPrice,
+// 			&productSKU, &productName,
+// 			&paymentMethod, &amount, &note, &paymentCreatedAt,
+// 		); err != nil {
+// 			return nil, 0, err
+// 		}
+
+// 		// inisialisasi sale jika belum ada
+// 		if _, ok := salesMap[saleCode]; !ok {
+// 			salesMap[saleCode] = &model.SaleResponse{
+// 				Code:         saleCode,
+// 				CustomerName: customerName,
+// 				Status:       status,
+// 				CreatedAt:    createdAt,
+// 				BranchName:   branchName,
+// 				Items:        []model.SaleItemResponse{},
+// 				Payments:     []model.SalePaymentResponse{},
+// 			}
+// 		}
+
+// 		// tambahkan item
+// 		salesMap[saleCode].Items = append(salesMap[saleCode].Items, model.SaleItemResponse{
+// 			Size: &model.SizeResponse{
+// 				Name:      sizeName,
+// 				SellPrice: sizeSellPrice,
+// 			},
+// 			Product: &model.ProductResponse{
+// 				SKU:  productSKU,
+// 				Name: productName,
+// 			},
+// 			Qty:   qty,
+// 			Price: itemSellPrice,
+// 		})
+
+// 		// tambahkan payment (kalau ada)
+// 		if paymentMethod.Valid && paymentCreatedAt.Valid {
+// 			salesMap[saleCode].Payments = append(salesMap[saleCode].Payments, model.SalePaymentResponse{
+// 				PaymentMethod: paymentMethod.String,
+// 				Amount:        amount.Float64,
+// 				Note:          note.String,
+// 				CreatedAt:     paymentCreatedAt.Int64,
+// 			})
+// 		}
+
+// 	}
+
+// 	// --- convert map ke slice ---
+// 	result := make([]model.SaleResponse, 0, len(salesMap))
+// 	for _, v := range salesMap {
+// 		result = append(result, *v)
+// 	}
+
+// 	return result, total, nil
+// }
 
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
 	var sales []entity.Sale
-	if err := db.Scopes(r.FilterSale(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&sales).Error; err != nil {
+	if err := db.Order("created_at DESC").Preload("Branch").Scopes(r.FilterSale(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&sales).Error; err != nil {
 		return nil, 0, err
 	}
 
 	var total int64 = 0
-	if err := db.Model(&entity.Sale{}).Scopes(r.FilterSale(request)).Count(&total).Error; err != nil {
+	if err := db.Model(&entity.Sale{}).Preload("Branch").Scopes(r.FilterSale(request)).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -45,13 +281,9 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 	return func(tx *gorm.DB) *gorm.DB {
 		tx.Where("branch_id = ?", request.BranchID)
 
-		if code := request.Code; code != "" {
-			tx = tx.Where("code = ?", code)
-		}
-
-		if customerName := request.CustomerName; customerName != "" {
-			customerName = "%" + customerName + "%"
-			tx = tx.Where("customer_name LIKE ?", customerName)
+		if search := request.Search; search != "" {
+			search = "%" + search + "%"
+			tx = tx.Where("code LIKE ? OR customer_name LIKE ?", search, search)
 		}
 
 		if status := request.Status; status != "" {
@@ -67,143 +299,3 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 		return tx
 	}
 }
-
-// func (r *SaleRepository) SearchReports(db *gorm.DB, request *model.SearchSaleReportRequest) ([]model.SaleReportResponse, int64, error) {
-
-// 	var reports []model.SaleReportResponse
-
-// 	query := `
-//     SELECT
-//         FROM_UNIXTIME(s.created_at / 1000) AS created_at,
-//         b.id,
-//         b.name AS branch_name,
-//         s.code AS sale_code,
-//         s.customer_name,
-//         p.name AS product_name,
-//         sd.qty,
-//         sz.sell_price,
-//         (sd.qty * sz.sell_price) AS total_price
-// 		FROM sales s
-// 		JOIN branches b ON s.branch_id = b.id
-// 		JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-// 		JOIN sizes sz ON sd.size_id = sz.id
-// 		JOIN products p ON sz.product_sku = p.sku
-//     WHERE s.status = ?
-// `
-
-// 	params := []interface{}{"COMPLETED"}
-
-// 	// Filter tanggal
-// 	if request.StartAt != "" && request.EndAt != "" {
-// 		query += " AND DATE(FROM_UNIXTIME(s.created_at / 1000)) BETWEEN ? AND ?"
-// 		params = append(params, request.StartAt, request.EndAt)
-// 	}
-
-// 	// Filter customer name
-// 	if request.Search != "" {
-// 		search := "%" + request.Search + "%"
-// 		query += "AND (s.customer_name LIKE ? OR p.name LIKE ? OR s.code LIKE ?)"
-// 		params = append(params, search, search, search)
-// 	}
-
-// 	// Filter branch
-// 	if request.BranchID != 0 {
-// 		query += " AND b.id = ?"
-// 		params = append(params, request.BranchID)
-// 	}
-
-// 	// Urutkan berdasarkan tanggal
-// 	query += " ORDER BY created_at ASC"
-
-// 	if err := db.Raw(query, params...).Scan(&reports).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS sub"
-// 	var total int64 = 0
-// 	if err := db.Raw(countQuery, params...).Scan(&total).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	return reports, total, nil
-
-// }
-
-// func (r *SaleRepository) SummaryAllBranch(db *gorm.DB) ([]model.BranchSalesReportResponse, error) {
-
-// 	var branchSalesReport []model.BranchSalesReportResponse
-
-// 	query := `
-// 		SELECT
-//             b.name AS branch_name,
-//             SUM(sd.qty * sz.sell_price) AS total_sales
-//         FROM sales s
-//         JOIN branches b ON s.branch_id = b.id
-//         JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-//         JOIN sizes sz ON sd.size_id = sz.id
-//         GROUP BY b.name
-
-//         UNION ALL
-
-//         SELECT
-//             'Total Semua Cabang' AS branch_name,
-//             SUM(sd.qty * sz.sell_price) AS total_sales
-//         FROM sales s
-//         JOIN branches b ON s.branch_id = b.id
-//         JOIN sale_details sd ON s.code = sd.sale_code AND sd.is_cancelled = false
-//         JOIN sizes sz ON sd.size_id = sz.id
-//         ORDER BY branch_name;
-// 	`
-
-// 	if err := db.Raw(query).Scan(&branchSalesReport).Error; err != nil {
-// 		return nil, err
-// 	}
-
-// 	return branchSalesReport, nil
-// }
-
-// func (r *SaleRepository) FindhBestSellingProductsGlobal(db *gorm.DB) ([]model.BestSellingProductResponse, error) {
-
-// 	query := `
-//         SELECT
-// 			p.sku,
-// 			p.name AS product_name,
-// 			SUM(sd.qty) AS total_qty,
-// 			SUM(sd.qty * sz.sell_price) AS total_sales
-// 		FROM sale_details sd
-// 		JOIN sales s ON sd.sale_code = s.code
-// 		JOIN sizes sz ON sd.size_id = sz.id
-// 		JOIN products p ON sz.product_sku = p.sku
-// 		WHERE s.status = 'COMPLETED' AND sd.is_cancelled = 0
-// 		GROUP BY p.sku, p.name
-// 		ORDER BY total_qty DESC
-// 		LIMIT 10;
-//     `
-// 	var result []model.BestSellingProductResponse
-// 	err := db.Raw(query).Scan(&result).Error
-// 	return result, err
-// }
-
-// func (r *SaleRepository) FindhBestSellingProductsByBranchID(db *gorm.DB, request *model.ListBestSellingProductRequest) ([]model.BestSellingProductResponse, error) {
-
-// 	query := `
-//         SELECT
-// 			p.sku,
-// 			p.name AS product_name,
-// 			SUM(sd.qty) AS total_qty,
-// 			SUM(sd.qty * sz.sell_price) AS total_sales
-// 		FROM sale_details sd
-// 		JOIN sales s ON sd.sale_code = s.code
-// 		JOIN sizes sz ON sd.size_id = sz.id
-// 		JOIN products p ON sz.product_sku = p.sku
-// 		WHERE s.status = 'COMPLETED'
-// 		AND sd.is_cancelled = 0
-// 		AND s.branch_id = ?
-// 		GROUP BY p.sku, p.name
-// 		ORDER BY total_qty DESC
-// 		LIMIT 10;
-//     `
-// 	var result []model.BestSellingProductResponse
-// 	err := db.Raw(query, request.BranchID).Scan(&result).Error
-// 	return result, err
-// }

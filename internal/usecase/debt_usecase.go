@@ -3,9 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
-	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
-	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
@@ -30,7 +28,7 @@ func NewDebtUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Vali
 	}
 }
 
-func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*model.DebtResponse, error) {
+func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*model.DebtDetailResponse, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -39,8 +37,8 @@ func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*
 		return nil, errors.New("bad request")
 	}
 
-	debt := new(entity.Debt)
-	if err := c.DebtRepository.FindById(tx, debt, request.ID); err != nil {
+	debt, err := c.DebtRepository.FindDetailById(tx, request)
+	if err != nil {
 		c.Log.WithError(err).Error("error getting debt")
 		return nil, errors.New("not found")
 	}
@@ -50,7 +48,7 @@ func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*
 		return nil, errors.New("internal server error")
 	}
 
-	return converter.DebtToResponse(debt), nil
+	return debt, nil
 }
 
 func (c *DebtUseCase) Search(ctx context.Context, request *model.SearchDebtRequest) ([]model.DebtResponse, int64, error) {

@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -26,6 +27,8 @@ func NewDebtController(useCase *usecase.DebtUseCase, logger *logrus.Logger) *Deb
 }
 
 func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := r.URL.Query()
 
 	pageStr := params.Get("page")
@@ -51,10 +54,13 @@ func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchDebtRequest{
-		ReferenceType: params.Get("refence_type"),
-		ReferenceCode: params.Get("refence_code"),
-		Page:          pageInt,
-		Size:          sizeInt,
+		BranchID:      auth.BranchID,
+		ReferenceType: params.Get("reference_type"),
+		// ReferenceCode: params.Get("s"),
+		Search: params.Get("search"),
+		Status: params.Get("status"),
+		Page:   pageInt,
+		Size:   sizeInt,
 	}
 
 	if err := request.StartAt.ParseFromString(params.Get("start_at")); err != nil {
@@ -106,5 +112,5 @@ func (c *DebtController) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DebtResponse]{Data: response})
+	json.NewEncoder(w).Encode(model.WebResponse[*model.DebtDetailResponse]{Data: response})
 }

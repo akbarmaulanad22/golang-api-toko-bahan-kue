@@ -20,10 +20,9 @@ func NewDebtRepository(log *logrus.Logger) *DebtRepository {
 }
 
 func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest) ([]model.DebtResponse, int64, error) {
-	var results []model.DebtResponse
+	results := make([]model.DebtResponse, 0)
 	var total int64
 
-	// Base query
 	query := `
 		SELECT 
 			d.id,
@@ -37,15 +36,29 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 				WHEN d.reference_type = 'SALE' THEN s.customer_name
 				WHEN d.reference_type = 'PURCHASE' THEN p.sales_name
 				ELSE ''
-			END AS related
+			END AS related,
+			COALESCE(bs.name, bp.name, '') AS branch_name
 		FROM debts d
 		LEFT JOIN sales s ON d.reference_type = 'SALE' AND d.reference_code = s.code
 		LEFT JOIN purchases p ON d.reference_type = 'PURCHASE' AND d.reference_code = p.code
+		LEFT JOIN branches bs ON s.branch_id = bs.id
+		LEFT JOIN branches bp ON p.branch_id = bp.id
 		WHERE 1=1
 	`
 
-	// Params slice
 	var params []interface{}
+
+	// BranchID filter
+	if request.BranchID != 0 {
+		query += " AND (bp.id = ? OR bs.id = ?)"
+		params = append(params, request.BranchID, request.BranchID)
+	}
+
+	// Status filter
+	if request.Status != "" {
+		query += " AND d.status = ?"
+		params = append(params, request.Status)
+	}
 
 	// ReferenceType filter
 	if request.ReferenceType != "" {
@@ -54,9 +67,9 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 	}
 
 	// ReferenceCode filter
-	if request.ReferenceCode != "" {
-		query += " AND d.reference_code LIKE ?"
-		params = append(params, "%"+request.ReferenceCode+"%")
+	if request.Search != "" {
+		query += " AND d.reference_code LIKE ? OR s.customer_name LIKE ? OR p.sales_name LIKE ?"
+		params = append(params, "%"+request.Search+"%", "%"+request.Search+"%", "%"+request.Search+"%")
 	}
 
 	// Date filter
@@ -65,7 +78,7 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 		params = append(params, request.StartAt, request.EndAt, request.StartAt, request.EndAt)
 	}
 
-	// Count total
+	// Count
 	countQuery := "SELECT COUNT(*) FROM (" + query + ") AS count_table"
 	if err := db.Raw(countQuery, params...).Scan(&total).Error; err != nil {
 		return nil, 0, err
@@ -80,25 +93,49 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 		return nil, 0, err
 	}
 
-	// // Payments load per debt
-	// for i := range results {
-	// 	var payments []model.DebtPaymentResponse
-	// 	if err := db.Raw(`
-	// 		SELECT
-	// 			dp.id,
-	// 			dp.debt_id,
-	// 			dp.amount,
-	// 			dp.paid_at
-	// 		FROM debt_payments dp
-	// 		WHERE dp.debt_id = ?
-	// 		ORDER BY dp.paid_at ASC
-	// 	`, results[i].ID).Scan(&payments).Error; err != nil {
-	// 		return nil, 0, err
-	// 	}
-	// 	results[i].Payments = payments
-	// }
-
 	return results, total, nil
+}
+
+func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtRequest) (*model.DebtDetailResponse, error) {
+	var debt model.DebtDetailResponse
+
+	// Ambil data utama hutang
+	if err := db.Raw(`
+		SELECT id, reference_type, reference_code, total_amount, paid_amount, due_date, status, created_at
+		FROM debts
+		WHERE id = ?
+	`, request.ID).Scan(&debt).Error; err != nil {
+		return nil, err
+	}
+
+	// Ambil payments
+	var payments []model.DebtPaymentResponse
+	if err := db.Raw(`
+		SELECT id, payment_date, amount, note
+		FROM debt_payments
+		WHERE debt_id = ?
+		ORDER BY payment_date ASC
+	`, request.ID).Scan(&payments).Error; err != nil {
+		return nil, err
+	}
+	debt.Payments = payments
+
+	// Ambil items kalau SALE
+	if debt.ReferenceType == "SALE" {
+		var items []model.DebtItemResponse
+		if err := db.Raw(`
+			SELECT p.name AS product_name, s.name AS size_name, sd.qty, sd.sell_price
+			FROM sale_details sd
+			JOIN sizes s ON sd.size_id = s.id
+			JOIN products p ON s.product_sku = p.sku
+			WHERE sd.sale_code = ?
+		`, debt.ReferenceCode).Scan(&items).Error; err != nil {
+			return nil, err
+		}
+		debt.Items = items
+	}
+
+	return &debt, nil
 }
 
 // func (r *DebtRepository) Search(db *gorm.DB, request *model.SearchDebtRequest) ([]entity.Debt, int64, error) {

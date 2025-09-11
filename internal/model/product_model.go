@@ -17,10 +17,11 @@ type CreateProductRequest struct {
 
 type SearchProductRequest struct {
 	BranchID uint   `json:"-" validate:"required"`
-	SKU      string `json:"sku" validate:"max=100"`
-	Name     string `json:"name" validate:"max=100"`
-	Page     int    `json:"page" validate:"min=1"`
-	Size     int    `json:"size" validate:"min=1,max=100"`
+	Search   string `json:"search"`
+	// SKU      string `json:"sku" validate:"max=100"`
+	// Name     string `json:"name" validate:"max=100"`
+	Page int `json:"page" validate:"min=1"`
+	Size int `json:"size" validate:"min=1,max=100"`
 }
 
 type GetProductRequest struct {

@@ -9,4 +9,5 @@ type Sale struct {
 	Details      []SaleDetail  `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Payments     []SalePayment `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Debt         *Debt         `gorm:"foreignKey:ReferenceCode;references:Code;"`
+	Branch       Branch        `gorm:"foreignKey:BranchID;references:ID;"`
 }

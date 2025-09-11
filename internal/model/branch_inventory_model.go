@@ -1,29 +1,31 @@
 package model
 
-type BranchInventoryResponse struct {
-	ID         uint                             `json:"id,omitempty"`
-	BranchID   uint                             `json:"branch_id,omitempty"`
-	BranchName string                           `json:"branch_name,omitempty"`
-	Products   []BranchInventoryProductResponse `json:"products,omitempty"`
-	CreatedAt  int64                            `json:"created_at,omitempty"`
-	UpdatedAt  int64                            `json:"updated_at,omitempty"`
-}
-
 type BranchInventorySizeResponse struct {
-	SizeID uint   `json:"size_id"`
-	Size   string `json:"size"`
-	Stock  int    `json:"stock"`
+	SizeID    uint    `json:"size_id"`
+	Size      string  `json:"size"`
+	Stock     int     `json:"stock"`
+	SellPrice float64 `json:"sell_price"`
 }
 
 type BranchInventoryProductResponse struct {
-	ProductSKU  uint                          `json:"product_sku"`
-	ProductName string                        `json:"product_name"`
+	BranchName  string                        `json:"branch_name,omitempty"`
+	ProductSKU  string                        `json:"sku"`
+	ProductName string                        `json:"name"`
 	Sizes       []BranchInventorySizeResponse `json:"sizes"`
 }
 
-type BranchInventoryAdminRequest struct {
-	BranchID uint `json:"-" validate:"required"`
+type SearchBranchInventoryRequest struct {
+	BranchID uint   `json:"-"`
+	Search   string `json:"search" validate:"max=100"`
+	Page     int    `json:"page" validate:"min=1"`
+	Size     int    `json:"size" validate:"min=1,max=100"`
 }
+
+// type BranchInventoryAdminRequest struct {
+// 	BranchID uint `json:"-" validate:"required"`
+// 	Page     int  `json:"page" validate:"min=1"`
+// 	Size     int  `json:"size" validate:"min=1,max=	100"`
+// }
 
 // type CreateBranchInventoryRequest struct {
 // 	Stock    int  `json:"stock" validate:"required"`

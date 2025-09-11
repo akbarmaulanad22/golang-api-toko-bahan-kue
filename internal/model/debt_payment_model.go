@@ -1,6 +1,7 @@
 package model
 
 type DebtPaymentResponse struct {
+	ID          uint    `json:"id,omitempty"`
 	Amount      float64 `json:"amount,omitempty"`
 	PaymentDate int64   `json:"payment_date,omitempty"`
 	Note        string  `json:"note,omitempty"`

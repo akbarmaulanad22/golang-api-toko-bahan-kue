@@ -1,13 +1,12 @@
 package model
 
 type SizeResponse struct {
-	ID        uint             `json:"id,omitempty"`
-	Name      string           `json:"name,omitempty"`
-	SellPrice float64          `json:"sell_price,omitempty"`
-	BuyPrice  float64          `json:"buy_price,omitempty"`
-	CreatedAt int64            `json:"created_at,omitempty"`
-	UpdatedAt int64            `json:"updated_at,omitempty"`
-	Product   *ProductResponse `json:"product,omitempty"`
+	ID        uint    `json:"id,omitempty"`
+	Name      string  `json:"name,omitempty"`
+	SellPrice float64 `json:"sell_price,omitempty"`
+	BuyPrice  float64 `json:"buy_price,omitempty"`
+	CreatedAt int64   `json:"created_at,omitempty"`
+	UpdatedAt int64   `json:"updated_at,omitempty"`
 }
 
 type CreateSizeRequest struct {

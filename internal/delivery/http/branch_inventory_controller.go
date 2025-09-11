@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 	"tokobahankue/internal/delivery/http/middleware"
@@ -9,7 +10,6 @@ import (
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
 
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,41 +29,68 @@ func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request)
 
 	auth := middleware.GetUser(r)
 
-	if auth.Role == "Owner" {
-		responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
-		if err != nil {
-			c.Log.WithError(err).Error("error searching branch")
-			http.Error(w, err.Error(), helper.GetStatusCode(err))
-			return
-		}
+	// if auth.Role == "Owner" {
+	// 	responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
+	// 	if err != nil {
+	// 		c.Log.WithError(err).Error("error searching branch")
+	// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+	// 		return
+	// 	}
 
-		json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryResponse]{
-			Data: responses,
-		})
+	// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryResponse]{
+	// 		Data: responses,
+	// 	})
 
-		return
+	// 	return
+	// }
+
+	params := r.URL.Query()
+
+	pageStr := params.Get("page")
+	if pageStr == "" {
+		pageStr = "1"
 	}
 
-	branchID := mux.Vars(r)["branchID"]
-	if branchID == "" {
-		c.Log.Warn("invalid branch id param")
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	branchIDInt, _ := strconv.Atoi(branchID)
-
-	var request model.BranchInventoryAdminRequest
-	request.BranchID = uint(branchIDInt)
-
-	responses, err := c.UseCase.ListAdminInventory(r.Context(), &request)
+	pageInt, err := strconv.Atoi(pageStr)
 	if err != nil {
-		c.Log.WithError(err).Error("error searching branch")
+		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
+		return
+	}
+
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
+		sizeStr = "10"
+	}
+
+	sizeInt, err := strconv.Atoi(sizeStr)
+	if err != nil {
+		http.Error(w, "invalid size parameter", http.StatusBadRequest)
+		return
+	}
+
+	request := &model.SearchBranchInventoryRequest{
+		BranchID: auth.BranchID,
+		Search:   params.Get("search"),
+		Page:     pageInt,
+		Size:     sizeInt,
+	}
+
+	responses, total, err := c.UseCase.List(r.Context(), request)
+	if err != nil {
+		c.Log.WithError(err).Error("error searching branch inventory")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchInventoryResponse]{
-		Data: responses,
+	paging := &model.PageMetadata{
+		Page:      request.Page,
+		Size:      request.Size,
+		TotalItem: total,
+		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryProductResponse]{
+		Data:   responses,
+		Paging: paging,
 	})
 }

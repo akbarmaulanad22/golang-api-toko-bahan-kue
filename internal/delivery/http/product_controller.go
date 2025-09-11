@@ -47,10 +47,10 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 	auth := middleware.GetUser(r)
 
-	params := mux.Vars(r)
+	params := r.URL.Query()
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	pageStr := params.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
 
@@ -60,8 +60,8 @@ func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
 
@@ -73,10 +73,9 @@ func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 
 	request := &model.SearchProductRequest{
 		BranchID: auth.BranchID,
-		// Name: params["name"],
-		// SKU:  params["sku"],
-		Page: pageInt,
-		Size: sizeInt,
+		Search:   params.Get("search"),
+		Page:     pageInt,
+		Size:     sizeInt,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)

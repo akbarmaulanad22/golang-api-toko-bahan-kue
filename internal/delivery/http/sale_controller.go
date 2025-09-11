@@ -108,14 +108,15 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchSaleRequest{
-		BranchID:     auth.BranchID,
-		Code:         params.Get("code"),
-		CustomerName: params.Get("customer_name"),
-		Status:       params.Get("status"),
-		StartAt:      startDate,
-		EndAt:        endDate,
-		Page:         pageInt,
-		Size:         sizeInt,
+		BranchID: auth.BranchID,
+		// Code:         params.Get("search"),
+		// CustomerName: params.Get("search"),
+		Search:  params.Get("search"),
+		Status:  params.Get("status"),
+		StartAt: startDate,
+		EndAt:   endDate,
+		Page:    pageInt,
+		Size:    sizeInt,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
@@ -161,29 +162,29 @@ func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
 }
 
-func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) {
+// func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) {
 
-	params := mux.Vars(r)
+// 	params := mux.Vars(r)
 
-	code, ok := params["code"]
-	if !ok || code == "" {
-		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
-		return
-	}
+// 	code, ok := params["code"]
+// 	if !ok || code == "" {
+// 		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
+// 		return
+// 	}
 
-	request := model.CancelSaleRequest{
-		Code: code,
-	}
+// 	request := model.CancelSaleRequest{
+// 		Code: code,
+// 	}
 
-	response, err := c.UseCase.Cancel(r.Context(), &request)
-	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to cancel sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+// 	response, err := c.UseCase.Cancel(r.Context(), &request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Warnf("Failed to cancel sale")
+// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
-}
+// 	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+// }
 
 // func (c *SaleController) ListReport(w http.ResponseWriter, r *http.Request) {
 // 	params := r.URL.Query()
