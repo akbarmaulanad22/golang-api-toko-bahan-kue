@@ -1,12 +1,6 @@
 package config
 
 import (
-	// "tokobahankue/internal/delivery/http"
-	// "tokobahankue/internal/delivery/http/middleware"
-	// "tokobahankue/internal/delivery/http/route"
-	// "tokobahankue/internal/repository"
-	// "tokobahankue/internal/usecase"
-
 	"tokobahankue/internal/delivery/http"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/delivery/http/route"
@@ -51,6 +45,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtRepository := repository.NewDebtRepository(config.Log)
 	branchInventoryRepository := repository.NewBranchInventoryRepository(config.Log)
 	inventoryMovementRepository := repository.NewInventoryMovementRepository(config.Log)
+	debtPaymentRepository := repository.NewDebtPaymentRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -73,6 +68,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 	branchInventoryUseCase := usecase.NewBranchInventoryUseCase(config.DB, config.Log, config.Validate, branchInventoryRepository)
 	inventoryMovementUseCase := usecase.NewInventoryMovementUseCase(config.DB, config.Log, config.Validate, inventoryMovementRepository, branchInventoryRepository)
+	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -94,7 +90,8 @@ func Bootstrap(config *BootstrapConfig) {
 	financeController := http.NewFinanceController(financeUseCase, config.Log)
 	debtController := http.NewDebtController(debtUseCase, config.Log)
 	branchInventoryController := http.NewBranchInventoryController(branchInventoryUseCase, config.Log)
-	InventoryMovementController := http.NewInventoryMovementController(inventoryMovementUseCase, config.Log)
+	inventoryMovementController := http.NewInventoryMovementController(inventoryMovementUseCase, config.Log)
+	debtPaymentController := http.NewDebtPaymentController(debtPaymentUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -121,7 +118,8 @@ func Bootstrap(config *BootstrapConfig) {
 		FinanceController:             financeController,
 		DebtController:                debtController,
 		BranchInventoryController:     branchInventoryController,
-		InventoryMovementController:   InventoryMovementController,
+		InventoryMovementController:   inventoryMovementController,
+		DebtPaymentController:         debtPaymentController,
 	}
 	routeConfig.Setup()
 
