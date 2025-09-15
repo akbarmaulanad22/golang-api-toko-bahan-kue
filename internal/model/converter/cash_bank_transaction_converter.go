@@ -14,5 +14,6 @@ func CashBankTransactionToResponse(e *entity.CashBankTransaction) *model.CashBan
 		Amount:          e.Amount,
 		Description:     e.Description,
 		CreatedAt:       e.CreatedAt,
+		BranchName:      e.Branch.Name,
 	}
 }

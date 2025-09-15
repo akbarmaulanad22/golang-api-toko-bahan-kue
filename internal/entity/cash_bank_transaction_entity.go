@@ -11,4 +11,6 @@ type CashBankTransaction struct {
 	BranchID        uint    `gorm:"column:branch_id"`
 	CreatedAt       int64   `gorm:"column:created_at;autoCreateTime:milli"`
 	UpdatedAt       int64   `gorm:"column:updated_at;autoCreateTime:milli;autoUpdateTime:milli"`
+
+	Branch Branch `gorm:"foreignKey:BranchID;references:ID;"`
 }

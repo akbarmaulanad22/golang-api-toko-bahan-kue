@@ -8,6 +8,7 @@ type CashBankTransactionResponse struct {
 	Amount          float64 `json:"amount,omitempty"`
 	Description     string  `json:"description,omitempty"`
 	CreatedAt       int64   `json:"created_at,omitempty"`
+	BranchName      string  `json:"branch_name,omitempty"`
 }
 
 type CreateCashBankTransactionRequest struct {

@@ -21,7 +21,7 @@ func NewCashBankTransactionRepository(log *logrus.Logger) *CashBankTransactionRe
 
 func (r *CashBankTransactionRepository) Search(db *gorm.DB, request *model.SearchCashBankTransactionRequest) ([]entity.CashBankTransaction, int64, error) {
 	var users []entity.CashBankTransaction
-	if err := db.Scopes(r.FilterCashBankTransaction(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
+	if err := db.Preload("Branch").Scopes(r.FilterCashBankTransaction(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 
