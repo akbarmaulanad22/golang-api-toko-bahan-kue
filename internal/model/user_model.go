@@ -21,7 +21,7 @@ type RegisterUserRequest struct {
 	Name     string `json:"name" validate:"required,max=100"`
 	Address  string `json:"address" validate:"required,max=100"`
 	RoleID   uint   `json:"role_id" validate:"required"`
-	BranchID uint   `json:"branch_id" validate:"required"`
+	BranchID *uint  `json:"branch_id" validate:"required"`
 }
 
 type LoginUserRequest struct {
@@ -52,7 +52,7 @@ type UpdateUserRequest struct {
 	Name     string `json:"name,omitempty" validate:"max=100"`
 	Address  string `json:"address,omitempty" validate:"max=100"`
 	RoleID   uint   `json:"role_id" validate:"required"`
-	BranchID uint   `json:"branch_id" validate:"required"`
+	BranchID *uint  `json:"branch_id" validate:"required"`
 }
 
 type DeleteUserRequest struct {

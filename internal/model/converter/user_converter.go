@@ -13,7 +13,7 @@ func UserToResponse(user *entity.User) *model.UserResponse {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Role:      *RoleToResponse(&user.Role),
-		Branch:    *BranchToResponse(&user.Branch),
+		Branch:    *BranchToResponse(user.Branch),
 	}
 }
 
