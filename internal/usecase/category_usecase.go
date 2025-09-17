@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -39,22 +41,23 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 		return nil, errors.New("bad request")
 	}
 
-	total, err := c.CategoryRepository.CountByName(tx, request.Name)
-	if err != nil {
-		c.Log.Warnf("Failed count user from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Category already exists")
-		return nil, errors.New("conflict")
-	}
-
 	category := &entity.Category{
 		Name: request.Name,
 	}
 
 	if err := c.CategoryRepository.Create(tx, category); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
+				c.Log.Warn("Branch name already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating category")
 		return nil, errors.New("internal server error")
 	}
@@ -86,20 +89,21 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 		return converter.CategoryToResponse(category), nil
 	}
 
-	total, err := c.CategoryRepository.CountByName(tx, request.Name)
-	if err != nil {
-		c.Log.Warnf("Failed count user from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Category already exists")
-		return nil, errors.New("conflict")
-	}
-
 	category.Name = request.Name
 
 	if err := c.CategoryRepository.Update(tx, category); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
+				c.Log.Warn("Branch name already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error updating category")
 		return nil, errors.New("internal server error")
 	}

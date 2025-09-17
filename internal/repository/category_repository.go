@@ -19,12 +19,6 @@ func NewCategoryRepository(log *logrus.Logger) *CategoryRepository {
 	}
 }
 
-func (r *CategoryRepository) CountByName(db *gorm.DB, name any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Category{}).Where("name = ?", name).Count(&total).Error
-	return total, err
-}
-
 func (r *CategoryRepository) FindByName(db *gorm.DB, user *entity.Category, name string) error {
 	return db.Where("name = ?", name).First(user).Error
 }
