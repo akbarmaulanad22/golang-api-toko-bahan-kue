@@ -19,12 +19,6 @@ func NewProductRepository(log *logrus.Logger) *ProductRepository {
 	}
 }
 
-func (r *ProductRepository) CountBySKU(db *gorm.DB, sku any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Product{}).Where("sku = ?", sku).Count(&total).Error
-	return total, err
-}
-
 func (r *ProductRepository) FindBySKU(db *gorm.DB, product *entity.Product, sku string) error {
 	return db.Preload("Category").Preload("Sizes").Where("sku = ?", sku).First(product).Error
 }

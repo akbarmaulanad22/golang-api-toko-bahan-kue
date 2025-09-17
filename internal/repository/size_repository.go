@@ -19,14 +19,8 @@ func NewSizeRepository(log *logrus.Logger) *SizeRepository {
 	}
 }
 
-func (r *SizeRepository) CountBySKU(db *gorm.DB, sku any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Size{}).Where("sku = ?", sku).Count(&total).Error
-	return total, err
-}
-
 func (r *SizeRepository) FindByIdAndProductSKU(db *gorm.DB, size *entity.Size, id uint, productSKU string) error {
-	return db.Preload("Product").Where("id = ? AND product_sku = ?", id, productSKU).First(size).Error
+	return db.Where("id = ? AND product_sku = ?", id, productSKU).First(size).Error
 }
 
 func (r *SizeRepository) Search(db *gorm.DB, request *model.SearchSizeRequest) ([]entity.Size, int64, error) {
