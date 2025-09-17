@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
@@ -167,10 +168,8 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 
 func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Request) {
 
-	auth := middleware.GetUser(r)
 	params := r.URL.Query()
 
-	// --- As Of ---
 	asOfStr := params.Get("as_of")
 	if asOfStr == "" {
 		asOfStr = time.Now().Format("2006-01-02")
@@ -182,31 +181,27 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// --- Branch Filter ---
-	var branchID uint
-	if auth.Role == "Owner" {
-		// Owner boleh pilih branch_id dari query
-		branchIDStr := params.Get("branch_id")
-		if branchIDStr != "" {
-			id, err := strconv.Atoi(branchIDStr)
-			if err != nil {
-				http.Error(w, "Invalid branch_id", http.StatusBadRequest)
-				return
-			}
-			branchID = uint(id)
-		} else {
-			branchID = 0 // berarti all branches
-		}
-	} else {
-		// Admin cabang HARUS pakai branch_id dari auth
-		// branchID = auth.BranchID
+	auth := middleware.GetUser(r)
+	request := model.GetFinanceBalanceSheetRequest{
+		AsOf: asOfMilli,
+		Role: auth.Role,
 	}
 
-	// --- Build request ---
-	request := model.GetFinanceBalanceSheetRequest{
-		AsOf:     asOfMilli,
-		BranchID: branchID,
-		Role:     auth.Role,
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	response, err := c.UseCase.GetBalanceSheet(r.Context(), &request)

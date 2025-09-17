@@ -93,7 +93,7 @@ type Balance struct {
 }
 
 type GetFinanceBalanceSheetRequest struct {
-	BranchID uint   `json:"-"` // opsional (kalau owner bisa kosong artinya semua cabang)
+	BranchID *uint  `json:"-"` // opsional (kalau owner bisa kosong artinya semua cabang)
 	Role     string `json:"-"` // "Owner" atau "Admin"
 	AsOf     int64  `json:"-"` // timestamp mili → akan diformat jadi "YYYY-MM-DD"
 }
