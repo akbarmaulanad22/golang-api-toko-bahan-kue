@@ -14,10 +14,9 @@ type CreateBranchRequest struct {
 }
 
 type SearchBranchRequest struct {
-	Name    string `json:"name" validate:"max=100"`
-	Address string `json:"address" validate:"max=100"`
-	Page    int    `json:"page" validate:"min=1"`
-	Size    int    `json:"size" validate:"min=1,max=100"`
+	Search string `json:"search" validate:"max=100"`
+	Page   int    `json:"page" validate:"min=1"`
+	Size   int    `json:"size" validate:"min=1,max=100"`
 }
 
 type GetBranchRequest struct {

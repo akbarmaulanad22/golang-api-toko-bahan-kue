@@ -44,35 +44,24 @@ func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+	params := r.URL.Query()
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	pageStr := params.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
-
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchBranchRequest{
-		Name:    params["name"],
-		Address: params["address"],
-		Page:    pageInt,
-		Size:    sizeInt,
+		Search: params.Get("search"),
+		Page:   pageInt,
+		Size:   sizeInt,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
