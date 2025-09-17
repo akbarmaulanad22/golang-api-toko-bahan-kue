@@ -44,10 +44,10 @@ func (c *RoleController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *RoleController) List(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+	params := r.URL.Query()
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	pageStr := params.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
 
@@ -57,8 +57,8 @@ func (c *RoleController) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := params.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
 
@@ -69,7 +69,7 @@ func (c *RoleController) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &model.SearchRoleRequest{
-		Name: params["name"],
+		Name: params.Get("search"),
 		Page: pageInt,
 		Size: sizeInt,
 	}
