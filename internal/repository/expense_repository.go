@@ -39,9 +39,10 @@ func (r *ExpenseRepository) FilterExpense(request *model.SearchExpenseRequest) f
 			tx = tx.Where("branch_id = ?", request.BranchID)
 		}
 
-		if description := request.Description; description != "" {
-			description = "%" + description + "%"
-			tx = tx.Where("description LIKE ?", description)
+		if search := request.Search; search != "" {
+			amount := search
+			search = "%" + search + "%"
+			tx = tx.Where("description LIKE ? OR amount = ?", search, amount)
 		}
 
 		startAt := request.StartAt

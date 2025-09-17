@@ -51,8 +51,6 @@ func (c *ExpenseController) Create(w http.ResponseWriter, r *http.Request) {
 func (c *ExpenseController) List(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
-	auth := middleware.GetUser(r)
-
 	pageStr := params.Get("page")
 	if pageStr == "" {
 		pageStr = "1"
@@ -66,11 +64,12 @@ func (c *ExpenseController) List(w http.ResponseWriter, r *http.Request) {
 	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchExpenseRequest{
-		Description: params.Get("description"),
-		Page:        pageInt,
-		Size:        sizeInt,
+		Search: params.Get("search"),
+		Page:   pageInt,
+		Size:   sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {
