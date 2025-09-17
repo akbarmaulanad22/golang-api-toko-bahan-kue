@@ -36,6 +36,24 @@ func (r *CashBankTransactionRepository) Search(db *gorm.DB, request *model.Searc
 func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model.SearchCashBankTransactionRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
 
+		if search := request.Search; search != "" {
+			amount := search
+			search = "%" + search + "%"
+			tx = tx.Where("description LIKE ? OR reference_key LIKE ? OR amount = ?", search, search, amount)
+		}
+
+		if transactionType := request.Type; transactionType != "" {
+			tx = tx.Where("type = ?", transactionType)
+		}
+
+		if source := request.Source; source != "" {
+			tx = tx.Where("source = ?", source)
+		}
+
+		if branchID := request.BranchID; branchID != nil {
+			tx = tx.Where("branch_id = ?", branchID)
+		}
+
 		startAt := request.StartAt
 		endAt := request.EndAt
 		if startAt != 0 && endAt != 0 {

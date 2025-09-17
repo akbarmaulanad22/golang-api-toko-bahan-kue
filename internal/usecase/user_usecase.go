@@ -270,12 +270,15 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 		return nil, errors.New("bad request")
 	}
 
-	c.Log.Debug(request.Username)
-
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
 		c.Log.Warnf("Failed find user by username : %+v", err)
 		return nil, errors.New("not found")
+	}
+
+	if user.RoleID == 1 {
+		c.Log.Warn("forbidden : cannot update owner data")
+		return nil, errors.New("forbidden")
 	}
 
 	user.Name = request.Name
@@ -332,6 +335,11 @@ func (c *UserUseCase) Delete(ctx context.Context, request *model.DeleteUserReque
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
 		c.Log.WithError(err).Error("error getting user")
 		return errors.New("not found")
+	}
+
+	if user.RoleID == 1 {
+		c.Log.Warn("forbidden : cannot delete owner data")
+		return errors.New("forbidden")
 	}
 
 	if err := c.UserRepository.Delete(tx, user); err != nil {

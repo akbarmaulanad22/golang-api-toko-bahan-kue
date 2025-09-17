@@ -21,7 +21,7 @@ func NewExpenseRepository(log *logrus.Logger) *ExpenseRepository {
 
 func (r *ExpenseRepository) Search(db *gorm.DB, request *model.SearchExpenseRequest) ([]entity.Expense, int64, error) {
 	var users []entity.Expense
-	if err := db.Scopes(r.FilterExpense(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
+	if err := db.Preload("Branch").Scopes(r.FilterExpense(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 

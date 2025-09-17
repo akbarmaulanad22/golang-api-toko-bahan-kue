@@ -115,17 +115,17 @@ func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID u
 // 	return branches, nil
 // }
 
-type row struct {
-	BranchName  string
-	ProductSKU  string
-	ProductName string
-	SizeID      uint
-	SizeName    string
-	Stock       int
-	SellPrice   float64
-}
-
 func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchInventoryRequest) ([]model.BranchInventoryProductResponse, int64, error) {
+	type row struct {
+		BranchName  string
+		ProductSKU  string
+		ProductName string
+		SizeID      uint
+		SizeName    string
+		Stock       int
+		SellPrice   float64
+	}
+
 	var rows []row
 	var total int64
 
@@ -146,7 +146,7 @@ func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchI
 		args = append(args, search, search, search)
 	}
 
-	if req.BranchID != 0 {
+	if req.BranchID != nil {
 		baseQuery += ` AND b.id = ?`
 		args = append(args, req.BranchID)
 	}

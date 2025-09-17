@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -27,7 +28,6 @@ func NewDebtController(useCase *usecase.DebtUseCase, logger *logrus.Logger) *Deb
 }
 
 func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	params := r.URL.Query()
 
@@ -35,32 +35,20 @@ func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
 	if pageStr == "" {
 		pageStr = "1"
 	}
-
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
 	sizeStr := params.Get("size")
 	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchDebtRequest{
-		BranchID:      auth.BranchID,
 		ReferenceType: params.Get("reference_type"),
-		// ReferenceCode: params.Get("s"),
-		Search: params.Get("search"),
-		Status: params.Get("status"),
-		Page:   pageInt,
-		Size:   sizeInt,
+		Search:        params.Get("search"),
+		Status:        params.Get("status"),
+		Page:          pageInt,
+		Size:          sizeInt,
 	}
 
 	if err := request.StartAt.ParseFromString(params.Get("start_at")); err != nil {
@@ -72,6 +60,24 @@ func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
 		c.Log.WithError(err).Error("error parse end at params")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
+	}
+
+	auth := middleware.GetUser(r)
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)

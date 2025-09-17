@@ -20,15 +20,14 @@ type CreateDebtRequest struct {
 }
 
 type SearchDebtRequest struct {
-	BranchID      uint   `json:"branch_id"`
-	ReferenceType string `json:"reference_type"`
-	Status        string `json:"status"`
-	// ReferenceCode string   `json:"reference_code"`
-	Search  string   `json:"search"`
-	StartAt UnixDate `json:"start_at"`
-	EndAt   UnixDate `json:"end_at"`
-	Page    int      `json:"page" validate:"min=1"`
-	Size    int      `json:"size" validate:"min=1,max=100"`
+	BranchID      *uint    `json:"branch_id"`
+	ReferenceType string   `json:"reference_type"`
+	Status        string   `json:"status"`
+	Search        string   `json:"search"` // ref code, total amount, paid amount
+	StartAt       UnixDate `json:"start_at"`
+	EndAt         UnixDate `json:"end_at"`
+	Page          int      `json:"page" validate:"min=1"`
+	Size          int      `json:"size" validate:"min=1,max=100"`
 }
 
 type GetDebtRequest struct {

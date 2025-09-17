@@ -101,10 +101,10 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 	}
 
 	request := model.GetFinanceBasicRequest{
-		StartAt:  startAtMili,
-		EndAt:    endAtMili,
-		BranchID: auth.BranchID,
-		Role:     auth.Role,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+		// BranchID: auth.BranchID,
+		Role: auth.Role,
 	}
 
 	response, err := c.UseCase.GetProfitLoss(r.Context(), &request)
@@ -149,10 +149,10 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 	}
 
 	request := model.GetFinanceBasicRequest{
-		StartAt:  startAtMili,
-		EndAt:    endAtMili,
-		BranchID: auth.BranchID,
-		Role:     auth.Role,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+		// BranchID: auth.BranchID,
+		Role: auth.Role,
 	}
 
 	response, err := c.UseCase.GetCashFlow(r.Context(), &request)
@@ -199,7 +199,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 		}
 	} else {
 		// Admin cabang HARUS pakai branch_id dari auth
-		branchID = auth.BranchID
+		// branchID = auth.BranchID
 	}
 
 	// --- Build request ---

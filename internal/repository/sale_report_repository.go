@@ -17,16 +17,9 @@ func NewSaleReportRepository(log *logrus.Logger) *SaleReportRepository {
 	}
 }
 
-// simple
 func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
-	rows := []struct {
-		Date              string
-		BranchID          uint
-		BranchName        string
-		TotalTransactions int
-		TotalProductsSold int
-		TotalRevenue      float64
-	}{}
+
+	results := []model.SalesDailyReportResponse{}
 
 	query := `
 		SELECT 
@@ -61,21 +54,8 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 		ORDER BY date, branch_id
 	`
 
-	if err := db.Raw(query, args...).Scan(&rows).Error; err != nil {
+	if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, 0, err
-	}
-
-	// mapping ke response
-	results := make([]model.SalesDailyReportResponse, 0, len(rows))
-	for _, r := range rows {
-		results = append(results, model.SalesDailyReportResponse{
-			Date:              r.Date,
-			BranchID:          r.BranchID,
-			BranchName:        r.BranchName,
-			TotalTransactions: r.TotalTransactions,
-			TotalProductsSold: r.TotalProductsSold,
-			TotalRevenue:      r.TotalRevenue,
-		})
 	}
 
 	return results, int64(len(results)), nil
@@ -212,56 +192,20 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 // }
 
 func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
-	var results []model.SalesTopSellerReportResponse
-
-	sql := `
-	SELECT 
-	p.sku AS product_sku,
-            p.name AS product_name,
-            SUM(sd.qty) AS total_qty,
-            SUM(sd.qty * sz.sell_price) AS total_omzet
-			FROM sale_details sd
-			JOIN sales s ON s.code = sd.sale_code
-        JOIN sizes sz ON sz.id = sd.size_id
-        JOIN products p ON p.sku = sz.product_sku
-        WHERE s.status = 'COMPLETED'
-		`
-
-	var params []interface{}
-
-	if request.StartAt > 0 && request.EndAt > 0 {
-		sql += " AND s.created_at BETWEEN ? AND ?"
-		params = append(params, request.StartAt, request.EndAt)
-	}
-
-	if request.BranchID != nil {
-		sql += " AND s.branch_id = ?"
-		params = append(params, *request.BranchID)
-	}
-
-	sql += " GROUP BY p.sku, p.name ORDER BY total_qty DESC"
-
-	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return results, int64(len(results)), nil
-}
-
-func (r *SaleReportRepository) SearchCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
-	var results []model.SalesCategoryResponse
+	results := []model.SalesTopSellerReportResponse{}
 
 	sql := `
 		SELECT 
-			c.id AS category_id,
-			c.name AS category_name,
-			COALESCE(SUM(sd.qty), 0) AS total_qty,
-			COALESCE(SUM(sd.qty * sz.sell_price), 0) AS total_omzet
+			b.name AS branch_name,
+			p.sku AS product_sku,
+			p.name AS product_name,
+			SUM(sd.qty) AS total_qty,
+			SUM(sd.qty * sz.sell_price) AS total_omzet
 		FROM sale_details sd
 		JOIN sales s ON s.code = sd.sale_code
 		JOIN sizes sz ON sz.id = sd.size_id
 		JOIN products p ON p.sku = sz.product_sku
-		JOIN categories c ON c.id = p.category_id
+		JOIN branches b ON b.id = s.branch_id
 		WHERE s.status = 'COMPLETED'
 	`
 
@@ -277,11 +221,58 @@ func (r *SaleReportRepository) SearchCategory(db *gorm.DB, request *model.Search
 		params = append(params, *request.BranchID)
 	}
 
-	sql += " GROUP BY c.id, c.name ORDER BY total_qty DESC"
+	sql += `
+		GROUP BY b.id, b.name, p.sku, p.name
+		ORDER BY b.id, total_qty DESC
+	`
 
 	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return results, int64(len(results)), nil
+}
+
+func (r *SaleReportRepository) SearchCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
+	results := []model.SalesCategoryResponse{}
+
+	sql := `
+		SELECT
+			b.name AS branch_name,
+			c.id AS category_id,
+			c.name AS category_name,
+			COALESCE(SUM(sd.qty), 0) AS total_qty,
+			COALESCE(SUM(sd.qty * sz.sell_price), 0) AS total_omzet
+		FROM sale_details sd
+		JOIN sales s ON s.code = sd.sale_code
+		JOIN sizes sz ON sz.id = sd.size_id
+		JOIN products p ON p.sku = sz.product_sku
+		JOIN categories c ON c.id = p.category_id
+		JOIN branches b ON b.id = s.branch_id
+		WHERE s.status = 'COMPLETED'
+	`
+
+	var params []interface{}
+
+	if request.StartAt > 0 && request.EndAt > 0 {
+		sql += " AND s.created_at BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	if request.BranchID != nil {
+		sql += " AND s.branch_id = ?"
+		params = append(params, *request.BranchID)
+	}
+
+	// group by branch dan kategori
+	sql += " GROUP BY b.id, b.name, c.id, c.name ORDER BY total_qty DESC"
+
+	if err := db.Raw(sql, params...).Scan(&results).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// total item = banyaknya row hasil group by
+	totalItem := int64(len(results))
+
+	return results, totalItem, nil
 }

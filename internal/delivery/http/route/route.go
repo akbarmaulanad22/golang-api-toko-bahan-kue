@@ -145,9 +145,6 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// laporan keseluruhan barang keluar [ list barang terlaris per category ]
 	authRouter.HandleFunc("/sales-and-product-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
 
-	// laporan keuangan
-	// authRouter.HandleFunc("/financial-reports", route.FinancialReportController.List).Methods("GET")
-
 	// pengeluaran
 	authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	authRouter.HandleFunc("/expenses", route.ExpenseController.Create).Methods("POST")
@@ -156,7 +153,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Delete).Methods("DELETE")
 
 	// pencatatan modal masuk/keluar
-	// authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
+	// authRouter.HandleFunc("/capitals/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	authRouter.HandleFunc("/capitals", route.CapitalController.Create).Methods("POST")
 	authRouter.HandleFunc("/capitals", route.CapitalController.List).Methods("GET")
 	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Update).Methods("PUT")
@@ -171,6 +168,8 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/debt/{debtID}/payments", route.DebtPaymentController.Create).Methods("POST")
 	authRouter.HandleFunc("/debt/{debtID}/payments/{id}", route.DebtPaymentController.Delete).Methods("DELETE")
 
+	// ============================ skip =============================== //
+
 	// ringkasan laporan keuangan [ owner only ]
 	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")
 	// laporan keuangan laba rugi [ owner, admin cabang ]
@@ -180,12 +179,15 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// laporan keuangan neraca [ owner, admin cabang ]
 	authRouter.HandleFunc("/finance-report/balance-sheet", route.FinanceController.GetBalanceSheet).Methods("GET")
 
+	// ============================ skip =============================== //
+
 	// stok barang
 	authRouter.HandleFunc("/branch-inventory", route.BranchInventoryController.List).Methods("GET")
 
 	// pergerakan stok barang masuk/keluar
 	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")
 	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.List).Methods("GET")
-	authRouter.HandleFunc("/inventory-movement/summary", route.InventoryMovementController.SummaryByBranch).Methods("GET")
+	// [owner only]
+	authRouter.HandleFunc("/inventory-movement/summary", route.InventoryMovementController.Summary).Methods("GET")
 
 }

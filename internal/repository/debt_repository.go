@@ -49,7 +49,7 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 	var params []interface{}
 
 	// BranchID filter
-	if request.BranchID != 0 {
+	if request.BranchID != nil {
 		query += " AND (bp.id = ? OR bs.id = ?)"
 		params = append(params, request.BranchID, request.BranchID)
 	}

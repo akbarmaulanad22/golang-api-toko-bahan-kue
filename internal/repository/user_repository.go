@@ -39,11 +39,9 @@ func (r *UserRepository) CountByUsername(db *gorm.DB, username any) (int64, erro
 
 func (r *UserRepository) Search(db *gorm.DB, request *model.SearchUserRequest) ([]entity.User, int64, error) {
 	var users []entity.User
-	if err := db.Scopes(r.FilterUser(request)).
+	if err := db.Select("username, name, address, created_at").Scopes(r.FilterUser(request)).
 		Offset((request.Page - 1) * request.Size).
 		Limit(request.Size).
-		Preload("Role").
-		Preload("Branch").
 		Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
@@ -59,14 +57,11 @@ func (r *UserRepository) Search(db *gorm.DB, request *model.SearchUserRequest) (
 func (r *UserRepository) FilterUser(request *model.SearchUserRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
 
-		if username := request.Username; username != "" {
-			username = "%" + username + "%"
-			tx = tx.Where("username LIKE ?", username)
-		}
+		tx = tx.Where("role_id != 1")
 
-		if name := request.Name; name != "" {
-			name = "%" + name + "%"
-			tx = tx.Where("users.name LIKE ?", name)
+		if search := request.Search; search != "" {
+			search = "%" + search + "%"
+			tx = tx.Where("name LIKE ? OR username LIKE ?", search, search)
 		}
 
 		if roleID := request.RoleID; roleID != 0 {

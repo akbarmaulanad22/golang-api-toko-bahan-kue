@@ -6,14 +6,18 @@ import (
 )
 
 func UserToResponse(user *entity.User) *model.UserResponse {
+	branch := new(model.BranchResponse)
+	if user.Branch != nil {
+		branch = BranchToResponse(user.Branch)
+	}
+
 	return &model.UserResponse{
 		Username:  user.Username,
 		Name:      user.Name,
 		Address:   user.Address,
 		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Role:      *RoleToResponse(&user.Role),
-		Branch:    *BranchToResponse(user.Branch),
+		Role:      RoleToResponse(&user.Role),
+		Branch:    branch,
 	}
 }
 

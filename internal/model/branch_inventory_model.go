@@ -15,7 +15,7 @@ type BranchInventoryProductResponse struct {
 }
 
 type SearchBranchInventoryRequest struct {
-	BranchID uint   `json:"-"`
+	BranchID *uint  `json:"-"`
 	Search   string `json:"search" validate:"max=100"`
 	Page     int    `json:"page" validate:"min=1"`
 	Size     int    `json:"size" validate:"min=1,max=100"`

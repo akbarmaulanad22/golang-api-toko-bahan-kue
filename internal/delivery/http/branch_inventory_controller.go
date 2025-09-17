@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -26,8 +27,6 @@ func NewBranchInventoryController(useCase *usecase.BranchInventoryUseCase, logge
 }
 
 func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) {
-
-	auth := middleware.GetUser(r)
 
 	// if auth.Role == "Owner" {
 	// 	responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
@@ -69,10 +68,27 @@ func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request)
 	}
 
 	request := &model.SearchBranchInventoryRequest{
-		BranchID: auth.BranchID,
-		Search:   params.Get("search"),
-		Page:     pageInt,
-		Size:     sizeInt,
+		Search: params.Get("search"),
+		Page:   pageInt,
+		Size:   sizeInt,
+	}
+
+	auth := middleware.GetUser(r)
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.List(r.Context(), request)

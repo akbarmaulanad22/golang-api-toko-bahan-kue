@@ -22,15 +22,14 @@ type CreateCashBankTransactionRequest struct {
 }
 
 type SearchCashBankTransactionRequest struct {
-	StartAt int64   `json:"start_at"`
-	EndAt   int64   `json:"end_at"`
-	Amount  float64 `json:"amount"`
-	// Type         string  `json:"type"`
-	// Source       string  `json:"source"`
-	// Description  string  `json:"description"`
-	// ReferenceKey string  `json:"reference_key"`
-	Page int `json:"page" validate:"min=1"`
-	Size int `json:"size" validate:"min=1"`
+	StartAt  int64  `json:"start_at"`
+	EndAt    int64  `json:"end_at"`
+	Search   string `json:"search"` //amount, ref key, desc
+	Type     string `json:"type"`
+	Source   string `json:"source"`
+	BranchID *uint  `json:"branch_id"`
+	Page     int    `json:"page" validate:"min=1"`
+	Size     int    `json:"size" validate:"min=1"`
 }
 
 type GetCashBankTransactionRequest struct {

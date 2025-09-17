@@ -5,7 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"time"
+	"strings"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -29,7 +29,7 @@ func NewSaleController(useCase *usecase.SaleUseCase, logger *logrus.Logger) *Sal
 
 func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 
-	auth := middleware.GetUser(r)
+	// auth := middleware.GetUser(r)
 
 	var request model.CreateSaleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -38,7 +38,7 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request.BranchID = auth.BranchID
+	// request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
@@ -59,64 +59,64 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
 	if page == "" {
 		page = "1"
 	}
-
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(page)
 
 	size := params.Get("size")
 	if size == "" {
 		size = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(size)
 
 	startAt := params.Get("start_at")
 	endAt := params.Get("end_at")
 
 	var (
-		startDate int64 = 0
-		endDate   int64 = 0
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
 	if startAt != "" && endAt != "" {
-		now := time.Now()
-		format := "2006-01-02"
+		startAt, err := helper.ParseDateToMilli(startAt, false)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid start at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+		startAtMili = startAt
 
-		// default: hari ini dan 30 hari ke depan
-		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		thirtyDaysLater := today.AddDate(0, 0, 30)
-
-		startAt = today.Format(format)
-		endAt = thirtyDaysLater.Format(format)
-
-		// parse tanggal dari input user atau default di atas
-		startTime, _ := time.ParseInLocation(format, startAt, time.Local)
-		endTime, _ := time.ParseInLocation(format, endAt, time.Local)
-
-		// pastikan endTime sampai jam 23:59:59
-		endTime = endTime.Add(time.Hour*23 + time.Minute*59 + time.Second*59)
-
-		startDate = startTime.UnixMilli()
-		endDate = endTime.UnixMilli()
+		endAt, err := helper.ParseDateToMilli(endAt, false)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid end at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+		endAtMili = endAt
 	}
 
 	request := &model.SearchSaleRequest{
-		BranchID: auth.BranchID,
-		// Code:         params.Get("search"),
-		// CustomerName: params.Get("search"),
 		Search:  params.Get("search"),
 		Status:  params.Get("status"),
-		StartAt: startDate,
-		EndAt:   endDate,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
 		Page:    pageInt,
 		Size:    sizeInt,
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)

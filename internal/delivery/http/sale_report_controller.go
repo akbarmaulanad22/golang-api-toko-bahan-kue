@@ -5,6 +5,8 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -25,41 +27,21 @@ func NewSaleReportController(useCase *usecase.SaleReportUseCase, logger *logrus.
 }
 
 func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := r.URL.Query()
 
 	page := params.Get("page")
 	if page == "" {
 		page = "1"
 	}
-
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(page)
 
 	size := params.Get("size")
 	if size == "" {
 		size = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
-
-	var branchID *uint
-	branchIDStr := params.Get("branch_id")
-	if branchIDStr != "" {
-		idInt, err := strconv.Atoi(branchIDStr)
-		if err != nil {
-			http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
-			return
-		}
-		idUint := uint(idInt)
-		branchID = &idUint
-	}
+	sizeInt, _ := strconv.Atoi(size)
 
 	startAtStr := params.Get("start_at")
 	endAtStr := params.Get("end_at")
@@ -87,11 +69,27 @@ func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request)
 	}
 
 	request := &model.SearchSalesReportRequest{
-		BranchID: branchID,
-		StartAt:  startAtMili,
-		EndAt:    endAtMili,
-		Page:     pageInt,
-		Size:     sizeInt,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+		Page:    pageInt,
+		Size:    sizeInt,
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.SearchDaily(r.Context(), request)
@@ -115,41 +113,21 @@ func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := r.URL.Query()
 
 	page := params.Get("page")
 	if page == "" {
 		page = "1"
 	}
-
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(page)
 
 	size := params.Get("size")
 	if size == "" {
 		size = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
-
-	var branchID *uint
-	branchIDStr := params.Get("branch_id")
-	if branchIDStr != "" {
-		idInt, err := strconv.Atoi(branchIDStr)
-		if err != nil {
-			http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
-			return
-		}
-		idUint := uint(idInt)
-		branchID = &idUint
-	}
+	sizeInt, _ := strconv.Atoi(size)
 
 	startAtStr := params.Get("start_at")
 	endAtStr := params.Get("end_at")
@@ -177,11 +155,27 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 	}
 
 	request := &model.SearchSalesReportRequest{
-		BranchID: branchID,
-		StartAt:  startAtMili,
-		EndAt:    endAtMili,
-		Page:     pageInt,
-		Size:     sizeInt,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+		Page:    pageInt,
+		Size:    sizeInt,
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.SearchTopSeller(r.Context(), request)
@@ -205,41 +199,21 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 }
 
 func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := r.URL.Query()
 
 	page := params.Get("page")
 	if page == "" {
 		page = "1"
 	}
-
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(page)
 
 	size := params.Get("size")
 	if size == "" {
 		size = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(size)
-	if err != nil {
-		http.Error(w, "Invalid size parameter", http.StatusBadRequest)
-		return
-	}
-
-	var branchID *uint
-	branchIDStr := params.Get("branch_id")
-	if branchIDStr != "" {
-		idInt, err := strconv.Atoi(branchIDStr)
-		if err != nil {
-			http.Error(w, "Invalid branch id parameter", http.StatusBadRequest)
-			return
-		}
-		idUint := uint(idInt)
-		branchID = &idUint
-	}
+	sizeInt, _ := strconv.Atoi(size)
 
 	startAtStr := params.Get("start_at")
 	endAtStr := params.Get("end_at")
@@ -267,11 +241,27 @@ func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Reque
 	}
 
 	request := &model.SearchSalesReportRequest{
-		BranchID: branchID,
-		StartAt:  startAtMili,
-		EndAt:    endAtMili,
-		Page:     pageInt,
-		Size:     sizeInt,
+		StartAt: startAtMili,
+		EndAt:   endAtMili,
+		Page:    pageInt,
+		Size:    sizeInt,
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.SearchCategory(r.Context(), request)

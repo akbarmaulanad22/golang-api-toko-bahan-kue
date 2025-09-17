@@ -32,6 +32,7 @@ type SalesDailyReportResponse struct {
 }
 
 type SalesTopSellerReportResponse struct {
+	BranchName  string  `json:"branch_name"`
 	ProductSKU  string  `json:"product_sku"`
 	ProductName string  `json:"product_name"`
 	TotalQty    int64   `json:"total_qty"`
@@ -39,7 +40,7 @@ type SalesTopSellerReportResponse struct {
 }
 
 type SalesCategoryResponse struct {
-	CategoryID   uint    `json:"category_id"`
+	BranchName   string  `json:"branch_name"`
 	CategoryName string  `json:"category_name"`
 	TotalQty     int64   `json:"total_qty"`
 	TotalOmzet   float64 `json:"total_omzet"`

@@ -279,7 +279,9 @@ func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) (
 
 func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		tx.Where("branch_id = ?", request.BranchID)
+		if request.BranchID != nil {
+			tx = tx.Where("branch_id = ?", request.BranchID)
+		}
 
 		if search := request.Search; search != "" {
 			search = "%" + search + "%"

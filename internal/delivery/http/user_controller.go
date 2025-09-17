@@ -103,49 +103,28 @@ func (c *UserController) List(w http.ResponseWriter, r *http.Request) {
 	if pageStr == "" {
 		pageStr = "1"
 	}
-
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
 	sizeStr := params.Get("size")
 	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	roleIDStr := params.Get("role_id")
 	if roleIDStr == "" {
 		roleIDStr = "0"
 	}
-
-	roleIDInt, err := strconv.Atoi(roleIDStr)
-	if err != nil {
-		http.Error(w, "invalid role ID parameter", http.StatusBadRequest)
-		return
-	}
+	roleIDInt, _ := strconv.Atoi(roleIDStr)
 
 	branchIDStr := params.Get("branch_id")
 	if branchIDStr == "" {
 		branchIDStr = "0"
 	}
-
-	branchIDInt, err := strconv.Atoi(branchIDStr)
-	if err != nil {
-		http.Error(w, "invalid branch ID parameter", http.StatusBadRequest)
-		return
-	}
+	branchIDInt, _ := strconv.Atoi(branchIDStr)
 
 	request := &model.SearchUserRequest{
-		Username: params.Get("username"),
-		Name:     params.Get("name"),
+		Search:   params.Get("search"),
 		RoleID:   uint(roleIDInt),
 		BranchID: uint(branchIDInt),
 		Page:     pageInt,

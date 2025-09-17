@@ -55,36 +55,29 @@ func (c *SizeController) Create(w http.ResponseWriter, r *http.Request) {
 
 func (c *SizeController) List(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
+
+	query := r.URL.Query()
+
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
 		http.Error(w, "Invalid product sku parameter", http.StatusBadRequest)
 		return
 	}
 
-	pageStr, ok := params["page"]
-	if !ok || pageStr == "" {
+	pageStr := query.Get("page")
+	if pageStr == "" {
 		pageStr = "1"
 	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
-
-	sizeStr, ok := params["size"]
-	if !ok || sizeStr == "" {
+	sizeStr := query.Get("size")
+	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchSizeRequest{
-		Name:       params["name"],
+		Name:       query.Get("name"),
 		ProductSKU: productSKU,
 		Page:       pageInt,
 		Size:       sizeInt,

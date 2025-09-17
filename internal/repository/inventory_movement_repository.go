@@ -20,7 +20,7 @@ func NewInventoryMovementRepository(log *logrus.Logger) *InventoryMovementReposi
 }
 
 func (r *InventoryMovementRepository) Search(db *gorm.DB, request *model.SearchInventoryMovementRequest) ([]model.InventoryMovementResponse, int64, error) {
-	var movements []model.InventoryMovementResponse
+	movements := []model.InventoryMovementResponse{}
 
 	// Query utama dengan join
 	baseQuery := db.Table("inventory_movements im").
@@ -97,7 +97,7 @@ func (r *InventoryMovementRepository) FilterInventoryMovements(request *model.Se
 	}
 }
 
-func (r *InventoryMovementRepository) SummaryByBranch(db *gorm.DB, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
+func (r *InventoryMovementRepository) Summary(db *gorm.DB, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
 	var summaries []model.InventoryMovementBranchSummary
 
 	// per branch

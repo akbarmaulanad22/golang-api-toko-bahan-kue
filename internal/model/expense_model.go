@@ -6,6 +6,7 @@ type ExpenseResponse struct {
 	Amount      float64 `json:"amount,omitempty"`
 	BranchID    uint    `json:"branch_id,omitempty"`
 	CreatedAt   int64   `json:"created_at,omitempty"`
+	BranchName  string  `json:"branch_name,omitempty"`
 }
 
 type CreateExpenseRequest struct {
@@ -39,7 +40,6 @@ type SearchConsolidateExpenseRequest struct {
 }
 
 type ExpenseReportResponse struct {
-	BranchID      uint    `json:"branch_id"`
 	BranchName    string  `json:"branch_name"`
 	TotalExpenses float64 `json:"total_expenses"`
 }

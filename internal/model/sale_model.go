@@ -20,7 +20,7 @@ type SaleItemResponse struct {
 }
 
 type SearchSaleRequest struct {
-	BranchID uint   `json:"branch_id"`
+	BranchID *uint  `json:"branch_id"`
 	Search   string `json:"search"`
 	Status   string `json:"status"`
 	StartAt  int64  `json:"start_at"`

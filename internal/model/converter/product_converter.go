@@ -6,10 +6,10 @@ import (
 )
 
 func ProductToResponse(product *entity.Product) *model.ProductResponse {
-	var categoryResp *model.CategoryResponse
-	if product.Category != nil {
-		categoryResp = CategoryToResponse(product.Category)
-	}
+	// var categoryResp *model.CategoryResponse
+	// if product.Category != nil {
+	// 	categoryResp = CategoryToResponse(product.Category)
+	// }
 
 	sizes := make([]model.SizeResponse, len(product.Sizes))
 	for i, size := range product.Sizes {
@@ -20,8 +20,7 @@ func ProductToResponse(product *entity.Product) *model.ProductResponse {
 		SKU:       product.SKU,
 		Name:      product.Name,
 		CreatedAt: product.CreatedAt,
-		UpdatedAt: product.UpdatedAt,
-		Category:  categoryResp,
+		Category:  CategoryToResponse(&product.Category),
 		Sizes:     sizes,
 	}
 }

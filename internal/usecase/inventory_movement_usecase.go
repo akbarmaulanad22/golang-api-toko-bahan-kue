@@ -119,7 +119,7 @@ func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.Se
 	return inventoryMovements, total, nil
 }
 
-func (c *InventoryMovementUseCase) SummaryByBranch(ctx context.Context, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
+func (c *InventoryMovementUseCase) Summary(ctx context.Context, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -128,7 +128,7 @@ func (c *InventoryMovementUseCase) SummaryByBranch(ctx context.Context, request 
 		return nil, errors.New("bad request")
 	}
 
-	inventoryMovements, err := c.InventoryMovementRepository.SummaryByBranch(tx, request)
+	inventoryMovements, err := c.InventoryMovementRepository.Summary(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventory movements")
 		return nil, errors.New("internal server error")

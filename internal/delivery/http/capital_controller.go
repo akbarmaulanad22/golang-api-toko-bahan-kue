@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -27,7 +28,7 @@ func NewCapitalController(useCase *usecase.CapitalUseCase, logger *logrus.Logger
 }
 
 func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
+	// auth := middleware.GetUser(r)
 
 	var request model.CreateCapitalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -35,7 +36,7 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	request.BranchID = auth.BranchID
+	// request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
@@ -52,55 +53,39 @@ func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) {
 
 	auth := middleware.GetUser(r)
 
-	var branchID *uint
-
-	if auth.Role == "Owner" {
-		branchIDStr := params.Get("branch_id")
-		if branchIDStr != "" {
-			branchIDInt, err := strconv.Atoi(branchIDStr)
-			if err != nil {
-				http.Error(w, "Invalid branch ID parameter", http.StatusBadRequest)
-				return
-			}
-			tmp := uint(branchIDInt)
-			branchID = &tmp
-		} else {
-			branchID = nil // nil artinya semua cabang
-		}
-	} else {
-		tmp := auth.BranchID
-		branchID = &tmp
-	}
-
-	c.Log.Warnf("BRANCH ID = %d", branchID)
-
 	pageStr := params.Get("page")
 	if pageStr == "" {
 		pageStr = "1"
 	}
-
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
 	sizeStr := params.Get("size")
 	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchCapitalRequest{
-		BranchID: branchID,
-		Note:     params.Get("note"),
-		Page:     pageInt,
-		Size:     sizeInt,
+		Note: params.Get("note"),
+		Page: pageInt,
+		Size: sizeInt,
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)

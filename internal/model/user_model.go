@@ -1,14 +1,13 @@
 package model
 
 type UserResponse struct {
-	Username  string         `json:"username,omitempty"`
-	Token     string         `json:"token,omitempty"`
-	Name      string         `json:"name,omitempty"`
-	Address   string         `json:"address,omitempty"`
-	CreatedAt int64          `json:"created_at,omitempty"`
-	UpdatedAt int64          `json:"updated_at,omitempty"`
-	Role      RoleResponse   `json:"role"`
-	Branch    BranchResponse `json:"branch"`
+	Username  string          `json:"username,omitempty"`
+	Token     string          `json:"token,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Address   string          `json:"address,omitempty"`
+	CreatedAt int64           `json:"created_at,omitempty"`
+	Role      *RoleResponse   `json:"role,omitempty"`
+	Branch    *BranchResponse `json:"branch,omitempty"`
 }
 
 type VerifyUserRequest struct {
@@ -34,12 +33,13 @@ type LogoutUserRequest struct {
 }
 
 type SearchUserRequest struct {
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	RoleID   uint   `json:"role_id"`
-	BranchID uint   `json:"branch_id"`
-	Page     int    `json:"page" validate:"min=1"`
-	Size     int    `json:"size" validate:"min=1,max=100"`
+	Search string `json:"search"`
+	// Name     string `json:"name"`
+	// Username string `json:"username"`
+	RoleID   uint `json:"role_id"`
+	BranchID uint `json:"branch_id"`
+	Page     int  `json:"page" validate:"min=1"`
+	Size     int  `json:"size" validate:"min=1,max=100"`
 }
 
 type GetUserRequest struct {

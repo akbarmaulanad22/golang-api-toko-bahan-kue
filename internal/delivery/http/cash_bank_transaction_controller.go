@@ -5,6 +5,8 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -44,40 +46,22 @@ func (c *CashBankTransactionController) Create(w http.ResponseWriter, r *http.Re
 }
 
 func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.GetUser(r)
+
 	params := r.URL.Query()
 
 	pageStr := params.Get("page")
 	if pageStr == "" {
 		pageStr = "1"
 	}
-
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
 	sizeStr := params.Get("size")
 	if sizeStr == "" {
 		sizeStr = "10"
 	}
 
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
-
-	amountStr := params.Get("amount")
-	if amountStr == "" {
-		amountStr = "10"
-	}
-
-	amountInt, err := strconv.Atoi(amountStr)
-	if err != nil {
-		http.Error(w, "invalid amount parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	startAtStr := params.Get("start_at")
 	endAtStr := params.Get("end_at")
@@ -107,9 +91,28 @@ func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Requ
 	request := &model.SearchCashBankTransactionRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		Amount:  float64(amountInt),
 		Page:    pageInt,
 		Size:    sizeInt,
+		Search:  params.Get("search"),
+		Type:    params.Get("type"),
+		Source:  params.Get("source"),
+	}
+
+	if strings.ToUpper(auth.Role) == "OWNER" {
+		branchID := params.Get("branch_id")
+		if branchID != "" {
+			branchIDInt, err := strconv.Atoi(branchID)
+			if err != nil {
+				c.Log.WithError(err).Error("invalid branch id parameter")
+				http.Error(w, err.Error(), helper.GetStatusCode(err))
+				return
+			}
+			branchIDUint := uint(branchIDInt)
+			request.BranchID = &branchIDUint
+		}
+
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
