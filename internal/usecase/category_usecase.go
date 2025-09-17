@@ -50,7 +50,7 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("Branch name already exists")
+				c.Log.Warn("Category name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
@@ -96,7 +96,7 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("Branch name already exists")
+				c.Log.Warn("Category name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")

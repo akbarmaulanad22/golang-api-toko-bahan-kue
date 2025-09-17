@@ -19,12 +19,6 @@ func NewRoleRepository(log *logrus.Logger) *RoleRepository {
 	}
 }
 
-func (r *RoleRepository) CountByName(db *gorm.DB, name any) (int64, error) {
-	var total int64
-	err := db.Model(&entity.Role{}).Where("name = ?", name).Count(&total).Error
-	return total, err
-}
-
 func (r *RoleRepository) Search(db *gorm.DB, request *model.SearchRoleRequest) ([]entity.Role, int64, error) {
 	var users []entity.Role
 	if err := db.Scopes(r.FilterRole(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {

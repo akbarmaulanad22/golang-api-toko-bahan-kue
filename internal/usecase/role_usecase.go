@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -39,22 +41,23 @@ func (c *RoleUseCase) Create(ctx context.Context, request *model.CreateRoleReque
 		return nil, errors.New("bad request")
 	}
 
-	total, err := c.RoleRepository.CountByName(tx, request.Name)
-	if err != nil {
-		c.Log.Warnf("Failed count role from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Role already exists")
-		return nil, errors.New("conflict")
-	}
-
 	role := &entity.Role{
 		Name: request.Name,
 	}
 
 	if err := c.RoleRepository.Create(tx, role); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'roles.name'"): // name
+				c.Log.Warn("role name already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating role")
 		return nil, errors.New("internal server error")
 	}
@@ -86,20 +89,21 @@ func (c *RoleUseCase) Update(ctx context.Context, request *model.UpdateRoleReque
 		return converter.RoleToResponse(role), nil
 	}
 
-	total, err := c.RoleRepository.CountByName(tx, request.Name)
-	if err != nil {
-		c.Log.Warnf("Failed count role from database : %+v", err)
-		return nil, errors.New("internal server error")
-	}
-
-	if total > 0 {
-		c.Log.Warn("Role already exists")
-		return nil, errors.New("conflict")
-	}
-
 	role.Name = request.Name
 
 	if err := c.RoleRepository.Update(tx, role); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			// Tangani duplikat
+			switch {
+			case strings.Contains(mysqlErr.Message, "for key 'roles.name'"): // name
+				c.Log.Warn("role name already exists")
+				return nil, errors.New("conflict")
+			default:
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
+			}
+		}
+
 		c.Log.WithError(err).Error("error updating role")
 		return nil, errors.New("internal server error")
 	}
