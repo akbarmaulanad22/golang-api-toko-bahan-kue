@@ -191,7 +191,7 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 // 	return results, int64(len(results)), nil
 // }
 
-func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
+func (r *SaleReportRepository) SearchTopSellerProduct(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
 	results := []model.SalesTopSellerReportResponse{}
 
 	sql := `
@@ -233,7 +233,7 @@ func (r *SaleReportRepository) SearchTopSeller(db *gorm.DB, request *model.Searc
 	return results, int64(len(results)), nil
 }
 
-func (r *SaleReportRepository) SearchCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
+func (r *SaleReportRepository) SearchTopSellerCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
 	results := []model.SalesCategoryResponse{}
 
 	sql := `

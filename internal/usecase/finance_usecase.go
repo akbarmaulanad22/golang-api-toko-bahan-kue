@@ -34,12 +34,12 @@ func (c *FinanceUseCase) GetOwnerSummary(ctx context.Context, request *model.Get
 
 	dailyFinances, err := c.FinanceRepository.GetOwnerSummary(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting daily finances")
+		c.Log.WithError(err).Error("error getting summary finances")
 		return nil, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting daily finances")
+		c.Log.WithError(err).Error("error getting finances summary")
 		return nil, errors.New("internal server error")
 	}
 
@@ -70,12 +70,12 @@ func (c *FinanceUseCase) GetCashFlow(ctx context.Context, request *model.GetFina
 
 	dailyFinances, err := c.FinanceRepository.GetCashFlow(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting finances profit loss")
+		c.Log.WithError(err).Error("error getting finances cash flow")
 		return nil, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting finances profit loss")
+		c.Log.WithError(err).Error("error getting finances cash flow")
 		return nil, errors.New("internal server error")
 	}
 

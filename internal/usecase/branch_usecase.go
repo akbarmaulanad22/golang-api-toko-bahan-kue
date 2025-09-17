@@ -184,19 +184,19 @@ func (c *BranchUseCase) Search(ctx context.Context, request *model.SearchBranchR
 		return nil, 0, errors.New("bad request")
 	}
 
-	branchs, total, err := c.BranchRepository.Search(tx, request)
+	branches, total, err := c.BranchRepository.Search(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting branchs")
+		c.Log.WithError(err).Error("error getting branches")
 		return nil, 0, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting branchs")
+		c.Log.WithError(err).Error("error getting branches")
 		return nil, 0, errors.New("internal server error")
 	}
 
-	responses := make([]model.BranchResponse, len(branchs))
-	for i, branch := range branchs {
+	responses := make([]model.BranchResponse, len(branches))
+	for i, branch := range branches {
 		responses[i] = *converter.BranchToResponse(&branch)
 	}
 

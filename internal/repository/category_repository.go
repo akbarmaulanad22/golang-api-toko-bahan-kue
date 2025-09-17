@@ -23,7 +23,7 @@ func (r *CategoryRepository) FindByName(db *gorm.DB, user *entity.Category, name
 	return db.Where("name = ?", name).First(user).Error
 }
 
-func (r *CategoryRepository) Search(db *gorm.DB, request *model.SearchCategoryRequest) ([]entity.Category, int64, error) {
+func (r *CategoryRepository) Search(db *gorm.DB, request *model.SearchTopSellerCategoryRequest) ([]entity.Category, int64, error) {
 	var users []entity.Category
 	if err := db.Scopes(r.FilterCategory(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
 		return nil, 0, err
@@ -37,7 +37,7 @@ func (r *CategoryRepository) Search(db *gorm.DB, request *model.SearchCategoryRe
 	return users, total, nil
 }
 
-func (r *CategoryRepository) FilterCategory(request *model.SearchCategoryRequest) func(tx *gorm.DB) *gorm.DB {
+func (r *CategoryRepository) FilterCategory(request *model.SearchTopSellerCategoryRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
 		if name := request.Name; name != "" {
 			name = "%" + name + "%"

@@ -55,7 +55,7 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 				c.Log.Warn("SKU already exists")
 				return nil, errors.New("conflict")
 			case strings.Contains(mysqlErr.Message, "for key 'products.name'"): // name
-				c.Log.Warn("Product name already exists")
+				c.Log.Warn("product name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
@@ -102,7 +102,7 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'products.name'"): // name
-				c.Log.Warn("Product name already exists")
+				c.Log.Warn("product name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")

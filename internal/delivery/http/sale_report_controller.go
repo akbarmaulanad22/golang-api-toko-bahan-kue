@@ -178,7 +178,7 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 		request.BranchID = auth.BranchID
 	}
 
-	responses, total, err := c.UseCase.SearchTopSeller(r.Context(), request)
+	responses, total, err := c.UseCase.SearchTopSellerProduct(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching top seller sales report")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
@@ -264,7 +264,7 @@ func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Reque
 		request.BranchID = auth.BranchID
 	}
 
-	responses, total, err := c.UseCase.SearchCategory(r.Context(), request)
+	responses, total, err := c.UseCase.SearchTopSellerCategory(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching top seller sales report")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))

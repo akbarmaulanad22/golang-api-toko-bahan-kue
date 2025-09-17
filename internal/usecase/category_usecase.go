@@ -50,7 +50,7 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("Category name already exists")
+				c.Log.Warn("category name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
@@ -96,7 +96,7 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("Category name already exists")
+				c.Log.Warn("category name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
@@ -167,7 +167,7 @@ func (c *CategoryUseCase) Delete(ctx context.Context, request *model.DeleteCateg
 	return nil
 }
 
-func (c *CategoryUseCase) Search(ctx context.Context, request *model.SearchCategoryRequest) ([]model.CategoryResponse, int64, error) {
+func (c *CategoryUseCase) Search(ctx context.Context, request *model.SearchTopSellerCategoryRequest) ([]model.CategoryResponse, int64, error) {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -176,19 +176,19 @@ func (c *CategoryUseCase) Search(ctx context.Context, request *model.SearchCateg
 		return nil, 0, errors.New("bad request")
 	}
 
-	categorys, total, err := c.CategoryRepository.Search(tx, request)
+	categories, total, err := c.CategoryRepository.Search(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting categorys")
+		c.Log.WithError(err).Error("error getting categories")
 		return nil, 0, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting categorys")
+		c.Log.WithError(err).Error("error getting categories")
 		return nil, 0, errors.New("internal server error")
 	}
 
-	responses := make([]model.CategoryResponse, len(categorys))
-	for i, category := range categorys {
+	responses := make([]model.CategoryResponse, len(categories))
+	for i, category := range categories {
 		responses[i] = *converter.CategoryToResponse(&category)
 	}
 

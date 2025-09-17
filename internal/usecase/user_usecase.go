@@ -157,17 +157,6 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 		return nil, errors.New("bad request")
 	}
 
-	// total, err := c.UserRepository.CountByUsername(tx, request.Username)
-	// if err != nil {
-	// 	c.Log.Warnf("Failed count user from database : %+v", err)
-	// 	return nil, errors.New("internal server error")
-	// }
-
-	// if total > 0 {
-	// 	c.Log.Warn("User already exists")
-	// 	return nil, errors.New("conflict")
-	// }
-
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.Log.Warnf("Failed to generate bcrype hash : %+v", err)
@@ -315,6 +304,13 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 					return nil, errors.New("invalid branch id")
 				}
 				return nil, errors.New("foreign key constraint failed")
+			case 1062:
+				if strings.Contains(mysqlErr.Message, "for key 'users.username'") {
+					c.Log.Warn("Username already exists")
+					return nil, errors.New("conflict")
+				}
+				c.Log.WithError(err).Error("unexpected duplicate entry")
+				return nil, errors.New("conflict")
 			}
 		}
 

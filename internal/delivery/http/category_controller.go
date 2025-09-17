@@ -58,7 +58,7 @@ func (c *CategoryController) List(w http.ResponseWriter, r *http.Request) {
 	}
 	sizeInt, _ := strconv.Atoi(sizeStr)
 
-	request := &model.SearchCategoryRequest{
+	request := &model.SearchTopSellerCategoryRequest{
 		Name: params.Get("search"),
 		Page: pageInt,
 		Size: sizeInt,

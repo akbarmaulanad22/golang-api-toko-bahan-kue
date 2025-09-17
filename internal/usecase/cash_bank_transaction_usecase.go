@@ -160,12 +160,12 @@ func (c *CashBankTransactionUseCase) Search(ctx context.Context, request *model.
 
 	cashBankTransactions, total, err := c.CashBankTransactionRepository.Search(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting Cash Bank Transactions")
+		c.Log.WithError(err).Error("error getting cash bank transactions")
 		return nil, 0, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting Cash Bank Transactions")
+		c.Log.WithError(err).Error("error getting cash bank transactions")
 		return nil, 0, errors.New("internal server error")
 	}
 

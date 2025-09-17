@@ -63,7 +63,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key 'sales.PRIMARY'"):
-				c.Log.Warn("Code already exists")
+				c.Log.Warn("code already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")

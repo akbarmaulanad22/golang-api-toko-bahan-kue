@@ -130,12 +130,12 @@ func (c *InventoryMovementUseCase) Summary(ctx context.Context, request *model.S
 
 	inventoryMovements, err := c.InventoryMovementRepository.Summary(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting inventory movements")
+		c.Log.WithError(err).Error("error getting inventory movements summary")
 		return nil, errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting inventory movements")
+		c.Log.WithError(err).Error("error getting inventory movements summary")
 		return nil, errors.New("internal server error")
 	}
 

@@ -53,7 +53,7 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key"): // name
-				c.Log.Warn("Size name already exists")
+				c.Log.Warn("size name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
@@ -106,7 +106,7 @@ func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeReque
 			// Tangani duplikat
 			switch {
 			case strings.Contains(mysqlErr.Message, "for key"): // name
-				c.Log.Warn("Size name already exists")
+				c.Log.Warn("size name already exists")
 				return nil, errors.New("conflict")
 			default:
 				c.Log.WithError(err).Error("unexpected duplicate entry")
