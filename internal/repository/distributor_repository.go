@@ -35,16 +35,10 @@ func (r *DistributorRepository) Search(db *gorm.DB, request *model.SearchDistrib
 
 func (r *DistributorRepository) FilterDistributor(request *model.SearchDistributorRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		if name := request.Name; name != "" {
-			name = "%" + name + "%"
-			tx = tx.Where("name LIKE ?", name)
+		if search := request.Search; search != "" {
+			search = "%" + search + "%"
+			tx = tx.Where("name LIKE ? OR address LIKE ?", search, search)
 		}
-
-		if address := request.Address; address != "" {
-			address = "%" + address + "%"
-			tx = tx.Where("address LIKE ?", address)
-		}
-
 		return tx
 	}
 }
