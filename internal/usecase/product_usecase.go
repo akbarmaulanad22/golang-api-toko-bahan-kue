@@ -67,11 +67,6 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 		return nil, errors.New("internal server error")
 	}
 
-	if err := c.ProductRepository.FindBySKU(tx, product, product.SKU); err != nil {
-		c.Log.WithError(err).Error("error getting product")
-		return nil, errors.New("not found")
-	}
-
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating product")
 		return nil, errors.New("internal server error")

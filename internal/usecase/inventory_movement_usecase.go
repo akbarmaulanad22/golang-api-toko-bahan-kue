@@ -55,10 +55,10 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 				Stock:    m.ChangeQty,
 			}
 			if err := c.BranchInventoryRepository.Create(tx, branchInv); err != nil {
-				return nil, errors.New("error creating branch_inventory")
+				return nil, errors.New("error creating branch inventory")
 			}
 		} else if err != nil {
-			c.Log.WithError(err).Error("error querying branch_inventory")
+			c.Log.WithError(err).Error("error querying branch inventory")
 			return nil, errors.New("internal server error")
 		} else {
 			// Sudah ada → update stok
@@ -75,7 +75,7 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 			ReferenceKey:      request.ReferenceKey,
 		}
 		if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
-			return nil, errors.New("error creating inventory_movement")
+			return nil, errors.New("error creating inventory movement")
 		}
 
 		responses = append(responses, model.InventoryMovementResponse{

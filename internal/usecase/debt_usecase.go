@@ -71,10 +71,5 @@ func (c *DebtUseCase) Search(ctx context.Context, request *model.SearchDebtReque
 		return nil, 0, errors.New("internal server error")
 	}
 
-	// responses := make([]model.DebtResponse, len(debts))
-	// for i, debt := range debts {
-	// 	responses[i] = *converter.DebtToResponse(&debt)
-	// }
-
 	return debts, total, nil
 }
