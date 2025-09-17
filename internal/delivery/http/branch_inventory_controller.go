@@ -28,44 +28,19 @@ func NewBranchInventoryController(useCase *usecase.BranchInventoryUseCase, logge
 
 func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) {
 
-	// if auth.Role == "Owner" {
-	// 	responses, err := c.UseCase.ListOwnerInventoryByBranch(r.Context())
-	// 	if err != nil {
-	// 		c.Log.WithError(err).Error("error searching branch")
-	// 		http.Error(w, err.Error(), helper.GetStatusCode(err))
-	// 		return
-	// 	}
-
-	// 	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryResponse]{
-	// 		Data: responses,
-	// 	})
-
-	// 	return
-	// }
-
 	params := r.URL.Query()
 
 	pageStr := params.Get("page")
 	if pageStr == "" {
 		pageStr = "1"
 	}
-
-	pageInt, err := strconv.Atoi(pageStr)
-	if err != nil {
-		http.Error(w, "Invalid page parameter", http.StatusBadRequest)
-		return
-	}
+	pageInt, _ := strconv.Atoi(pageStr)
 
 	sizeStr := params.Get("size")
 	if sizeStr == "" {
 		sizeStr = "10"
 	}
-
-	sizeInt, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		http.Error(w, "invalid size parameter", http.StatusBadRequest)
-		return
-	}
+	sizeInt, _ := strconv.Atoi(sizeStr)
 
 	request := &model.SearchBranchInventoryRequest{
 		Search: params.Get("search"),
