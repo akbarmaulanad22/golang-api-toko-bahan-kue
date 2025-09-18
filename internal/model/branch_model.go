@@ -5,7 +5,6 @@ type BranchResponse struct {
 	Name      string `json:"name,omitempty"`
 	Address   string `json:"address,omitempty"`
 	CreatedAt int64  `json:"created_at,omitempty"`
-	UpdatedAt int64  `json:"updated_at,omitempty"`
 }
 
 type CreateBranchRequest struct {

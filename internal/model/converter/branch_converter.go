@@ -11,6 +11,5 @@ func BranchToResponse(branch *entity.Branch) *model.BranchResponse {
 		Name:      branch.Name,
 		Address:   branch.Address,
 		CreatedAt: branch.CreatedAt,
-		UpdatedAt: branch.UpdatedAt,
 	}
 }
