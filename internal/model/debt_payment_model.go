@@ -11,9 +11,9 @@ type CreateDebtPaymentRequest struct {
 	DebtID      uint    `json:"-" validate:"required"`
 	Amount      float64 `json:"amount" validate:"required"`
 	PaymentDate int64   `json:"-" validate:"required"`
-	Note        string  `json:"note,omitempty" validate:"max=255"`
+	Note        string  `json:"note" validate:"max=255"`
 }
 
 type DeleteDebtPaymentRequest struct {
-	ID uint `json:"-" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required"`
 }

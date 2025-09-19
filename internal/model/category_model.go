@@ -8,7 +8,7 @@ type CategoryResponse struct {
 }
 
 type CreateCategoryRequest struct {
-	Name string `json:"name" validate:"required,max=100"`
+	Name string `json:"name" validate:"required"`
 }
 
 type SearchTopSellerCategoryRequest struct {
@@ -18,14 +18,14 @@ type SearchTopSellerCategoryRequest struct {
 }
 
 type GetCategoryRequest struct {
-	ID uint `json:"id" validate:"required,max=100"`
+	ID uint `json:"id" validate:"required"`
 }
 
 type UpdateCategoryRequest struct {
-	ID   uint   `json:"-" validate:"max=100"`
-	Name string `json:"name,omitempty" validate:"max=100"`
+	ID   uint   `json:"-" validate:"required"`
+	Name string `json:"name" validate:"required"`
 }
 
 type DeleteCategoryRequest struct {
-	ID uint `json:"-" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required"`
 }

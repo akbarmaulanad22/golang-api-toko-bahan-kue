@@ -9,7 +9,7 @@ type BranchResponse struct {
 
 type CreateBranchRequest struct {
 	Name    string `json:"name" validate:"required,max=100"`
-	Address string `json:"address" validate:"required,max=100"`
+	Address string `json:"address" validate:"required"`
 }
 
 type SearchBranchRequest struct {
@@ -24,8 +24,8 @@ type GetBranchRequest struct {
 
 type UpdateBranchRequest struct {
 	ID      uint   `json:"-" validate:"required,max=100"`
-	Name    string `json:"name,omitempty" validate:"max=100"`
-	Address string `json:"address,omitempty" validate:"max=100"`
+	Name    string `json:"name" validate:"max=100"`
+	Address string `json:"address" validate:"required"`
 }
 
 type DeleteBranchRequest struct {

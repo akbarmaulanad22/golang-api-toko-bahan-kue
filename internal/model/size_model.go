@@ -10,10 +10,10 @@ type SizeResponse struct {
 }
 
 type CreateSizeRequest struct {
-	ProductSKU string  `json:"-" validate:"required,max=100"`
-	Name       string  `json:"name" validate:"required,max=100"`
-	SellPrice  float64 `json:"sell_price,omitempty" validate:"required"`
-	BuyPrice   float64 `json:"buy_price,omitempty" validate:"required"`
+	ProductSKU string  `json:"-" validate:"required"`
+	Name       string  `json:"name" validate:"required"`
+	SellPrice  float64 `json:"sell_price" validate:"required"`
+	BuyPrice   float64 `json:"buy_price" validate:"required"`
 }
 
 type SearchSizeRequest struct {
@@ -24,19 +24,19 @@ type SearchSizeRequest struct {
 }
 
 type GetSizeRequest struct {
-	ID         uint   `json:"-" validate:"required,max=100"`
-	ProductSKU string `json:"-" validate:"required,max=100"`
+	ID         uint   `json:"-" validate:"required"`
+	ProductSKU string `json:"-" validate:"required"`
 }
 
 type UpdateSizeRequest struct {
-	ProductSKU string  `json:"-" validate:"required,max=100"`
-	ID         uint    `json:"-" id:"required,max=100"`
-	Name       string  `json:"name,omitempty" validate:"max=100"`
-	SellPrice  float64 `json:"sell_price,omitempty"`
-	BuyPrice   float64 `json:"buy_price,omitempty"`
+	ProductSKU string  `json:"-" validate:"required"`
+	ID         uint    `json:"-" validate:"required"`
+	Name       string  `json:"name" validate:"required"`
+	SellPrice  float64 `json:"sell_price" validate:"required"`
+	BuyPrice   float64 `json:"buy_price" validate:"required"`
 }
 
 type DeleteSizeRequest struct {
-	ProductSKU string `json:"-" validate:"required,max=100"`
-	ID         uint   `json:"-" id:"required,max=100"`
+	ProductSKU string `json:"-" validate:"required"`
+	ID         uint   `json:"-" validate:"required"`
 }

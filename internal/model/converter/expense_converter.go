@@ -12,6 +12,6 @@ func ExpenseToResponse(e *entity.Expense) *model.ExpenseResponse {
 		Amount:      e.Amount,
 		BranchID:    e.BranchID,
 		CreatedAt:   e.CreatedAt,
-		BranchName:  e.Branch.Name,
+		BranchName:  &e.Branch.Name,
 	}
 }

@@ -8,7 +8,7 @@ type RoleResponse struct {
 }
 
 type CreateRoleRequest struct {
-	Name string `json:"name" validate:"required,max=100"`
+	Name string `json:"name" validate:"required"`
 }
 
 type SearchRoleRequest struct {
@@ -18,14 +18,14 @@ type SearchRoleRequest struct {
 }
 
 type GetRoleRequest struct {
-	ID uint `json:"id" validate:"required,max=100"`
+	ID uint `json:"id" validate:"required"`
 }
 
 type UpdateRoleRequest struct {
-	ID   uint   `json:"-" validate:"required,max=100"`
-	Name string `json:"name,omitempty" validate:"max=100"`
+	ID   uint   `json:"-" validate:"required"`
+	Name string `json:"name,omitempty" validate:"required"`
 }
 
 type DeleteRoleRequest struct {
-	ID uint `json:"-" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required"`
 }

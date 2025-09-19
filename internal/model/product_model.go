@@ -9,9 +9,9 @@ type ProductResponse struct {
 }
 
 type CreateProductRequest struct {
-	CategoryID uint   `json:"category_id" validate:"required,max=100"`
-	SKU        string `json:"sku" validate:"required,max=100"`
-	Name       string `json:"name" validate:"required,max=100"`
+	CategoryID uint   `json:"category_id" validate:"required"`
+	SKU        string `json:"sku" validate:"required"`
+	Name       string `json:"name" validate:"required"`
 }
 
 type SearchProductRequest struct {
@@ -21,15 +21,15 @@ type SearchProductRequest struct {
 }
 
 type GetProductRequest struct {
-	SKU string `json:"-" validate:"required,max=100"`
+	SKU string `json:"-" validate:"required"`
 }
 
 type UpdateProductRequest struct {
-	CategoryID uint   `json:"category_id,omitempty" validate:"max=100"`
-	SKU        string `json:"-" validate:"required,max=100"`
-	Name       string `json:"name,omitempty" validate:"max=100"`
+	CategoryID uint   `json:"category_id,omitempty" validate:"required"`
+	SKU        string `json:"-" validate:"required"`
+	Name       string `json:"name,omitempty" validate:"required"`
 }
 
 type DeleteProductRequest struct {
-	SKU string `json:"-" validate:"required,max=100"`
+	SKU string `json:"-" validate:"required"`
 }

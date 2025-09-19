@@ -11,22 +11,22 @@ type CapitalResponse struct {
 
 type CreateCapitalRequest struct {
 	Type     string  `json:"type" validate:"required"`
-	Note     string  `json:"note" validate:"required,max=255"`
+	Note     string  `json:"note" validate:"max=255"`
 	Amount   float64 `json:"amount" validate:"required"`
 	BranchID *uint   `json:"branch_id"`
 }
 
 type UpdateCapitalRequest struct {
 	ID     uint    `json:"-" validate:"required"`
-	Type   string  `json:"type" validate:"required,max=255"`
-	Note   string  `json:"note,omitempty" validate:"max=255"`
-	Amount float64 `json:"amount,omitempty"`
+	Type   string  `json:"type" validate:"required"`
+	Note   string  `json:"note" validate:"max=255"`
+	Amount float64 `json:"amount" validate:"required"`
 }
 
 type SearchCapitalRequest struct {
 	BranchID *uint  `json:"branch_id"`
-	Type     string `json:"type" validate:"max=255"`
-	Note     string `json:"note" validate:"max=100"`
+	Type     string `json:"type"`
+	Note     string `json:"note" validate:"max=255"`
 	StartAt  int64  `json:"start_at"`
 	EndAt    int64  `json:"end_at"`
 	Page     int    `json:"page" validate:"min=1"`

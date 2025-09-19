@@ -10,5 +10,5 @@ type SalePaymentResponse struct {
 type CreateSalePaymentRequest struct {
 	PaymentMethod string  `json:"payment_method" validate:"required,oneof=CASH DEBIT TRANSFER QRIS EWALLET"`
 	Amount        float64 `json:"amount" validate:"required"`
-	Note          string  `json:"note,omitempty" validate:"max=255"`
+	Note          string  `json:"note" validate:"max=255"`
 }

@@ -9,8 +9,8 @@ type DistributorResponse struct {
 }
 
 type CreateDistributorRequest struct {
-	Name    string `json:"name" validate:"required,max=100"`
-	Address string `json:"address" validate:"required,max=100"`
+	Name    string `json:"name" validate:"required"`
+	Address string `json:"address" validate:"required"`
 }
 
 type SearchDistributorRequest struct {
@@ -24,11 +24,11 @@ type GetDistributorRequest struct {
 }
 
 type UpdateDistributorRequest struct {
-	ID      uint   `json:"-" id:"required,max=100"`
-	Name    string `json:"name,omitempty" validate:"max=100"`
-	Address string `json:"address,omitempty" validate:"max=100"`
+	ID      uint   `json:"-" id:"required"`
+	Name    string `json:"name" validate:"required"`
+	Address string `json:"address" validate:"required"`
 }
 
 type DeleteDistributorRequest struct {
-	ID uint `json:"-" validate:"required,max=100"`
+	ID uint `json:"-" validate:"required"`
 }
