@@ -29,7 +29,7 @@ func NewSaleController(useCase *usecase.SaleUseCase, logger *logrus.Logger) *Sal
 
 func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 
-	// auth := middleware.GetUser(r)
+	auth := middleware.GetUser(r)
 
 	var request model.CreateSaleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -38,7 +38,9 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// request.BranchID = auth.BranchID
+	if auth.BranchID != nil {
+		request.BranchID = *auth.BranchID
+	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
