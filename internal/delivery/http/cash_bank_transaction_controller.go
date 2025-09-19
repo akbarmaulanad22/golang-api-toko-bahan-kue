@@ -28,12 +28,16 @@ func NewCashBankTransactionController(useCase *usecase.CashBankTransactionUseCas
 }
 
 func (c *CashBankTransactionController) Create(w http.ResponseWriter, r *http.Request) {
+
 	var request model.CreateCashBankTransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+
+	auth := middleware.GetUser(r)
+	request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {

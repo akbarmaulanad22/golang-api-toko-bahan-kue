@@ -18,7 +18,7 @@ type CreateCashBankTransactionRequest struct {
 	Amount          float64 `json:"amount" validate:"required"`
 	Description     string  `json:"description" validate:"required"`
 	ReferenceKey    string  `json:"reference_key" validate:"required"`
-	BranchID        uint    `json:"branch_id" validate:"required"`
+	BranchID        *uint   `json:"branch_id" validate:"required"`
 }
 
 type SearchCashBankTransactionRequest struct {
