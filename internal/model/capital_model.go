@@ -10,7 +10,7 @@ type CapitalResponse struct {
 }
 
 type CreateCapitalRequest struct {
-	Type     string  `json:"type" validate:"required"`
+	Type     string  `json:"type" validate:"required,oneof=IN OUT"`
 	Note     string  `json:"note" validate:"max=255"`
 	Amount   float64 `json:"amount" validate:"required"`
 	BranchID *uint   `json:"branch_id"`
@@ -18,7 +18,7 @@ type CreateCapitalRequest struct {
 
 type UpdateCapitalRequest struct {
 	ID     uint    `json:"-" validate:"required"`
-	Type   string  `json:"type" validate:"required"`
+	Type   string  `json:"type" validate:"required,oneof=IN OUT"`
 	Note   string  `json:"note" validate:"max=255"`
 	Amount float64 `json:"amount" validate:"required"`
 }

@@ -15,6 +15,12 @@ type DebtResponse struct {
 }
 
 type CreateDebtRequest struct {
+	// baru
+	ReferenceType string  `json:"reference_type" validate:"required,oneof=SALE, PURCHASE"`
+	ReferenceCode string  `json:"reference_code" validate:"required"`
+	Status        string  `json:"-" validate:"required,oneof=PENDING PAID VOID"`
+	TotalAmount   float64 `json:"-" validate:"required"`
+	// lama
 	DueDate      UnixDate                   `json:"due_date" validate:"required"`
 	DebtPayments []CreateDebtPaymentRequest `json:"debt_payments,omitempty"`
 }

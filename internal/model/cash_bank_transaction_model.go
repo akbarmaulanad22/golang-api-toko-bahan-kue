@@ -13,8 +13,8 @@ type CashBankTransactionResponse struct {
 
 type CreateCashBankTransactionRequest struct {
 	TransactionDate int64   `json:"transaction_date" validate:"required"`
-	Type            string  `json:"type" validate:"required"`
-	Source          string  `json:"source" validate:"required"`
+	Type            string  `json:"type" validate:"required,oneof=IN OUT"`
+	Source          string  `json:"source" validate:"required,oneof=SALE PURCHASE EXPENSE DEBT CAPITAL"`
 	Amount          float64 `json:"amount" validate:"required"`
 	Description     string  `json:"description" validate:"required"`
 	ReferenceKey    string  `json:"reference_key" validate:"required"`
@@ -39,12 +39,11 @@ type GetCashBankTransactionRequest struct {
 type UpdateCashBankTransactionRequest struct {
 	ID              uint    `json:"-" validate:"required"`
 	TransactionDate int64   `json:"transaction_date" validate:"required"`
-	Type            string  `json:"type" validate:"required"`
-	Source          string  `json:"source" validate:"required"`
+	Type            string  `json:"type" validate:"required, oneof=IN OUT"`
+	Source          string  `json:"source" validate:"required,oneof=SALE PURCHASE EXPENSE DEBT CAPITAL"`
 	Amount          float64 `json:"amount" validate:"required"`
 	Description     string  `json:"description" validate:"required"`
 	ReferenceKey    string  `json:"reference_key" validate:"required"`
-	// BranchID        uint    `json:"branch_id" validate:"required"`
 }
 
 type DeleteCashBankTransactionRequest struct {
