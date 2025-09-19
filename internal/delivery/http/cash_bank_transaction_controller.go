@@ -50,8 +50,6 @@ func (c *CashBankTransactionController) Create(w http.ResponseWriter, r *http.Re
 }
 
 func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
-
 	params := r.URL.Query()
 
 	pageStr := params.Get("page")
@@ -102,6 +100,7 @@ func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Requ
 		Source:  params.Get("source"),
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {

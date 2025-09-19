@@ -27,7 +27,6 @@ func NewSaleReportController(useCase *usecase.SaleReportUseCase, logger *logrus.
 }
 
 func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	params := r.URL.Query()
 
@@ -75,6 +74,7 @@ func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request)
 		Size:    sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {
@@ -113,7 +113,6 @@ func (c *SaleReportController) ListDaily(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	params := r.URL.Query()
 
@@ -161,6 +160,7 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 		Size:    sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {
@@ -199,7 +199,6 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 }
 
 func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	params := r.URL.Query()
 
@@ -247,6 +246,7 @@ func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Reque
 		Size:    sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {

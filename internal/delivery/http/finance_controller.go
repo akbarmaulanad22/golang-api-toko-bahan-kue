@@ -72,8 +72,6 @@ func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) {
 
 func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request) {
 
-	auth := middleware.GetUser(r)
-
 	params := r.URL.Query()
 
 	startAtStr := params.Get("start_at")
@@ -101,6 +99,7 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 		endAtMili = endMilli
 	}
 
+	auth := middleware.GetUser(r)
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
@@ -120,8 +119,6 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 
 func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) {
 
-	auth := middleware.GetUser(r)
-
 	params := r.URL.Query()
 
 	startAtStr := params.Get("start_at")
@@ -149,6 +146,7 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 		endAtMili = endMilli
 	}
 
+	auth := middleware.GetUser(r)
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,

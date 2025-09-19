@@ -27,8 +27,6 @@ func NewInventoryMovementController(useCase *usecase.InventoryMovementUseCase, l
 }
 
 func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
-
 	var request model.BulkCreateInventoryMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
@@ -36,6 +34,7 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	auth := middleware.GetUser(r)
 	if auth.BranchID != nil {
 		request.BranchID = *auth.BranchID
 	}

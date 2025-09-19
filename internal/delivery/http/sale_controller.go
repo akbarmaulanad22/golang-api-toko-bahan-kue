@@ -29,8 +29,6 @@ func NewSaleController(useCase *usecase.SaleUseCase, logger *logrus.Logger) *Sal
 
 func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 
-	auth := middleware.GetUser(r)
-
 	var request model.CreateSaleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
@@ -38,6 +36,7 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	auth := middleware.GetUser(r)
 	if auth.BranchID != nil {
 		request.BranchID = *auth.BranchID
 	}
@@ -53,7 +52,6 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	params := r.URL.Query()
 
@@ -104,6 +102,7 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
 		Size:    sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {

@@ -28,7 +28,6 @@ func NewExpenseController(useCase *usecase.ExpenseUseCase, logger *logrus.Logger
 }
 
 func (c *ExpenseController) Create(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	var request model.CreateExpenseRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -37,6 +36,7 @@ func (c *ExpenseController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	auth := middleware.GetUser(r)
 	if auth.BranchID != nil {
 		request.BranchID = *auth.BranchID
 	}

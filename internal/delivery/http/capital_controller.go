@@ -28,7 +28,6 @@ func NewCapitalController(useCase *usecase.CapitalUseCase, logger *logrus.Logger
 }
 
 func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.GetUser(r)
 
 	var request model.CreateCapitalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -36,6 +35,8 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+
+	auth := middleware.GetUser(r)
 	request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
@@ -50,8 +51,6 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
 
 func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-
-	auth := middleware.GetUser(r)
 
 	pageStr := params.Get("page")
 	if pageStr == "" {
@@ -71,6 +70,7 @@ func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) {
 		Size: sizeInt,
 	}
 
+	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {
 		branchID := params.Get("branch_id")
 		if branchID != "" {
