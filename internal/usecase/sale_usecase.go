@@ -60,16 +60,25 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	}
 
 	if err := c.SaleRepository.Create(tx, sale); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'sales.PRIMARY'"):
-				c.Log.Warn("code already exists")
-				return nil, errors.New("conflict")
-			default:
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1062:
+				if strings.Contains(mysqlErr.Message, "for key 'sales.PRIMARY'") {
+					c.Log.Warn("code already exists")
+					return nil, errors.New("conflict")
+				}
 				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, errors.New("conflict")
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, errors.New("foreign key constraint failed")
 			}
 		}
+
 		c.Log.WithError(err).Error("error creating sale")
 		return nil, errors.New("internal server error")
 	}

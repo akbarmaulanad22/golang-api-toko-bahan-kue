@@ -1,0 +1,1 @@
+ALTER TABLE capitals MODIFY COLUMN branch_id INT NULL;

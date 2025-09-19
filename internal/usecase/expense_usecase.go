@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -46,6 +48,17 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 	}
 
 	if err := c.ExpenseRepository.Create(tx, expense); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating expense")
 		return nil, errors.New("internal server error")
 	}

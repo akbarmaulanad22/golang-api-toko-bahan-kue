@@ -3,11 +3,13 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -55,6 +57,21 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 				Stock:    m.ChangeQty,
 			}
 			if err := c.BranchInventoryRepository.Create(tx, branchInv); err != nil {
+				if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+					switch mysqlErr.Number {
+					case 1452:
+						if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+							c.Log.Warn("branch doesnt exists")
+							return nil, errors.New("invalid branch id")
+						}
+						if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`size_id`)") {
+							c.Log.Warn("size doesnt exists")
+							return nil, errors.New("invalid size id")
+						}
+						return nil, errors.New("foreign key constraint failed")
+					}
+				}
+
 				return nil, errors.New("error creating branch inventory")
 			}
 		} else if err != nil {
@@ -75,6 +92,16 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 			ReferenceKey:      request.ReferenceKey,
 		}
 		if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
+			if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+				switch mysqlErr.Number {
+				case 1452:
+					if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
+						c.Log.Warn("branch inventory doesnt exists")
+						return nil, errors.New("invalid branch inventory id")
+					}
+					return nil, errors.New("foreign key constraint failed")
+				}
+			}
 			return nil, errors.New("error creating inventory movement")
 		}
 

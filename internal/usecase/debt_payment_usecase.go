@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
@@ -10,6 +11,7 @@ import (
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -48,6 +50,17 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 	}
 
 	if err := c.DebtPaymentRepository.Create(tx, debtPayment); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`debt_id`)") {
+					c.Log.Warn("debt doesnt exists")
+					return nil, errors.New("invalid debt id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
+
 		c.Log.WithError(err).Error("error creating debt payment")
 		return nil, errors.New("internal server error")
 	}

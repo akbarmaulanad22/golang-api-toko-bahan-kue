@@ -49,15 +49,22 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 	}
 
 	if err := c.SizeRepository.Create(tx, size); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key"): // name
-				c.Log.Warn("size name already exists")
-				return nil, errors.New("conflict")
-			default:
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1062:
+				if strings.Contains(mysqlErr.Message, "for key") {
+					c.Log.Warn("size already exists")
+					return nil, errors.New("conflict")
+				}
 				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, errors.New("conflict")
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`product_sku`)") {
+					c.Log.Warn("product doesnt exists")
+					return nil, errors.New("invalid product id")
+				}
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, errors.New("foreign key constraint failed")
 			}
 		}
 

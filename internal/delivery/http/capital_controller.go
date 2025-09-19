@@ -28,7 +28,7 @@ func NewCapitalController(useCase *usecase.CapitalUseCase, logger *logrus.Logger
 }
 
 func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
-	// auth := middleware.GetUser(r)
+	auth := middleware.GetUser(r)
 
 	var request model.CreateCapitalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -36,7 +36,7 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	// request.BranchID = auth.BranchID
+	request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {

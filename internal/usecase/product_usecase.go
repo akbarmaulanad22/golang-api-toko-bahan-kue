@@ -48,18 +48,26 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 	}
 
 	if err := c.ProductRepository.Create(tx, product); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'products.PRIMARY'"): // sku
-				c.Log.Warn("SKU already exists")
-				return nil, errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'products.name'"): // name
-				c.Log.Warn("product name already exists")
-				return nil, errors.New("conflict")
-			default:
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1062:
+				if strings.Contains(mysqlErr.Message, "for key 'products.PRIMARY'") {
+					c.Log.Warn("sku already exists")
+					return nil, errors.New("conflict")
+				}
+				if strings.Contains(mysqlErr.Message, "for key 'products.name'") {
+					c.Log.Warn("product name already exists")
+					return nil, errors.New("conflict")
+				}
 				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, errors.New("conflict")
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`category_id`)") {
+					c.Log.Warn("category doesnt exists")
+					return nil, errors.New("invalid category id")
+				}
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, errors.New("foreign key constraint failed")
 			}
 		}
 
@@ -98,15 +106,26 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 	product.Name = request.Name
 
 	if err := c.ProductRepository.Update(tx, product); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'products.name'"): // name
-				c.Log.Warn("product name already exists")
-				return nil, errors.New("conflict")
-			default:
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1062:
+				if strings.Contains(mysqlErr.Message, "for key 'products.PRIMARY'") {
+					c.Log.Warn("sku already exists")
+					return nil, errors.New("conflict")
+				}
+				if strings.Contains(mysqlErr.Message, "for key 'products.name'") {
+					c.Log.Warn("product name already exists")
+					return nil, errors.New("conflict")
+				}
 				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, errors.New("conflict")
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`category_id`)") {
+					c.Log.Warn("category doesnt exists")
+					return nil, errors.New("invalid category id")
+				}
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, errors.New("foreign key constraint failed")
 			}
 		}
 
