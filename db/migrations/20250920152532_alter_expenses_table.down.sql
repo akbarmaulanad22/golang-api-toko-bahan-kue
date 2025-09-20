@@ -1,0 +1,1 @@
+ALTER TABLE expenses MODIFY COLUMN branch_id INT NOT NULL;

@@ -4,7 +4,6 @@ type ExpenseResponse struct {
 	ID          uint    `json:"id,omitempty"`
 	Description string  `json:"description,omitempty"`
 	Amount      float64 `json:"amount,omitempty"`
-	BranchID    uint    `json:"branch_id,omitempty"`
 	CreatedAt   int64   `json:"created_at,omitempty"`
 	BranchName  *string `json:"branch_name,omitempty"`
 }
@@ -12,7 +11,7 @@ type ExpenseResponse struct {
 type CreateExpenseRequest struct {
 	Description string  `json:"description" validate:"max=255"`
 	Amount      float64 `json:"amount" validate:"required"`
-	BranchID    uint    `json:"branch_id" validate:"required"`
+	BranchID    *uint   `json:"branch_id"`
 }
 
 type UpdateExpenseRequest struct {

@@ -46,7 +46,7 @@ func (r *ProductRepository) FilterProduct(request *model.SearchProductRequest) f
 	return func(tx *gorm.DB) *gorm.DB {
 		if search := request.Search; search != "" {
 			search = "%" + search + "%"
-			tx = tx.Where("name LIKE ? OR sku LIKE", search, search)
+			tx = tx.Where("name LIKE ? OR sku LIKE ?", search, search)
 		}
 
 		return tx
