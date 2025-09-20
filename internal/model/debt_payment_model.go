@@ -12,6 +12,7 @@ type CreateDebtPaymentRequest struct {
 	Amount      float64 `json:"amount" validate:"required"`
 	PaymentDate int64   `json:"-" validate:"required"`
 	Note        string  `json:"note" validate:"max=255"`
+	BranchID    *uint   `json:"branch_id" validate:"required"`
 }
 
 type DeleteDebtPaymentRequest struct {

@@ -46,6 +46,8 @@ func Bootstrap(config *BootstrapConfig) {
 	branchInventoryRepository := repository.NewBranchInventoryRepository(config.Log)
 	inventoryMovementRepository := repository.NewInventoryMovementRepository(config.Log)
 	debtPaymentRepository := repository.NewDebtPaymentRepository(config.Log)
+	saleDetailRepository := repository.NewSaleDetailRepository(config.Log)
+	salePaymentRepository := repository.NewSalePaymentRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -58,7 +60,7 @@ func Bootstrap(config *BootstrapConfig) {
 	productUseCase := usecase.NewProductUseCase(config.DB, config.Log, config.Validate, productRepository)
 	userUseCase := usecase.NewUserUseCase(config.DB, config.Log, config.Validate, userRepository)
 	sizeUseCase := usecase.NewSizeUseCase(config.DB, config.Log, config.Validate, sizeRepository)
-	saleUseCase := usecase.NewSaleUseCase(config.DB, config.Log, config.Validate, saleRepository, debtRepository)
+	saleUseCase := usecase.NewSaleUseCase(config.DB, config.Log, config.Validate, saleRepository, saleDetailRepository, salePaymentRepository, debtRepository, debtPaymentRepository, sizeRepository, cashBankTransactionRepository)
 	purchaseUseCase := usecase.NewPurchaseUseCase(config.DB, config.Log, config.Validate, purchaseRepository)
 	saleReportUseCase := usecase.NewSaleReportUseCase(config.DB, config.Log, config.Validate, saleReportRepository)
 	expenseUseCase := usecase.NewExpenseUseCase(config.DB, config.Log, config.Validate, expenseRepository)
@@ -68,7 +70,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 	branchInventoryUseCase := usecase.NewBranchInventoryUseCase(config.DB, config.Log, config.Validate, branchInventoryRepository)
 	inventoryMovementUseCase := usecase.NewInventoryMovementUseCase(config.DB, config.Log, config.Validate, inventoryMovementRepository, branchInventoryRepository)
-	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository)
+	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository, cashBankTransactionRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)

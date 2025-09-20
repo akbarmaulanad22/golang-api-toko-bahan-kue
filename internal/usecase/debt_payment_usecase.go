@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 	"tokobahankue/internal/entity"
@@ -17,19 +18,26 @@ import (
 )
 
 type DebtPaymentUseCase struct {
-	DB                    *gorm.DB
-	Log                   *logrus.Logger
-	Validate              *validator.Validate
-	DebtPaymentRepository *repository.DebtPaymentRepository
+	DB                            *gorm.DB
+	Log                           *logrus.Logger
+	Validate                      *validator.Validate
+	DebtPaymentRepository         *repository.DebtPaymentRepository
+	CashBankTransactionRepository *repository.CashBankTransactionRepository
 }
 
-func NewDebtPaymentUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Validate,
-	debtPaymentRepository *repository.DebtPaymentRepository) *DebtPaymentUseCase {
+func NewDebtPaymentUseCase(
+	db *gorm.DB,
+	logger *logrus.Logger,
+	validate *validator.Validate,
+	debtPaymentRepository *repository.DebtPaymentRepository,
+	cashBankTransactionRepository *repository.CashBankTransactionRepository,
+) *DebtPaymentUseCase {
 	return &DebtPaymentUseCase{
-		DB:                    db,
-		Log:                   logger,
-		Validate:              validate,
-		DebtPaymentRepository: debtPaymentRepository,
+		DB:                            db,
+		Log:                           logger,
+		Validate:                      validate,
+		DebtPaymentRepository:         debtPaymentRepository,
+		CashBankTransactionRepository: cashBankTransactionRepository,
 	}
 }
 
@@ -62,6 +70,32 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 		}
 
 		c.Log.WithError(err).Error("error creating debt payment")
+		return nil, errors.New("internal server error")
+	}
+
+	cashBankTransaction := &entity.CashBankTransaction{
+		TransactionDate: request.PaymentDate,
+		Type:            "IN",
+		Source:          "DEBT",
+		Amount:          request.Amount,
+		Description:     request.Note,
+		ReferenceKey:    strconv.Itoa(int(request.DebtID)),
+		BranchID:        request.BranchID,
+	}
+
+	if err := c.CashBankTransactionRepository.Create(tx, cashBankTransaction); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
+
+		c.Log.WithError(err).Error("error creating cash bank transaction")
 		return nil, errors.New("internal server error")
 	}
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -26,6 +27,7 @@ func NewDebtPaymentController(useCase *usecase.DebtPaymentUseCase, logger *logru
 }
 
 func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) {
+
 	var request model.CreateDebtPaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
@@ -38,8 +40,10 @@ func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	auth := middleware.GetUser(r)
 	request.DebtID = uint(debtIDInt)
 	request.PaymentDate = time.Now().UnixMilli()
+	request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {

@@ -48,3 +48,15 @@ func (r *SizeRepository) FilterSize(request *model.SearchSizeRequest) func(tx *g
 		return tx
 	}
 }
+
+func (r *SizeRepository) FindPriceMapByIDs(tx *gorm.DB, ids []uint) (map[uint]float64, error) {
+	var sizes []entity.Size
+	result := make(map[uint]float64)
+	if err := tx.Select("id", "sell_price").Where("id IN ?", ids).Find(&sizes).Error; err != nil {
+		return nil, err
+	}
+	for _, s := range sizes {
+		result[s.ID] = s.SellPrice
+	}
+	return result, nil
+}
