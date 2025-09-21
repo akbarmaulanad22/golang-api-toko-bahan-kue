@@ -71,6 +71,7 @@ func Bootstrap(config *BootstrapConfig) {
 	branchInventoryUseCase := usecase.NewBranchInventoryUseCase(config.DB, config.Log, config.Validate, branchInventoryRepository)
 	inventoryMovementUseCase := usecase.NewInventoryMovementUseCase(config.DB, config.Log, config.Validate, inventoryMovementRepository, branchInventoryRepository)
 	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository, cashBankTransactionRepository)
+	saleDetailUseCase := usecase.NewSaleDetailUseCase(config.DB, config.Log, config.Validate, saleDetailRepository, saleRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -94,6 +95,7 @@ func Bootstrap(config *BootstrapConfig) {
 	branchInventoryController := http.NewBranchInventoryController(branchInventoryUseCase, config.Log)
 	inventoryMovementController := http.NewInventoryMovementController(inventoryMovementUseCase, config.Log)
 	debtPaymentController := http.NewDebtPaymentController(debtPaymentUseCase, config.Log)
+	saleDetailController := http.NewSaleDetailController(saleDetailUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -122,6 +124,7 @@ func Bootstrap(config *BootstrapConfig) {
 		BranchInventoryController:     branchInventoryController,
 		InventoryMovementController:   inventoryMovementController,
 		DebtPaymentController:         debtPaymentController,
+		SaleDetailController:          saleDetailController,
 	}
 	routeConfig.Setup()
 

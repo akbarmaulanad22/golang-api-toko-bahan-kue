@@ -20,3 +20,10 @@ func NewSaleDetailRepository(log *logrus.Logger) *SaleDetailRepository {
 func (r *SaleDetailRepository) CreateBulk(db *gorm.DB, details []entity.SaleDetail) error {
 	return db.CreateInBatches(&details, 100).Error
 }
+
+func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string, sizeID uint) error {
+	return db.Model(&entity.SaleDetail{}).
+		Where("sale_code = ? AND size_id = ? AND is_cancelled = 0", saleCode, sizeID).
+		UpdateColumn("is_cancelled", 1).
+		Error
+}

@@ -13,3 +13,8 @@ type CreateSaleDetailRequest struct {
 	Qty       int     `json:"qty" validate:"required,min=1"`
 	SellPrice float64 `json:"-"`
 }
+
+type CancelSaleDetailRequest struct {
+	SizeID   uint   `json:"-" validate:"required"`
+	SaleCode string `json:"-" validate:"required"`
+}

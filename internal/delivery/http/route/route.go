@@ -37,6 +37,7 @@ type RouteConfig struct {
 	FinanceController             *http.FinanceController
 	BranchInventoryController     *http.BranchInventoryController
 	InventoryMovementController   *http.InventoryMovementController
+	SaleDetailController          *http.SaleDetailController
 }
 
 func (route *RouteConfig) Setup() {
@@ -129,6 +130,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
 	authRouter.HandleFunc("/sales/{code}", route.SaleController.Cancel).Methods("DELETE")
 	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
+	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", route.SaleDetailController.Cancel).Methods("DELETE")
 
 	// POS (order barang masuk)
 	// authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
