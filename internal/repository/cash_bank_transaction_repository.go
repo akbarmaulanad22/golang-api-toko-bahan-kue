@@ -67,3 +67,7 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 		return tx
 	}
 }
+
+func (r *CashBankTransactionRepository) FindByExpenseID(db *gorm.DB, cash *entity.CashBankTransaction, expenseID uint) error {
+	return db.Where("reference_key = ? AND source = 'EXPENSE'", expenseID).Take(cash).Error
+}
