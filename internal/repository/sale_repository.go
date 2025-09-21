@@ -121,6 +121,8 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 }
 
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
+	r.Log.Warnf("DATE BETWEEN %d AND %d", request.StartAt, request.EndAt)
+
 	var sales []entity.Sale
 	if err := db.Order("created_at DESC").Preload("Branch").Scopes(r.FilterSale(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&sales).Error; err != nil {
 		return nil, 0, err

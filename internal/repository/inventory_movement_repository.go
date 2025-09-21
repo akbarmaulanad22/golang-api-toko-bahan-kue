@@ -87,7 +87,7 @@ func (r *InventoryMovementRepository) FilterInventoryMovements(request *model.Se
 			tx = tx.Where(`
 				b.name LIKE ? OR 
 				p.name LIKE ? OR 
-				s.label LIKE ? OR 
+				s.name LIKE ? OR 
 				im.reference_type LIKE ? OR 
 				im.reference_key LIKE ?`,
 				searchLike, searchLike, searchLike, searchLike, searchLike)

@@ -37,7 +37,8 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 				WHEN d.reference_type = 'PURCHASE' THEN p.sales_name
 				ELSE ''
 			END AS related,
-			COALESCE(bs.name, bp.name, '') AS branch_name
+			COALESCE(bs.name, bp.name, '') AS branch_name,
+			d.created_at
 		FROM debts d
 		LEFT JOIN sales s ON d.reference_type = 'SALE' AND d.reference_code = s.code
 		LEFT JOIN purchases p ON d.reference_type = 'PURCHASE' AND d.reference_code = p.code
