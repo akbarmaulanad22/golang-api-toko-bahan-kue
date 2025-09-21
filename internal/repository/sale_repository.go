@@ -120,149 +120,6 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 	return sale, nil
 }
 
-// func buildSaleFilter(req *model.SearchSaleRequest) (string, []interface{}) {
-// 	clauses := []string{"1=1"} // selalu valid
-// 	args := []interface{}{}
-
-// 	if req.BranchID > 0 {
-// 		clauses = append(clauses, "s.branch_id = ?")
-// 		args = append(args, req.BranchID)
-// 	}
-// 	if req.Code != "" {
-// 		clauses = append(clauses, "s.code = ?")
-// 		args = append(args, req.Code)
-// 	}
-// 	if req.CustomerName != "" {
-// 		clauses = append(clauses, "s.customer_name LIKE ?")
-// 		args = append(args, "%"+req.CustomerName+"%")
-// 	}
-// 	if req.Status != "" {
-// 		clauses = append(clauses, "s.status = ?")
-// 		args = append(args, req.Status)
-// 	}
-// 	if req.StartAt != 0 && req.EndAt != 0 {
-// 		clauses = append(clauses, "s.created_at BETWEEN ? AND ?")
-// 		args = append(args, req.StartAt, req.EndAt)
-// 	}
-
-// 	return strings.Join(clauses, " AND "), args
-// }
-
-// func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
-// 	// --- build filter ---
-// 	whereClause, whereArgs := buildSaleFilter(request)
-
-// 	// --- count total ---
-// 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM sales s WHERE %s", whereClause)
-// 	var total int64
-// 	if err := db.Raw(countQuery, whereArgs...).Scan(&total).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	// --- ambil data utama ---
-// 	selectQuery := fmt.Sprintf(`
-// 		SELECT
-// 			s.code, s.customer_name, s.status, s.created_at,
-// 			b.name AS branch_name,
-// 			sd.size_id, sd.qty, sd.sell_price AS item_sell_price,
-// 			sz.name AS size_name, sz.sell_price AS size_sell_price,
-// 			p.sku AS product_sku, p.name AS product_name,
-// 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
-// 		FROM sales s
-// 		JOIN branches b ON s.branch_id = b.id
-// 		JOIN sale_details sd ON s.code = sd.sale_code
-// 		JOIN sizes sz ON sd.size_id = sz.id
-// 		JOIN products p ON sz.product_sku = p.sku
-// 		LEFT JOIN sale_payments sp ON s.code = sp.sale_code
-// 		WHERE %s
-// 		ORDER BY s.created_at DESC
-// 		LIMIT ? OFFSET ?`, whereClause)
-
-// 	args := append(whereArgs, request.Size, (request.Page-1)*request.Size)
-
-// 	rows, err := db.Raw(selectQuery, args...).Rows()
-// 	if err != nil {
-// 		return nil, 0, err
-// 	}
-// 	defer rows.Close()
-
-// 	// --- mapping hasil ---
-// 	salesMap := make(map[string]*model.SaleResponse)
-
-// 	for rows.Next() {
-// 		var (
-// 			saleCode, customerName, status, branchName string
-// 			createdAt                                  int64
-// 			sizeID, qty                                int
-// 			itemSellPrice, sizeSellPrice               float64
-
-// 			sizeName, productSKU, productName string
-
-// 			// kolom payment bisa NULL, jadi pakai sql.Null*
-// 			paymentMethod    sql.NullString
-// 			note             sql.NullString
-// 			amount           sql.NullFloat64
-// 			paymentCreatedAt sql.NullInt64
-// 		)
-
-// 		if err := rows.Scan(
-// 			&saleCode, &customerName, &status, &createdAt, &branchName,
-// 			&sizeID, &qty, &itemSellPrice,
-// 			&sizeName, &sizeSellPrice,
-// 			&productSKU, &productName,
-// 			&paymentMethod, &amount, &note, &paymentCreatedAt,
-// 		); err != nil {
-// 			return nil, 0, err
-// 		}
-
-// 		// inisialisasi sale jika belum ada
-// 		if _, ok := salesMap[saleCode]; !ok {
-// 			salesMap[saleCode] = &model.SaleResponse{
-// 				Code:         saleCode,
-// 				CustomerName: customerName,
-// 				Status:       status,
-// 				CreatedAt:    createdAt,
-// 				BranchName:   branchName,
-// 				Items:        []model.SaleItemResponse{},
-// 				Payments:     []model.SalePaymentResponse{},
-// 			}
-// 		}
-
-// 		// tambahkan item
-// 		salesMap[saleCode].Items = append(salesMap[saleCode].Items, model.SaleItemResponse{
-// 			Size: &model.SizeResponse{
-// 				Name:      sizeName,
-// 				SellPrice: sizeSellPrice,
-// 			},
-// 			Product: &model.ProductResponse{
-// 				SKU:  productSKU,
-// 				Name: productName,
-// 			},
-// 			Qty:   qty,
-// 			Price: itemSellPrice,
-// 		})
-
-// 		// tambahkan payment (kalau ada)
-// 		if paymentMethod.Valid && paymentCreatedAt.Valid {
-// 			salesMap[saleCode].Payments = append(salesMap[saleCode].Payments, model.SalePaymentResponse{
-// 				PaymentMethod: paymentMethod.String,
-// 				Amount:        amount.Float64,
-// 				Note:          note.String,
-// 				CreatedAt:     paymentCreatedAt.Int64,
-// 			})
-// 		}
-
-// 	}
-
-// 	// --- convert map ke slice ---
-// 	result := make([]model.SaleResponse, 0, len(salesMap))
-// 	for _, v := range salesMap {
-// 		result = append(result, *v)
-// 	}
-
-// 	return result, total, nil
-// }
-
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
 	var sales []entity.Sale
 	if err := db.Order("created_at DESC").Preload("Branch").Scopes(r.FilterSale(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&sales).Error; err != nil {
@@ -300,4 +157,11 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 
 		return tx
 	}
+}
+
+func (r *SaleRepository) Cancel(db *gorm.DB, code string) error {
+	return db.Model(&entity.Sale{}).
+		Where("code = ?", code).
+		UpdateColumn("status", "CANCELLED").
+		Error
 }

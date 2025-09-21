@@ -138,6 +138,17 @@ func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtReque
 	return &debt, nil
 }
 
+func (r *DebtRepository) FindBySaleCode(db *gorm.DB, debt *entity.Debt, saleCode string) error {
+	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).Take(debt).Error
+}
+
+func (r *DebtRepository) UpdateStatus(db *gorm.DB, id uint) error {
+	return db.Model(&entity.Debt{}).
+		Where("id = ?", id).
+		UpdateColumn("status", "VOID").
+		Error
+}
+
 // func (r *DebtRepository) Search(db *gorm.DB, request *model.SearchDebtRequest) ([]entity.Debt, int64, error) {
 // 	var users []entity.Debt
 // 	if err := db.Scopes(r.FilterDebt(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {

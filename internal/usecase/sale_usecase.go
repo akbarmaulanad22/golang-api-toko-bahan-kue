@@ -544,90 +544,64 @@ func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*
 	return sale, nil
 }
 
-// func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
-// 	tx := c.DB.WithContext(ctx).Begin()
-// 	defer tx.Rollback()
+func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
-// 	if err := c.Validate.Struct(request); err != nil {
-// 		c.Log.WithError(err).Error("error validating request body")
-// 		return nil, errors.New("bad request")
-// 	}
+	if err := c.Validate.Struct(request); err != nil {
+		c.Log.WithError(err).Error("error validating request body")
+		return nil, errors.New("bad request")
+	}
 
-// 	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
-// 	if err != nil {
-// 		c.Log.WithError(err).Error("error getting sale")
-// 		return nil, errors.New("not found")
-// 	}
+	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting sale")
+		return nil, errors.New("not found")
+	}
 
-// 	createdTime := time.UnixMilli(sale.CreatedAt)
-// 	now := time.Now()
+	createdTime := time.UnixMilli(sale.CreatedAt)
+	now := time.Now()
 
-// 	// Hitung durasi sejak dibuat
-// 	duration := now.Sub(createdTime)
+	// Hitung durasi sejak dibuat
+	duration := now.Sub(createdTime)
 
-// 	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
-// 	if duration.Hours() >= 24 {
-// 		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
-// 		return nil, errors.New("forbidden")
-// 	}
+	// Jika status BUKAN PENDING dan sudah lewat 24 jam => tolak
+	if duration.Hours() >= 24 {
+		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
+		return nil, errors.New("forbidden")
+	}
 
-// 	// Lanjut update status
-// 	sale.Status = "CANCELLED"
-// 	if err := c.SaleRepository.Update(tx, sale); err != nil {
-// 		c.Log.WithError(err).Error("error updating sale")
-// 		return nil, errors.New("internal server error")
-// 	}
+	// Lanjut update status
+	if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
+		c.Log.WithError(err).Error("error updating sale")
+		return nil, errors.New("internal server error")
+	}
 
-// 	if sale.Debt != nil {
-// 		debt := new(entity.Debt)
-// 		if err := c.DebtRepository.FindById(tx, debt, sale.Debt.ID); err != nil {
-// 			c.Log.WithError(err).Error("error getting debt")
-// 			return nil, errors.New("internal server error")
-// 		}
+	debt := new(entity.Debt)
+	if err := c.DebtRepository.FindBySaleCode(tx, debt, sale.Code); err != nil {
+		c.Log.WithError(err).Error("error getting debt")
+		return nil, errors.New("internal server error")
+	}
 
-// 		debt.Status = "VOID"
+	if debt.ID != 0 {
+		if err := c.DebtRepository.UpdateStatus(tx, debt.ID); err != nil {
+			c.Log.WithError(err).Error("error update debt")
+			return nil, errors.New("internal server error")
+		}
+	}
 
-// 		if err := c.DebtRepository.Update(tx, debt); err != nil {
-// 			c.Log.WithError(err).Error("error update debt")
-// 			return nil, errors.New("internal server error")
-// 		}
-// 	}
+	/*
+		kalo mau return data setelah terupdate
+	*/
+	// if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
+	// 	c.Log.WithError(err).Error("error getting sale")
+	// 	return nil, errors.New("not found")
+	// }
 
-// 	/*
-// 		kalo mau return data setelah terupdate
-// 	*/
-// 	// if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
-// 	// 	c.Log.WithError(err).Error("error getting sale")
-// 	// 	return nil, errors.New("not found")
-// 	// }
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error updating sale")
+		return nil, errors.New("internal server error")
+	}
 
-// 	if err := tx.Commit().Error; err != nil {
-// 		c.Log.WithError(err).Error("error updating sale")
-// 		return nil, errors.New("internal server error")
-// 	}
-
-// 	return converter.SaleToResponse(sale), nil
-// }
-
-// func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*model.SaleResponse, error) {
-// 	tx := c.DB.WithContext(ctx).Begin()
-// 	defer tx.Rollback()
-
-// 	if err := c.Validate.Struct(request); err != nil {
-// 		c.Log.WithError(err).Error("error validating request body")
-// 		return nil, errors.New("bad request")
-// 	}
-
-// 	sale := new(entity.Sale)
-// 	if err := c.SaleRepository.FindByCode(tx, sale, request.Code); err != nil {
-// 		c.Log.WithError(err).Error("error getting sale")
-// 		return nil, errors.New("not found")
-// 	}
-
-// 	if err := tx.Commit().Error; err != nil {
-// 		c.Log.WithError(err).Error("error getting sale")
-// 		return nil, errors.New("internal server error")
-// 	}
-
-// 	return converter.SaleToResponse(sale), nil
-// }
+	return sale, nil
+}
