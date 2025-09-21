@@ -43,24 +43,52 @@ func (c *DebtController) List(w http.ResponseWriter, r *http.Request) {
 	}
 	sizeInt, _ := strconv.Atoi(sizeStr)
 
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
+
+	var (
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
+	)
+
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid start at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+		startAtMili = startAt
+
+		endAt, err := helper.ParseDateToMilli(endAt, true)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid end at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
+			return
+		}
+		endAtMili = endAt
+	}
+
 	request := &model.SearchDebtRequest{
 		ReferenceType: params.Get("reference_type"),
 		Search:        params.Get("search"),
 		Status:        params.Get("status"),
 		Page:          pageInt,
 		Size:          sizeInt,
+		StartAt:       model.UnixDate(startAtMili),
+		EndAt:         model.UnixDate(endAtMili),
 	}
 
-	if err := request.StartAt.ParseFromString(params.Get("start_at")); err != nil {
-		c.Log.WithError(err).Error("error parse start at params")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
-	if err := request.EndAt.ParseFromString(params.Get("end_at")); err != nil {
-		c.Log.WithError(err).Error("error parse end at params")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
+	// if err := request.StartAt.ParseFromString(params.Get("start_at")); err != nil {
+	// 	c.Log.WithError(err).Error("error parse start at params")
+	// 	http.Error(w, err.Error(), helper.GetStatusCode(err))
+	// 	return
+	// }
+	// if err := request.EndAt.ParseFromString(params.Get("end_at")); err != nil {
+	// 	c.Log.WithError(err).Error("error parse end at params")
+	// 	http.Error(w, err.Error(), helper.GetStatusCode(err))
+	// 	return
+	// }
 
 	auth := middleware.GetUser(r)
 	if strings.ToUpper(auth.Role) == "OWNER" {

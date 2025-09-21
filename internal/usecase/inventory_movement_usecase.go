@@ -124,6 +124,7 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 }
 
 func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.SearchInventoryMovementRequest) ([]model.InventoryMovementResponse, int64, error) {
+
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 

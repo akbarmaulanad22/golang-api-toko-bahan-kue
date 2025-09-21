@@ -64,29 +64,30 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 	}
 	sizeInt, _ := strconv.Atoi(sizeStr)
 
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			c.Log.WithError(err).Error("invalid start at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
 			return
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
+			c.Log.WithError(err).Error("invalid end at parameter")
+			http.Error(w, err.Error(), helper.GetStatusCode(err))
 			return
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	request := &model.SearchInventoryMovementRequest{

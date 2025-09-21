@@ -84,7 +84,7 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) {
 		}
 		startAtMili = startAt
 
-		endAt, err := helper.ParseDateToMilli(endAt, false)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
 			c.Log.WithError(err).Error("invalid end at parameter")
 			http.Error(w, err.Error(), helper.GetStatusCode(err))

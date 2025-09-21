@@ -187,8 +187,8 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/branch-inventory", route.BranchInventoryController.List).Methods("GET")
 
 	// pergerakan stok barang masuk/keluar
-	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")
 	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.List).Methods("GET")
+	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")
 	// [owner only]
 	authRouter.HandleFunc("/inventory-movement/summary", route.InventoryMovementController.Summary).Methods("GET")
 

@@ -18,9 +18,36 @@ func NewSaleReportRepository(log *logrus.Logger) *SaleReportRepository {
 }
 
 func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
-
 	results := []model.SalesDailyReportResponse{}
+	args := []interface{}{}
 
+	baseQuery := `
+		FROM sales s
+		JOIN branches b ON s.branch_id = b.id
+		JOIN sale_details sd ON s.code = sd.sale_code
+		WHERE s.status = 'COMPLETED'
+	`
+
+	// filter cabang
+	if request.BranchID != nil {
+		baseQuery += " AND s.branch_id = ?"
+		args = append(args, *request.BranchID)
+	}
+
+	// filter tanggal
+	if request.StartAt > 0 && request.EndAt > 0 {
+		baseQuery += " AND s.created_at BETWEEN ? AND ?"
+		args = append(args, request.StartAt, request.EndAt)
+	}
+
+	// hitung total rows (sebelum limit)
+	var total int64
+	countQuery := "SELECT COUNT(DISTINCT DATE(FROM_UNIXTIME(s.created_at / 1000)), b.id) " + baseQuery
+	if err := db.Raw(countQuery, args...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// query utama dengan pagination
 	query := `
 		SELECT 
 			DATE(FROM_UNIXTIME(s.created_at / 1000)) AS date,
@@ -29,36 +56,21 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 			COUNT(DISTINCT s.code) AS total_transactions,
 			SUM(CASE WHEN sd.is_cancelled = 0 THEN sd.qty ELSE 0 END) AS total_products_sold,
 			SUM(CASE WHEN sd.is_cancelled = 0 THEN sd.qty * sd.sell_price ELSE 0 END) AS total_revenue
-		FROM sales s
-		JOIN branches b ON s.branch_id = b.id
-		JOIN sale_details sd ON s.code = sd.sale_code
-		WHERE s.status = 'COMPLETED'
-	`
-
-	args := []interface{}{}
-
-	// filter cabang
-	if request.BranchID != nil {
-		query += " AND s.branch_id = ?"
-		args = append(args, *request.BranchID)
-	}
-
-	// filter tanggal
-	if request.StartAt > 0 && request.EndAt > 0 {
-		query += " AND s.created_at BETWEEN ? AND ?"
-		args = append(args, request.StartAt, request.EndAt)
-	}
-
-	query += `
+	` + baseQuery + `
 		GROUP BY DATE(FROM_UNIXTIME(s.created_at / 1000)), b.id, b.name
 		ORDER BY date, branch_id
+		LIMIT ? OFFSET ?
 	`
+
+	limit := request.Size
+	offset := (request.Page - 1) * request.Size
+	args = append(args, limit, offset)
 
 	if err := db.Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, 0, err
 	}
 
-	return results, int64(len(results)), nil
+	return results, total, nil
 }
 
 // untuk data sangat detail sampai utang dan perbandingan harga jual vs uang masuk
