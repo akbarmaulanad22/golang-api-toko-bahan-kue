@@ -64,7 +64,7 @@ func Bootstrap(config *BootstrapConfig) {
 	purchaseUseCase := usecase.NewPurchaseUseCase(config.DB, config.Log, config.Validate, purchaseRepository)
 	saleReportUseCase := usecase.NewSaleReportUseCase(config.DB, config.Log, config.Validate, saleReportRepository)
 	expenseUseCase := usecase.NewExpenseUseCase(config.DB, config.Log, config.Validate, expenseRepository, cashBankTransactionRepository)
-	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository)
+	capitalUseCase := usecase.NewCapitalUseCase(config.DB, config.Log, config.Validate, capitalRepository, cashBankTransactionRepository)
 	cashBankTransactionUseCase := usecase.NewCashBankTransactionUseCase(config.DB, config.Log, config.Validate, cashBankTransactionRepository)
 	financeUseCase := usecase.NewFinanceUseCase(config.DB, config.Log, config.Validate, financeRepository)
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)

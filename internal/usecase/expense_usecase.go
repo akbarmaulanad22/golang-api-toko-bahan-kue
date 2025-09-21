@@ -70,7 +70,7 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 	// masukin ke catatan keuangan
 	cashBankTransaction := entity.CashBankTransaction{
 		TransactionDate: time.Now().UnixMilli(),
-		Type:            "OUT",
+		Type:            "IN",
 		Source:          "EXPENSE",
 		Amount:          request.Amount,
 		ReferenceKey:    strconv.Itoa(int(expense.ID)),
@@ -117,7 +117,7 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
-	if err := c.CashBankTransactionRepository.FindByExpenseID(tx, cashBankTransaction, request.ID); err != nil {
+	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "EXPENSE"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
 		return nil, errors.New("not found")
 	}
@@ -153,7 +153,7 @@ func (c *ExpenseUseCase) Delete(ctx context.Context, request *model.DeleteExpens
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
-	if err := c.CashBankTransactionRepository.FindByExpenseID(tx, cashBankTransaction, request.ID); err != nil {
+	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "EXPENSE"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
 		return errors.New("not found")
 	}

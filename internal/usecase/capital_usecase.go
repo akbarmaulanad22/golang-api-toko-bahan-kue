@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
@@ -16,19 +18,21 @@ import (
 )
 
 type CapitalUseCase struct {
-	DB                *gorm.DB
-	Log               *logrus.Logger
-	Validate          *validator.Validate
-	CapitalRepository *repository.CapitalRepository
+	DB                            *gorm.DB
+	Log                           *logrus.Logger
+	Validate                      *validator.Validate
+	CapitalRepository             *repository.CapitalRepository
+	CashBankTransactionRepository *repository.CashBankTransactionRepository
 }
 
 func NewCapitalUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Validate,
-	capitalRepository *repository.CapitalRepository) *CapitalUseCase {
+	capitalRepository *repository.CapitalRepository, cashBankTransactionRepository *repository.CashBankTransactionRepository) *CapitalUseCase {
 	return &CapitalUseCase{
-		DB:                db,
-		Log:               logger,
-		Validate:          validate,
-		CapitalRepository: capitalRepository,
+		DB:                            db,
+		Log:                           logger,
+		Validate:                      validate,
+		CapitalRepository:             capitalRepository,
+		CashBankTransactionRepository: cashBankTransactionRepository,
 	}
 }
 
@@ -63,6 +67,20 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 
 		c.Log.WithError(err).Error("error creating capital")
 		return nil, errors.New("internal server error")
+	}
+
+	// masukin ke catatan keuangan
+	cashBankTransaction := entity.CashBankTransaction{
+		TransactionDate: time.Now().UnixMilli(),
+		Type:            request.Type,
+		Source:          "CAPITAL",
+		Amount:          request.Amount,
+		ReferenceKey:    strconv.Itoa(int(capital.ID)),
+		BranchID:        request.BranchID,
+	}
+
+	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -101,6 +119,20 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 		return nil, errors.New("internal server error")
 	}
 
+	cashBankTransaction := new(entity.CashBankTransaction)
+	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "CAPITAL"); err != nil {
+		c.Log.WithError(err).Error("error getting cash bank transaction")
+		return nil, errors.New("not found")
+	}
+
+	cashBankTransaction.Amount = capital.Amount
+	cashBankTransaction.Type = capital.Type
+
+	if err := c.CashBankTransactionRepository.Update(tx, cashBankTransaction); err != nil {
+		c.Log.WithError(err).Error("error updating cash bank transaction")
+		return nil, errors.New("internal server error")
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating capital")
 		return nil, errors.New("internal server error")
@@ -122,6 +154,17 @@ func (c *CapitalUseCase) Delete(ctx context.Context, request *model.DeleteCapita
 	if err := c.CapitalRepository.FindById(tx, capital, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting capital")
 		return errors.New("not found")
+	}
+
+	cashBankTransaction := new(entity.CashBankTransaction)
+	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "CAPITAL"); err != nil {
+		c.Log.WithError(err).Error("error getting cash bank transaction")
+		return errors.New("not found")
+	}
+
+	if err := c.CashBankTransactionRepository.Delete(tx, cashBankTransaction); err != nil {
+		c.Log.WithError(err).Error("error deleting cash bank transaction")
+		return errors.New("internal server error")
 	}
 
 	if err := c.CapitalRepository.Delete(tx, capital); err != nil {
