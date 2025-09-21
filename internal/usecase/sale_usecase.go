@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
@@ -11,6 +12,7 @@ import (
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -26,6 +28,8 @@ type SaleUseCase struct {
 	DebtPaymentRepository         *repository.DebtPaymentRepository
 	SizeRepository                *repository.SizeRepository
 	CashBankTransactionRepository *repository.CashBankTransactionRepository
+	BranchInventoryRepository     *repository.BranchInventoryRepository
+	InventoryMovementRepository   *repository.InventoryMovementRepository
 }
 
 func NewSaleUseCase(
@@ -39,6 +43,9 @@ func NewSaleUseCase(
 	debtPaymentRepository *repository.DebtPaymentRepository,
 	sizeRepository *repository.SizeRepository,
 	cashBankTransactionRepository *repository.CashBankTransactionRepository,
+	branchInventoryRepository *repository.BranchInventoryRepository,
+	inventoryMovementRepository *repository.InventoryMovementRepository,
+
 ) *SaleUseCase {
 	return &SaleUseCase{
 		DB:                            db,
@@ -51,6 +58,8 @@ func NewSaleUseCase(
 		SalePaymentRepository:         salePaymentRepository,
 		DebtPaymentRepository:         debtPaymentRepository,
 		CashBankTransactionRepository: cashBankTransactionRepository,
+		BranchInventoryRepository:     branchInventoryRepository,
+		InventoryMovementRepository:   inventoryMovementRepository,
 	}
 }
 
@@ -97,6 +106,42 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			Qty:       d.Qty,
 			SellPrice: price,
 		})
+
+		// ====================================================================
+
+		branchInv := &entity.BranchInventory{}
+		err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, d.SizeID)
+
+		if err != nil {
+			c.Log.WithError(err).Error("error querying branch inventory")
+			return nil, errors.New("internal server error")
+		}
+
+		if err := c.BranchInventoryRepository.UpdateStock(tx, branchInv.ID, -d.Qty); err != nil {
+			return nil, errors.New("error updating stock")
+		}
+
+		// Catat movement
+		movement := &entity.InventoryMovement{
+			BranchInventoryID: branchInv.ID,
+			ChangeQty:         -d.Qty,
+			ReferenceType:     "SALE",
+			ReferenceKey:      saleCode,
+		}
+
+		if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
+			if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+				switch mysqlErr.Number {
+				case 1452:
+					if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
+						c.Log.Warn("branch inventory doesnt exists")
+						return nil, errors.New("invalid branch inventory id")
+					}
+					return nil, errors.New("foreign key constraint failed")
+				}
+			}
+			return nil, errors.New("error creating inventory movement")
+		}
 	}
 
 	// buat sale
