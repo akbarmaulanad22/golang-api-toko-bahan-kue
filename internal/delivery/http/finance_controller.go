@@ -33,6 +33,9 @@ func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) {
 	startAtStr := params.Get("start_at")
 	endAtStr := params.Get("end_at")
 
+	c.Log.Warn(startAtStr)
+	c.Log.Warn(endAtStr)
+
 	var (
 		startAtMili int64
 		endAtMili   int64
@@ -173,7 +176,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 		asOfStr = time.Now().Format("2006-01-02")
 	}
 
-	asOfMilli, err := helper.ParseDateToMilli(asOfStr, false)
+	asOfMilli, err := helper.ParseDateToMilli(asOfStr, true)
 	if err != nil {
 		http.Error(w, "Invalid as_of format. Use YYYY-MM-DD", http.StatusBadRequest)
 		return

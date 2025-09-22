@@ -24,36 +24,48 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 	var totalHPP float64
 	var totalExpenses int64
 
+	// --- Helper untuk build query dengan date filter ---
+	buildDateFilter := func(field string) (string, []interface{}) {
+		var sql string
+		var params []interface{}
+		if request.StartAt > 0 && request.EndAt > 0 {
+			sql = " AND " + field + " BETWEEN ? AND ?"
+			params = append(params, request.StartAt, request.EndAt)
+		}
+		return sql, params
+	}
+
 	// --- Total Sales ---
+	dateSQL, params := buildDateFilter("s.created_at")
 	if err := db.Raw(`
 		SELECT COALESCE(SUM(sd.qty * sd.sell_price), 0)
 		FROM sale_details sd
 		JOIN sales s ON s.code = sd.sale_code
 		WHERE s.status = 'COMPLETED'
 		  AND sd.is_cancelled = 0
-		  AND s.created_at BETWEEN ? AND ?;
-	`, request.StartAt, request.EndAt).Scan(&totalSales).Error; err != nil {
+	`+dateSQL, params...).Scan(&totalSales).Error; err != nil {
 		return nil, err
 	}
 
-	// --- Total HPP (proxy: total purchase cost in period) ---
+	// --- Total HPP ---
+	dateSQL, params = buildDateFilter("p.created_at")
 	if err := db.Raw(`
 		SELECT COALESCE(SUM(pd.qty * pd.buy_price), 0)
 		FROM purchase_details pd
 		JOIN purchases p ON p.code = pd.purchase_code
 		WHERE p.status = 'COMPLETED'
 		  AND pd.is_cancelled = 0
-		  AND p.created_at BETWEEN ? AND ?;
-	`, request.StartAt, request.EndAt).Scan(&totalHPP).Error; err != nil {
+	`+dateSQL, params...).Scan(&totalHPP).Error; err != nil {
 		return nil, err
 	}
 
 	// --- Total Expenses ---
+	dateSQL, params = buildDateFilter("e.created_at")
 	if err := db.Raw(`
 		SELECT COALESCE(SUM(e.amount), 0)
 		FROM expenses e
-		WHERE e.created_at BETWEEN ? AND ?;
-	`, request.StartAt, request.EndAt).Scan(&totalExpenses).Error; err != nil {
+		WHERE 1=1
+	`+dateSQL, params...).Scan(&totalExpenses).Error; err != nil {
 		return nil, err
 	}
 
@@ -66,6 +78,11 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 		Expenses   *int64
 	}
 	var rows []row
+
+	// Build date filters per table
+	salesDateSQL, salesParams := buildDateFilter("s.created_at")
+	hppDateSQL, hppParams := buildDateFilter("p.created_at")
+	expDateSQL, expParams := buildDateFilter("e.created_at")
 
 	if err := db.Raw(`
 		SELECT
@@ -81,7 +98,7 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 		  JOIN sale_details sd ON sd.sale_code = s.code
 		  WHERE s.status = 'COMPLETED'
 		    AND sd.is_cancelled = 0
-		    AND s.created_at BETWEEN ? AND ?
+		    `+salesDateSQL+`
 		  GROUP BY s.branch_id
 		) AS sales ON sales.branch_id = b.id
 		LEFT JOIN (
@@ -90,16 +107,17 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 		  JOIN purchase_details pd ON pd.purchase_code = p.code
 		  WHERE p.status = 'COMPLETED'
 		    AND pd.is_cancelled = 0
-		    AND p.created_at BETWEEN ? AND ?
+		    `+hppDateSQL+`
 		  GROUP BY p.branch_id
 		) AS hpp ON hpp.branch_id = b.id
 		LEFT JOIN (
 		  SELECT e.branch_id, SUM(e.amount) AS total_expenses
 		  FROM expenses e
-		  WHERE e.created_at BETWEEN ? AND ?
+		  WHERE 1=1
+		    `+expDateSQL+`
 		  GROUP BY e.branch_id
 		) AS exp ON exp.branch_id = b.id
-	`, request.StartAt, request.EndAt, request.StartAt, request.EndAt, request.StartAt, request.EndAt).Scan(&rows).Error; err != nil {
+	`, append(append(salesParams, hppParams...), expParams...)...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
@@ -128,9 +146,14 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 		})
 	}
 
+	period := "all"
+	if request.StartAt > 0 && request.EndAt > 0 {
+		period = fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt))
+	}
+
 	out := &model.FinanceSummaryOwnerResponse{
 		ReportType:    "owner_summary",
-		Period:        fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
+		Period:        period,
 		TotalSales:    totalSales,
 		TotalHPP:      totalHPP,
 		TotalExpenses: totalExpenses,
@@ -182,10 +205,15 @@ func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.GetFinance
 		return nil, err
 	}
 
+	period := "all"
+	if request.StartAt > 0 && request.EndAt > 0 {
+		period = fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt))
+	}
+
 	// --- Response ---
 	pl := &model.FinanceProfitLossResponse{
 		ReportType:  "profit_loss",
-		Period:      fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
+		Period:      period,
 		Sales:       totalSales,
 		HPP:         totalHPP,
 		GrossProfit: totalSales - totalHPP,
@@ -223,9 +251,14 @@ func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBa
 		return nil, err
 	}
 
+	period := "all"
+	if request.StartAt > 0 && request.EndAt > 0 {
+		period = fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt))
+	}
+
 	resp := &model.FinanceCashFlowResponse{
 		ReportType: "cash_flow",
-		Period:     fmt.Sprintf("%s to %s", formatDate(request.StartAt), formatDate(request.EndAt)),
+		Period:     period,
 		CashIn:     cashIn,
 		CashOut:    cashOut,
 		Balance:    balance,
@@ -288,10 +321,10 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 	if request.Role == "Owner" && request.BranchID == nil {
 		// Semua cabang
 		if err := db.Raw(`
-			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
 			FROM debts d
 			WHERE d.reference_type = 'SALE'
-			  AND d.status = 'UNPAID'
+			  AND d.status = 'PENDING'
 			  AND d.due_date <= ?`,
 			request.AsOf).Scan(&receivable).Error; err != nil {
 			return nil, err
@@ -299,11 +332,11 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 	} else {
 		// Filter cabang
 		if err := db.Raw(`
-			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
 			FROM debts d
 			JOIN sales s ON d.reference_code = s.code
 			WHERE d.reference_type = 'SALE'
-			  AND d.status = 'UNPAID'
+			  AND d.status = 'PENDING'
 			  AND d.due_date <= ?
 			  AND s.branch_id = ?`,
 			request.AsOf, request.BranchID).Scan(&receivable).Error; err != nil {
@@ -315,21 +348,21 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 	var payable float64
 	if request.Role == "Owner" && request.BranchID == nil {
 		if err := db.Raw(`
-			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
 			FROM debts d
 			WHERE d.reference_type = 'PURCHASE'
-			  AND d.status = 'UNPAID'
+			  AND d.status = 'PENDING'
 			  AND d.due_date <= ?`,
 			request.AsOf).Scan(&payable).Error; err != nil {
 			return nil, err
 		}
 	} else {
 		if err := db.Raw(`
-			SELECT COALESCE(SUM(d.total_amount - d.paid_amount), 0)
+			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
 			FROM debts d
 			JOIN purchases p ON d.reference_code = p.code
 			WHERE d.reference_type = 'PURCHASE'
-			  AND d.status = 'UNPAID'
+			  AND d.status = 'PENDING'
 			  AND d.due_date <= ?
 			  AND p.branch_id = ?`,
 			request.AsOf, request.BranchID).Scan(&payable).Error; err != nil {
