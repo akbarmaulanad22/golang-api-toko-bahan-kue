@@ -1,0 +1,1 @@
+ALTER TABLE sales DELETE COLUMN total_price;

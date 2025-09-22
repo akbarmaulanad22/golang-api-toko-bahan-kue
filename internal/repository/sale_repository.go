@@ -23,7 +23,7 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleResponse, error) {
 	query := `
 		SELECT 
-			s.code, s.customer_name, s.status, s.created_at,
+			s.code, s.customer_name, s.status, s.created_at, s.total_price,
 			b.name AS branch_name,
 			sd.size_id, sd.qty, sd.sell_price AS item_sell_price,
 			sz.name AS size_name, sz.sell_price AS size_sell_price,
@@ -51,7 +51,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 			saleCode, customerName, status, branchName string
 			createdAt                                  int64
 			sizeID, qty                                int
-			itemSellPrice, sizeSellPrice               float64
+			itemSellPrice, sizeSellPrice, totalPrice   float64
 			sizeName, productSKU, productName          string
 
 			paymentMethod, note sql.NullString
@@ -60,7 +60,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 		)
 
 		if err := rows.Scan(
-			&saleCode, &customerName, &status, &createdAt, &branchName,
+			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchName,
 			&sizeID, &qty, &itemSellPrice,
 			&sizeName, &sizeSellPrice,
 			&productSKU, &productName,
@@ -78,7 +78,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 				CreatedAt:    createdAt,
 				BranchName:   branchName,
 				TotalQty:     0,
-				TotalPrice:   0,
+				TotalPrice:   totalPrice,
 				Items:        []model.SaleItemResponse{},
 				Payments:     []model.SalePaymentResponse{},
 			}
@@ -100,7 +100,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 
 		// akumulasi total qty & price
 		sale.TotalQty += qty
-		sale.TotalPrice += float64(qty) * itemSellPrice
+		// sale.TotalPrice += float64(qty) * itemSellPrice
 
 		// tambahkan payment kalau ada
 		if paymentMethod.Valid && paymentCreatedAt.Valid {
@@ -163,5 +163,12 @@ func (r *SaleRepository) Cancel(db *gorm.DB, code string) error {
 	return db.Model(&entity.Sale{}).
 		Where("code = ?", code).
 		UpdateColumn("status", "CANCELLED").
+		Error
+}
+
+func (r *SaleRepository) UpdateTotalPrice(db *gorm.DB, code string, totalPrice float64) error {
+	return db.Model(&entity.Sale{}).
+		Where("code = ?", code).
+		UpdateColumn("total_price", totalPrice).
 		Error
 }

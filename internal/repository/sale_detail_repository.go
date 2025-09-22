@@ -27,3 +27,10 @@ func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string, sizeID uint)
 		UpdateColumn("is_cancelled", 1).
 		Error
 }
+
+func (r *SaleDetailRepository) FindPriceBySizeIDAndSaleCode(db *gorm.DB, saleCode string, sizeID uint, detail *entity.SaleDetail) error {
+	return db.Model(&entity.SaleDetail{}).
+		Where("sale_code = ? AND size_id = ?", saleCode, sizeID).
+		Take(&detail).
+		Error
+}

@@ -149,6 +149,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		Code:         saleCode,
 		BranchID:     request.BranchID,
 		CustomerName: request.CustomerName,
+		TotalPrice:   totalPrice,
 	}
 
 	if err := c.SaleRepository.Create(tx, &sale); err != nil {

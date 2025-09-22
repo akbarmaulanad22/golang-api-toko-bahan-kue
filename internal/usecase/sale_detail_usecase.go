@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"time"
+	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -63,14 +64,34 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		return errors.New("forbidden")
 	}
 
+	// ambil price dan qty detail
+	detail := new(entity.SaleDetail)
+	if err := c.SaleDetailRepository.FindPriceBySizeIDAndSaleCode(tx, sale.Code, request.SizeID, detail); err != nil {
+		c.Log.WithError(err).Error("error updating sale detail")
+		return errors.New("internal server error")
+	}
+
+	if detail.IsCancelled {
+		c.Log.WithError(err).Error("error updating sale detail")
+		return errors.New("forbidden")
+	}
+
 	// Lanjut update status
 	if err := c.SaleDetailRepository.Cancel(tx, sale.Code, request.SizeID); err != nil {
+		c.Log.WithError(err).Error("error updating sale detail")
+		return errors.New("internal server error")
+	}
+
+	// penyesuaian total price sale dengan data detail
+	sale.TotalPrice -= (detail.SellPrice * float64(detail.Qty))
+
+	if err := c.SaleRepository.UpdateTotalPrice(tx, sale.Code, sale.TotalPrice); err != nil {
 		c.Log.WithError(err).Error("error updating sale")
 		return errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error updating sale")
+		c.Log.WithError(err).Error("error updating sale detail")
 		return errors.New("internal server error")
 	}
 

@@ -13,5 +13,6 @@ func SaleToResponse(sale *entity.Sale) *model.SaleResponse {
 		Status:       sale.Status,
 		CreatedAt:    sale.CreatedAt,
 		BranchName:   sale.Branch.Name,
+		TotalPrice:   sale.TotalPrice,
 	}
 }
