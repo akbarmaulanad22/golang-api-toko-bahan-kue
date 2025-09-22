@@ -124,7 +124,7 @@ func (c *SaleReportController) ListTopSeller(w http.ResponseWriter, r *http.Requ
 
 	size := params.Get("size")
 	if size == "" {
-		size = "10"
+		size = "5"
 	}
 	sizeInt, _ := strconv.Atoi(size)
 
@@ -210,7 +210,7 @@ func (c *SaleReportController) ListCategory(w http.ResponseWriter, r *http.Reque
 
 	size := params.Get("size")
 	if size == "" {
-		size = "10"
+		size = "5"
 	}
 	sizeInt, _ := strconv.Atoi(size)
 
