@@ -153,6 +153,18 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	}
 
 	if err := c.SaleRepository.Create(tx, &sale); err != nil {
+
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
+					c.Log.Warn("branch doesnt exists")
+					return nil, errors.New("invalid branch id")
+				}
+				return nil, errors.New("foreign key constraint failed")
+			}
+		}
+
 		return nil, err
 	}
 

@@ -3,8 +3,8 @@ package model
 type PurchasePaymentResponse struct {
 	PaymentMethod string  `json:"payment_method,omitempty"`
 	Amount        float64 `json:"amount,omitempty"`
-	PaidAt        int64   `json:"paid_at,omitempty"`
 	Note          string  `json:"note,omitempty"`
+	CreatedAt     int64   `json:"created_at,omitempty"`
 }
 
 type CreatePurchasePaymentRequest struct {

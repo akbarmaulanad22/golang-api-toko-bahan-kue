@@ -1,0 +1,1 @@
+ALTER TABLE purchases DELETE COLUMN total_price;

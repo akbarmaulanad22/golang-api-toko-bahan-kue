@@ -1,0 +1,1 @@
+ALTER TABLE purchases ADD COLUMN total_price DECIMAL(15,2) NOT NULL;

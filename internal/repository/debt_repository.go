@@ -143,6 +143,10 @@ func (r *DebtRepository) FindBySaleCode(db *gorm.DB, debt *entity.Debt, saleCode
 	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).Take(debt).Error
 }
 
+func (r *DebtRepository) FindByPurchaseCode(db *gorm.DB, debt *entity.Debt, purchaseCode string) error {
+	return db.Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).Take(debt).Error
+}
+
 func (r *DebtRepository) UpdateStatus(db *gorm.DB, id uint) error {
 	return db.Model(&entity.Debt{}).
 		Where("id = ?", id).

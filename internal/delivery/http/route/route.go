@@ -38,6 +38,7 @@ type RouteConfig struct {
 	BranchInventoryController     *http.BranchInventoryController
 	InventoryMovementController   *http.InventoryMovementController
 	SaleDetailController          *http.SaleDetailController
+	PurchaseDetailController      *http.PurchaseDetailController
 }
 
 func (route *RouteConfig) Setup() {
@@ -133,10 +134,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", route.SaleDetailController.Cancel).Methods("DELETE")
 
 	// POS (order barang masuk)
-	// authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
-	// authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
-	// authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Update).Methods("PUT")
-	// authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
+	authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
+	authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
+	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Cancel).Methods("DELETE")
+	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
+	authRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", route.PurchaseDetailController.Cancel).Methods("DELETE")
 
 	// laporan barang keluar [ list per barang ]
 	authRouter.HandleFunc("/sales-and-product-reports/daily", route.SaleReportController.ListDaily).Methods("GET")

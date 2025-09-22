@@ -8,5 +8,5 @@ type PurchaseDetail struct {
 	PurchaseCode string `gorm:"column:purchase_code;primaryKey"`
 	SizeID       uint   `gorm:"column:size_id;primaryKey"`
 
-	Size Size `gorm:"foreignKey:SizeID;references:ID"`
+	Size *Size `gorm:"foreignKey:SizeID;references:ID"`
 }
