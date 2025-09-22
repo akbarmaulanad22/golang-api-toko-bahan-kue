@@ -55,6 +55,36 @@ func (r *CapitalRepository) FilterCapital(request *model.SearchCapitalRequest) f
 	}
 }
 
+func (r *CapitalRepository) GetBalance(db *gorm.DB, branchID *uint) (float64, error) {
+	var balance float64
+	var err error
+
+	// Base query
+	sql := `
+		SELECT COALESCE(SUM(
+			CASE 
+				WHEN type = 'IN' THEN amount
+				WHEN type = 'OUT' THEN -amount
+				ELSE 0
+			END
+		), 0) AS balance
+		FROM capitals
+	`
+
+	if branchID != nil {
+		// Filter by branch
+		err = db.Raw(sql+` WHERE branch_id = ?`, *branchID).Scan(&balance).Error
+	} else {
+		// Semua cabang
+		err = db.Raw(sql).Scan(&balance).Error
+	}
+
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
+}
+
 // func (r *CapitalRepository) ConsolidateReport(db *gorm.DB, request *model.SearchConsolidateCapitalRequest) (*model.ConsolidatedCapitalResponse, error) {
 // 	var reports []model.CapitalReportResponse
 // 	var totalAll float64

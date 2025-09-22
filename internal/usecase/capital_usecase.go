@@ -45,6 +45,17 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 		return nil, errors.New("bad request")
 	}
 
+	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting balance")
+		return nil, errors.New("internal server error")
+	}
+
+	if request.Amount > balance && request.Type == "OUT" {
+		c.Log.Warnf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount)
+		return nil, errors.New("bad request")
+	}
+
 	capital := &entity.Capital{
 		Note:     request.Note,
 		Amount:   request.Amount,

@@ -1,0 +1,1 @@
+ALTER TABLE cash_bank_transactions MODIFY COLUMN branch_id INT NULL;
