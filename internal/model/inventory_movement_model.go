@@ -19,8 +19,8 @@ type InventoryMovementResponse struct {
 
 type BulkCreateInventoryMovementRequest struct {
 	BranchID      uint                             `json:"-" validate:"required"`
-	ReferenceType string                           `json:"reference_type" validate:"required"`
-	ReferenceKey  string                           `json:"reference_key" validate:"required"`
+	ReferenceType string                           `json:"reference_type"`
+	ReferenceKey  string                           `json:"reference_key"`
 	Movements     []CreateInventoryMovementRequest `json:"movements" validate:"required,dive"`
 }
 

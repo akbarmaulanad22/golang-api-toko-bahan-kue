@@ -49,6 +49,31 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
 }
 
+func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) {
+	var request model.BulkCreateInventoryMovementRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		c.Log.Warnf("Failed to parse request body: %+v", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	request.ReferenceType = "ADJUST"
+
+	auth := middleware.GetUser(r)
+	if auth.BranchID != nil {
+		request.BranchID = *auth.BranchID
+	}
+
+	response, err := c.UseCase.Create(r.Context(), &request)
+	if err != nil {
+		c.Log.Warnf("Failed to create capital: %+v", err)
+		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
+}
+
 func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
