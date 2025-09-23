@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -138,7 +139,6 @@ func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchI
 		WHERE 1=1
 	`
 
-	// filter
 	args := []interface{}{}
 	if req.Search != "" {
 		search := "%" + req.Search + "%"
@@ -151,31 +151,65 @@ func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchI
 		args = append(args, req.BranchID)
 	}
 
-	// hitung total
-	if err := db.Raw(`SELECT COUNT(*) `+baseQuery, args...).Scan(&total).Error; err != nil {
+	// hitung total produk unik per branch
+	countQuery := `SELECT COUNT(DISTINCT CONCAT(b.id,'-',p.sku)) ` + baseQuery
+	if err := db.Raw(countQuery, args...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// ambil data dengan paging
-	argsWithLimit := append(args, req.Size, (req.Page-1)*req.Size)
-	dataQuery := `
-		SELECT 
-			b.name          AS branch_name,
-			p.sku           AS product_sku,
-			p.name          AS product_name,
-			s.id            AS size_id,
-			s.name          AS size_name,
-			s.sell_price    AS sell_price,
-			bi.stock        AS stock
+	// ambil product unik dengan paging
+	type productKey struct {
+		BranchID    uint
+		BranchName  string
+		ProductSKU  string
+		ProductName string
+	}
+	productKeys := []productKey{}
+
+	productQuery := `
+		SELECT DISTINCT b.id AS branch_id, b.name AS branch_name, p.sku AS product_sku, p.name AS product_name
 	` + baseQuery + `
-		ORDER BY b.id, p.sku, s.id
+		ORDER BY b.id, p.sku
 		LIMIT ? OFFSET ?`
+	argsWithLimit := append(args, req.Size, (req.Page-1)*req.Size)
 
-	if err := db.Raw(dataQuery, argsWithLimit...).Scan(&rows).Error; err != nil {
+	if err := db.Raw(productQuery, argsWithLimit...).Scan(&productKeys).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// mapping ke response
+	if len(productKeys) == 0 {
+		return []model.BranchInventoryProductResponse{}, total, nil
+	}
+
+	// ambil semua sizes untuk product yang sudah dipilih
+	sizeArgs := []interface{}{}
+	sizeConditions := []string{}
+	for _, p := range productKeys {
+		sizeConditions = append(sizeConditions, "(b.id = ? AND p.sku = ?)")
+		sizeArgs = append(sizeArgs, p.BranchID, p.ProductSKU)
+	}
+
+	sizeQuery := `
+		SELECT 
+			b.name AS branch_name,
+			p.sku AS product_sku,
+			p.name AS product_name,
+			s.id AS size_id,
+			s.name AS size_name,
+			s.sell_price,
+			bi.stock
+		FROM branch_inventory bi
+		JOIN sizes s ON s.id = bi.size_id
+		JOIN products p ON p.sku = s.product_sku
+		JOIN branches b ON b.id = bi.branch_id
+		WHERE ` + strings.Join(sizeConditions, " OR ") + `
+		ORDER BY b.id, p.sku, s.id`
+
+	if err := db.Raw(sizeQuery, sizeArgs...).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// mapping ke response per product
 	productMap := make(map[string]*model.BranchInventoryProductResponse)
 	for _, row := range rows {
 		key := fmt.Sprintf("%s-%s", row.BranchName, row.ProductSKU)
@@ -196,7 +230,7 @@ func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchI
 	}
 
 	// final array
-	results := []model.BranchInventoryProductResponse{}
+	results := make([]model.BranchInventoryProductResponse, 0, len(productMap))
 	for _, p := range productMap {
 		results = append(results, *p)
 	}

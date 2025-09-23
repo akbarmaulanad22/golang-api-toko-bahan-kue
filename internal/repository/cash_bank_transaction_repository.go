@@ -39,7 +39,7 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 		if search := request.Search; search != "" {
 			amount := search
 			search = "%" + search + "%"
-			tx = tx.Where("description LIKE ? OR reference_key LIKE ? OR amount = ?", search, search, amount)
+			tx = tx.Where("description LIKE ? OR amount = ?", search, amount)
 		}
 
 		if transactionType := request.Type; transactionType != "" {

@@ -155,7 +155,14 @@ func (r *SaleReportRepository) SearchTopSellerCategory(db *gorm.DB, request *mod
 
 	// Hitung total item sesuai filter
 	var total int64
-	countSQL := "SELECT COUNT(*) FROM (SELECT b.id, c.id " + baseSQL + " GROUP BY b.id, b.name, c.id, c.name) AS subquery"
+	countSQL := `
+		SELECT COUNT(*) 
+		FROM (
+			SELECT 1
+			` + baseSQL + `
+			GROUP BY b.id, b.name, c.id, c.name
+		) AS subquery
+	`
 	if err := db.Raw(countSQL, params...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
