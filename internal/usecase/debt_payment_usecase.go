@@ -23,6 +23,7 @@ type DebtPaymentUseCase struct {
 	Validate                      *validator.Validate
 	DebtPaymentRepository         *repository.DebtPaymentRepository
 	CashBankTransactionRepository *repository.CashBankTransactionRepository
+	DebtRepository                *repository.DebtRepository
 }
 
 func NewDebtPaymentUseCase(
@@ -31,6 +32,7 @@ func NewDebtPaymentUseCase(
 	validate *validator.Validate,
 	debtPaymentRepository *repository.DebtPaymentRepository,
 	cashBankTransactionRepository *repository.CashBankTransactionRepository,
+	debtRepository *repository.DebtRepository,
 ) *DebtPaymentUseCase {
 	return &DebtPaymentUseCase{
 		DB:                            db,
@@ -38,6 +40,7 @@ func NewDebtPaymentUseCase(
 		Validate:                      validate,
 		DebtPaymentRepository:         debtPaymentRepository,
 		CashBankTransactionRepository: cashBankTransactionRepository,
+		DebtRepository:                debtRepository,
 	}
 }
 
@@ -48,6 +51,17 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, errors.New("bad request")
+	}
+
+	debt := new(entity.Debt)
+	if err := c.DebtRepository.FindById(tx, debt, request.DebtID); err != nil {
+		c.Log.WithError(err).Error("error getting debt")
+		return nil, errors.New("not found")
+	}
+
+	if debt.Status == "VOID" {
+		c.Log.WithField("debt_id", request.DebtID).Error("error debt payment: status VOID")
+		return nil, errors.New("forbidden")
 	}
 
 	debtPayment := &entity.DebtPayment{

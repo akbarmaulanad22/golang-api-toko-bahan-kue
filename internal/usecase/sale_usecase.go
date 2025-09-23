@@ -107,8 +107,6 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			SellPrice: price,
 		})
 
-		// ====================================================================
-
 		branchInv := &entity.BranchInventory{}
 		err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, d.SizeID)
 
@@ -368,9 +366,9 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	}
 
 	debt := new(entity.Debt)
-	if err := c.DebtRepository.FindBySaleCode(tx, debt, sale.Code); err != nil {
+	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, sale.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return nil, errors.New("internal server error")
+		return nil, errors.New("not found")
 	}
 
 	if debt.ID != 0 {

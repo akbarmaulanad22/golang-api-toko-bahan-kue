@@ -14,10 +14,11 @@ type PurchaseResponse struct {
 }
 
 type PurchaseItemResponse struct {
-	Size    *SizeResponse    `json:"size"`
-	Product *ProductResponse `json:"product"`
-	Qty     int              `json:"qty"`
-	Price   float64          `json:"price"`
+	Size        *SizeResponse    `json:"size"`
+	Product     *ProductResponse `json:"product"`
+	Qty         int              `json:"qty"`
+	Price       float64          `json:"price"`
+	IsCancelled int              `json:"is_cancelled"`
 }
 
 type SearchPurchaseRequest struct {

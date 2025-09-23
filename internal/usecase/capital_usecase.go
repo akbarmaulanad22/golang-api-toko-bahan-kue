@@ -111,6 +111,17 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 		return nil, errors.New("bad request")
 	}
 
+	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
+	if err != nil {
+		c.Log.WithError(err).Error("error getting balance")
+		return nil, errors.New("internal server error")
+	}
+
+	if request.Amount > balance && request.Type == "OUT" {
+		c.Log.Warnf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount)
+		return nil, errors.New("bad request")
+	}
+
 	capital := new(entity.Capital)
 	if err := c.CapitalRepository.FindById(tx, capital, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting capital")

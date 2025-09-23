@@ -151,7 +151,9 @@ func (c *CapitalController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	auth := middleware.GetUser(r)
 	request.ID = uint(idInt)
+	request.BranchID = auth.BranchID
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {

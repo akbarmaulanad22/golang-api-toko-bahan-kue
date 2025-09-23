@@ -25,7 +25,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 		SELECT 
 			s.code, s.customer_name, s.status, s.created_at, s.total_price,
 			b.name AS branch_name,
-			sd.size_id, sd.qty, sd.sell_price AS item_sell_price,
+			sd.size_id, sd.qty, sd.sell_price AS item_sell_price, sd.is_cancelled,
 			sz.name AS size_name, sz.sell_price AS size_sell_price,
 			p.sku AS product_sku, p.name AS product_name,
 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
@@ -50,7 +50,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 		var (
 			saleCode, customerName, status, branchName string
 			createdAt                                  int64
-			sizeID, qty                                int
+			sizeID, qty, isCancelled                   int
 			itemSellPrice, sizeSellPrice, totalPrice   float64
 			sizeName, productSKU, productName          string
 
@@ -61,7 +61,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 
 		if err := rows.Scan(
 			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchName,
-			&sizeID, &qty, &itemSellPrice,
+			&sizeID, &qty, &itemSellPrice, &isCancelled,
 			&sizeName, &sizeSellPrice,
 			&productSKU, &productName,
 			&paymentMethod, &amount, &note, &paymentCreatedAt,
@@ -94,8 +94,9 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 				SKU:  productSKU,
 				Name: productName,
 			},
-			Qty:   qty,
-			Price: itemSellPrice,
+			Qty:         qty,
+			Price:       itemSellPrice,
+			IsCancelled: isCancelled,
 		})
 
 		// akumulasi total qty & price

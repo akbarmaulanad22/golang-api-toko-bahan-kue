@@ -371,9 +371,9 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	}
 
 	debt := new(entity.Debt)
-	if err := c.DebtRepository.FindByPurchaseCode(tx, debt, purchase.Code); err != nil {
+	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchase.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return nil, errors.New("internal server error")
+		return nil, errors.New("not found")
 	}
 
 	if debt.ID != 0 {

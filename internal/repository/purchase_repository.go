@@ -24,7 +24,7 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 		SELECT 
 			s.code, s.sales_name, s.status, s.created_at, s.total_price,
 			b.name AS branch_name,
-			sd.size_id, sd.qty, sd.buy_price AS item_buy_price,
+			sd.size_id, sd.qty, sd.buy_price AS item_buy_price, sd.is_cancelled,
 			sz.name AS size_name, sz.buy_price AS size_buy_price,
 			p.sku AS product_sku, p.name AS product_name,
 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
@@ -49,8 +49,8 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 		var (
 			purchaseCode, purchasesName, status, branchName string
 			createdAt                                       int64
-			sizeID, qty                                     int
-			itemSellPrice, sizeSellPrice, totalPrice        float64
+			sizeID, qty, isCancelled                        int
+			itemBuyPrice, sizeBuyPrice, totalPrice          float64
 			sizeName, productSKU, productName               string
 
 			paymentMethod, note sql.NullString
@@ -60,8 +60,8 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 
 		if err := rows.Scan(
 			&purchaseCode, &purchasesName, &status, &createdAt, &totalPrice, &branchName,
-			&sizeID, &qty, &itemSellPrice,
-			&sizeName, &sizeSellPrice,
+			&sizeID, &qty, &itemBuyPrice, &isCancelled,
+			&sizeName, &sizeBuyPrice,
 			&productSKU, &productName,
 			&paymentMethod, &amount, &note, &paymentCreatedAt,
 		); err != nil {
@@ -86,20 +86,21 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 		// tambahkan item
 		purchase.Items = append(purchase.Items, model.PurchaseItemResponse{
 			Size: &model.SizeResponse{
-				Name:      sizeName,
-				SellPrice: sizeSellPrice,
+				Name:     sizeName,
+				BuyPrice: sizeBuyPrice,
 			},
 			Product: &model.ProductResponse{
 				SKU:  productSKU,
 				Name: productName,
 			},
-			Qty:   qty,
-			Price: itemSellPrice,
+			Qty:         qty,
+			Price:       itemBuyPrice,
+			IsCancelled: isCancelled,
 		})
 
 		// akumulasi total qty & price
 		purchase.TotalQty += qty
-		// purchase.TotalPrice += float64(qty) * itemSellPrice
+		// purchase.TotalPrice += float64(qty) * itemBuyPrice
 
 		// tambahkan payment kalau ada
 		if paymentMethod.Valid && paymentCreatedAt.Valid {

@@ -143,8 +143,16 @@ func (r *DebtRepository) FindBySaleCode(db *gorm.DB, debt *entity.Debt, saleCode
 	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).Take(debt).Error
 }
 
+func (r *DebtRepository) FindBySaleCodeOrInit(db *gorm.DB, debt *entity.Debt, saleCode string) error {
+	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).FirstOrInit(debt).Error
+}
+
 func (r *DebtRepository) FindByPurchaseCode(db *gorm.DB, debt *entity.Debt, purchaseCode string) error {
-	return db.Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).Take(debt).Error
+	return db.Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).First(debt).Error
+}
+
+func (r *DebtRepository) FindByPurchaseCodeOrInit(db *gorm.DB, debt *entity.Debt, purchaseCode string) error {
+	return db.Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).FirstOrInit(debt).Error
 }
 
 func (r *DebtRepository) UpdateStatus(db *gorm.DB, id uint) error {
