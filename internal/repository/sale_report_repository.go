@@ -73,6 +73,117 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 	return results, total, nil
 }
 
+func (r *SaleReportRepository) SearchTopSellerProduct(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
+	results := []model.SalesTopSellerReportResponse{}
+
+	baseSQL := `
+		FROM sale_details sd
+		JOIN sales s ON s.code = sd.sale_code
+		JOIN sizes sz ON sz.id = sd.size_id
+		JOIN products p ON p.sku = sz.product_sku
+		JOIN branches b ON b.id = s.branch_id
+		WHERE s.status = 'COMPLETED'
+	`
+
+	var params []interface{}
+
+	if request.StartAt > 0 && request.EndAt > 0 {
+		baseSQL += " AND s.created_at BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	if request.BranchID != nil {
+		baseSQL += " AND s.branch_id = ?"
+		params = append(params, *request.BranchID)
+	}
+
+	// Hitung total sesuai filter
+	var total int64
+	countSQL := "SELECT COUNT(*) FROM (SELECT b.id, p.sku " + baseSQL + " GROUP BY b.id, b.name, p.sku, p.name) AS subquery"
+	if err := db.Raw(countSQL, params...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Pagination
+	offset := (request.Page - 1) * request.Size
+
+	dataSQL := `
+		SELECT 
+			b.name AS branch_name,
+			p.sku AS product_sku,
+			p.name AS product_name,
+			SUM(sd.qty) AS total_qty,
+			SUM(sd.qty * sz.sell_price) AS total_omzet
+	` + baseSQL + `
+		GROUP BY b.id, b.name, p.sku, p.name
+		ORDER BY b.id, total_qty DESC
+		LIMIT ? OFFSET ?
+	`
+	paramsWithLimit := append(params, request.Size, offset)
+
+	if err := db.Raw(dataSQL, paramsWithLimit...).Scan(&results).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return results, total, nil
+}
+
+func (r *SaleReportRepository) SearchTopSellerCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
+	results := []model.SalesCategoryResponse{}
+
+	baseSQL := `
+		FROM sale_details sd
+		JOIN sales s ON s.code = sd.sale_code
+		JOIN sizes sz ON sz.id = sd.size_id
+		JOIN products p ON p.sku = sz.product_sku
+		JOIN categories c ON c.id = p.category_id
+		JOIN branches b ON b.id = s.branch_id
+		WHERE s.status = 'COMPLETED'
+	`
+
+	var params []interface{}
+
+	if request.StartAt > 0 && request.EndAt > 0 {
+		baseSQL += " AND s.created_at BETWEEN ? AND ?"
+		params = append(params, request.StartAt, request.EndAt)
+	}
+
+	if request.BranchID != nil {
+		baseSQL += " AND s.branch_id = ?"
+		params = append(params, *request.BranchID)
+	}
+
+	// Hitung total item sesuai filter
+	var total int64
+	countSQL := "SELECT COUNT(*) FROM (SELECT b.id, c.id " + baseSQL + " GROUP BY b.id, b.name, c.id, c.name) AS subquery"
+	if err := db.Raw(countSQL, params...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Pagination
+	offset := (request.Page - 1) * request.Size
+
+	dataSQL := `
+		SELECT
+			b.name AS branch_name,
+			c.id AS category_id,
+			c.name AS category_name,
+			COALESCE(SUM(sd.qty), 0) AS total_qty,
+			COALESCE(SUM(sd.qty * sz.sell_price), 0) AS total_omzet
+	` + baseSQL + `
+		GROUP BY b.id, b.name, c.id, c.name
+		ORDER BY total_qty DESC
+		LIMIT ? OFFSET ?
+	`
+	paramsWithLimit := append(params, request.Size, offset)
+
+	if err := db.Raw(dataSQL, paramsWithLimit...).Scan(&results).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return results, total, nil
+}
+
 // untuk data sangat detail sampai utang dan perbandingan harga jual vs uang masuk
 // func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
 // 	// Step 1: Summary penjualan (transaksi, produk, revenue)
@@ -202,114 +313,3 @@ func (r *SaleReportRepository) SearchDaily(db *gorm.DB, request *model.SearchSal
 
 // 	return results, int64(len(results)), nil
 // }
-
-func (r *SaleReportRepository) SearchTopSellerProduct(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
-	results := []model.SalesTopSellerReportResponse{}
-
-	baseSQL := `
-		FROM sale_details sd
-		JOIN sales s ON s.code = sd.sale_code
-		JOIN sizes sz ON sz.id = sd.size_id
-		JOIN products p ON p.sku = sz.product_sku
-		JOIN branches b ON b.id = s.branch_id
-		WHERE s.status = 'COMPLETED'
-	`
-
-	var params []interface{}
-
-	if request.StartAt > 0 && request.EndAt > 0 {
-		baseSQL += " AND s.created_at BETWEEN ? AND ?"
-		params = append(params, request.StartAt, request.EndAt)
-	}
-
-	if request.BranchID != nil {
-		baseSQL += " AND s.branch_id = ?"
-		params = append(params, *request.BranchID)
-	}
-
-	// Hitung total sesuai filter
-	var total int64
-	countSQL := "SELECT COUNT(*) FROM (SELECT b.id, p.sku " + baseSQL + " GROUP BY b.id, b.name, p.sku, p.name) AS subquery"
-	if err := db.Raw(countSQL, params...).Scan(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// Pagination
-	offset := (request.Page - 1) * request.Size
-
-	dataSQL := `
-		SELECT 
-			b.name AS branch_name,
-			p.sku AS product_sku,
-			p.name AS product_name,
-			SUM(sd.qty) AS total_qty,
-			SUM(sd.qty * sz.sell_price) AS total_omzet
-	` + baseSQL + `
-		GROUP BY b.id, b.name, p.sku, p.name
-		ORDER BY b.id, total_qty DESC
-		LIMIT ? OFFSET ?
-	`
-	paramsWithLimit := append(params, request.Size, offset)
-
-	if err := db.Raw(dataSQL, paramsWithLimit...).Scan(&results).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return results, total, nil
-}
-
-func (r *SaleReportRepository) SearchTopSellerCategory(db *gorm.DB, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
-	results := []model.SalesCategoryResponse{}
-
-	baseSQL := `
-		FROM sale_details sd
-		JOIN sales s ON s.code = sd.sale_code
-		JOIN sizes sz ON sz.id = sd.size_id
-		JOIN products p ON p.sku = sz.product_sku
-		JOIN categories c ON c.id = p.category_id
-		JOIN branches b ON b.id = s.branch_id
-		WHERE s.status = 'COMPLETED'
-	`
-
-	var params []interface{}
-
-	if request.StartAt > 0 && request.EndAt > 0 {
-		baseSQL += " AND s.created_at BETWEEN ? AND ?"
-		params = append(params, request.StartAt, request.EndAt)
-	}
-
-	if request.BranchID != nil {
-		baseSQL += " AND s.branch_id = ?"
-		params = append(params, *request.BranchID)
-	}
-
-	// Hitung total item sesuai filter
-	var total int64
-	countSQL := "SELECT COUNT(*) FROM (SELECT b.id, c.id " + baseSQL + " GROUP BY b.id, b.name, c.id, c.name) AS subquery"
-	if err := db.Raw(countSQL, params...).Scan(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// Pagination
-	offset := (request.Page - 1) * request.Size
-
-	dataSQL := `
-		SELECT
-			b.name AS branch_name,
-			c.id AS category_id,
-			c.name AS category_name,
-			COALESCE(SUM(sd.qty), 0) AS total_qty,
-			COALESCE(SUM(sd.qty * sz.sell_price), 0) AS total_omzet
-	` + baseSQL + `
-		GROUP BY b.id, b.name, c.id, c.name
-		ORDER BY total_qty DESC
-		LIMIT ? OFFSET ?
-	`
-	paramsWithLimit := append(params, request.Size, offset)
-
-	if err := db.Raw(dataSQL, paramsWithLimit...).Scan(&results).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return results, total, nil
-}

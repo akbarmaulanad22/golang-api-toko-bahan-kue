@@ -39,6 +39,7 @@ type RouteConfig struct {
 	InventoryMovementController   *http.InventoryMovementController
 	SaleDetailController          *http.SaleDetailController
 	PurchaseDetailController      *http.PurchaseDetailController
+	PurchaseReportController      *http.PurchaseReportController
 }
 
 func (route *RouteConfig) Setup() {
@@ -140,14 +141,17 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
 	authRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", route.PurchaseDetailController.Cancel).Methods("DELETE")
 
-	// laporan barang keluar [ list per barang ]
-	authRouter.HandleFunc("/sales-and-product-reports/daily", route.SaleReportController.ListDaily).Methods("GET")
+	// laporan barang keluar [ list per tanggal ]
+	authRouter.HandleFunc("/sales-reports/daily", route.SaleReportController.ListDaily).Methods("GET")
 
 	// laporan keseluruhan barang keluar [ list barang terlaris ]
-	authRouter.HandleFunc("/sales-and-product-reports/top-seller", route.SaleReportController.ListTopSeller).Methods("GET")
+	authRouter.HandleFunc("/sales-reports/top-seller", route.SaleReportController.ListTopSeller).Methods("GET")
 
 	// laporan keseluruhan barang keluar [ list barang terlaris per category ]
-	authRouter.HandleFunc("/sales-and-product-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
+	authRouter.HandleFunc("/sales-reports/categories", route.SaleReportController.ListCategory).Methods("GET")
+
+	// laporan barang masuk [ list per tanggal ]
+	authRouter.HandleFunc("/purchases-reports/daily", route.PurchaseReportController.ListDaily).Methods("GET")
 
 	// pengeluaran
 	authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")

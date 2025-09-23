@@ -50,6 +50,7 @@ func Bootstrap(config *BootstrapConfig) {
 	salePaymentRepository := repository.NewSalePaymentRepository(config.Log)
 	purchaseDetailRepository := repository.NewPurchaseDetailRepository(config.Log)
 	purchasePaymentRepository := repository.NewPurchasePaymentRepository(config.Log)
+	purchaseReportRepository := repository.NewPurchaseReportRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -75,6 +76,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository, cashBankTransactionRepository)
 	saleDetailUseCase := usecase.NewSaleDetailUseCase(config.DB, config.Log, config.Validate, saleDetailRepository, saleRepository)
 	purchaseDetailUseCase := usecase.NewPurchaseDetailUseCase(config.DB, config.Log, config.Validate, purchaseDetailRepository, purchaseRepository)
+	purchaseReportUseCase := usecase.NewPurchaseReportUseCase(config.DB, config.Log, config.Validate, purchaseReportRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -100,6 +102,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtPaymentController := http.NewDebtPaymentController(debtPaymentUseCase, config.Log)
 	saleDetailController := http.NewSaleDetailController(saleDetailUseCase, config.Log)
 	purchaseDetailController := http.NewPurchaseDetailController(purchaseDetailUseCase, config.Log)
+	purchaseReportController := http.NewPurchaseReportController(purchaseReportUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -130,6 +133,7 @@ func Bootstrap(config *BootstrapConfig) {
 		DebtPaymentController:         debtPaymentController,
 		SaleDetailController:          saleDetailController,
 		PurchaseDetailController:      purchaseDetailController,
+		PurchaseReportController:      purchaseReportController,
 	}
 	routeConfig.Setup()
 
