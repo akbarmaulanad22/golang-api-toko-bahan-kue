@@ -34,3 +34,14 @@ func (r *SaleDetailRepository) FindPriceBySizeIDAndSaleCode(db *gorm.DB, saleCod
 		Take(&detail).
 		Error
 }
+
+func (r *SaleDetailRepository) FindBySaleCode(db *gorm.DB, saleCode string) ([]entity.SaleDetail, error) {
+	var details = []entity.SaleDetail{}
+
+	if err := db.Model(&entity.SaleDetail{}).Where("sale_code = ?", saleCode).Find(&details).Error; err != nil {
+		return nil, err
+	}
+
+	return details, nil
+
+}

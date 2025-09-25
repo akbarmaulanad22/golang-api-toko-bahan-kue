@@ -139,3 +139,7 @@ func (r *InventoryMovementRepository) Summary(db *gorm.DB, request *model.Search
 		TotalAllBranches: total,
 	}, nil
 }
+
+func (r *InventoryMovementRepository) CreateBulk(db *gorm.DB, movements []entity.InventoryMovement) error {
+	return db.CreateInBatches(movements, 100).Error
+}

@@ -3,22 +3,26 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type SaleDetailUseCase struct {
-	DB                   *gorm.DB
-	Log                  *logrus.Logger
-	Validate             *validator.Validate
-	SaleDetailRepository *repository.SaleDetailRepository
-	SaleRepository       *repository.SaleRepository
+	DB                          *gorm.DB
+	Log                         *logrus.Logger
+	Validate                    *validator.Validate
+	SaleDetailRepository        *repository.SaleDetailRepository
+	SaleRepository              *repository.SaleRepository
+	InventoryMovementRepository *repository.InventoryMovementRepository
+	BranchInventoryRepository   *repository.BranchInventoryRepository
 }
 
 func NewSaleDetailUseCase(
@@ -27,13 +31,17 @@ func NewSaleDetailUseCase(
 	validate *validator.Validate,
 	saleDetailRepository *repository.SaleDetailRepository,
 	saleRepository *repository.SaleRepository,
+	inventoryMovementRepository *repository.InventoryMovementRepository,
+	branchInventoryRepository *repository.BranchInventoryRepository,
 ) *SaleDetailUseCase {
 	return &SaleDetailUseCase{
-		DB:                   db,
-		Log:                  logger,
-		Validate:             validate,
-		SaleDetailRepository: saleDetailRepository,
-		SaleRepository:       saleRepository,
+		DB:                          db,
+		Log:                         logger,
+		Validate:                    validate,
+		SaleDetailRepository:        saleDetailRepository,
+		SaleRepository:              saleRepository,
+		InventoryMovementRepository: inventoryMovementRepository,
+		BranchInventoryRepository:   branchInventoryRepository,
 	}
 }
 
@@ -80,6 +88,38 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	if err := c.SaleDetailRepository.Cancel(tx, sale.Code, request.SizeID); err != nil {
 		c.Log.WithError(err).Error("error updating sale detail")
 		return errors.New("internal server error")
+	}
+
+	branchInv := &entity.BranchInventory{}
+	if err = c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, request.SizeID); err != nil {
+		c.Log.WithError(err).Error("error querying branch inventory")
+		return errors.New("internal server error")
+	}
+
+	if err := c.BranchInventoryRepository.UpdateStock(tx, branchInv.ID, detail.Qty); err != nil {
+		return errors.New("error updating stock")
+	}
+
+	// Catat movement
+	movement := &entity.InventoryMovement{
+		BranchInventoryID: branchInv.ID,
+		ChangeQty:         detail.Qty,
+		ReferenceType:     "SALE CANCELLED",
+		ReferenceKey:      request.SaleCode,
+	}
+
+	if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			switch mysqlErr.Number {
+			case 1452:
+				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
+					c.Log.Warn("branch inventory doesnt exists")
+					return errors.New("invalid branch inventory id")
+				}
+				return errors.New("foreign key constraint failed")
+			}
+		}
+		return errors.New("error creating inventory movement")
 	}
 
 	// penyesuaian total price sale dengan data detail

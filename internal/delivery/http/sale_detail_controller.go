@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -49,6 +50,11 @@ func (c *SaleDetailController) Cancel(w http.ResponseWriter, r *http.Request) {
 	request := model.CancelSaleDetailRequest{
 		SizeID:   uint(sizeIDInt),
 		SaleCode: code,
+	}
+
+	auth := middleware.GetUser(r)
+	if auth.BranchID != nil {
+		request.BranchID = *auth.BranchID
 	}
 
 	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {

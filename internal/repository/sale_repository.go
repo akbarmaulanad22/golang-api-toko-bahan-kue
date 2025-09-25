@@ -23,7 +23,7 @@ func NewSaleRepository(log *logrus.Logger) *SaleRepository {
 func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleResponse, error) {
 	query := `
 		SELECT 
-			s.code, s.customer_name, s.status, s.created_at, s.total_price,
+			s.code, s.customer_name, s.status, s.created_at, s.total_price, s.branch_id,
 			b.name AS branch_name,
 			sd.size_id, sd.qty, sd.sell_price AS item_sell_price, sd.is_cancelled,
 			sz.name AS size_name, sz.sell_price AS size_sell_price,

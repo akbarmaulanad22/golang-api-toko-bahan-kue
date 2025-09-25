@@ -26,10 +26,98 @@ func (r *BranchInventoryRepository) FindByBranchIDAndSizeID(db *gorm.DB, branchI
 }
 
 func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID uint, changeQty int) error {
-	return db.Model(&entity.BranchInventory{}).
-		Where("id = ?", branchInventoryID).
-		UpdateColumn("stock", gorm.Expr("stock + ?", changeQty)).
-		Error
+	tx := db.Model(&entity.BranchInventory{}).
+		Where("id = ? AND stock + ? >= 0", branchInventoryID, changeQty).
+		UpdateColumn("stock", gorm.Expr("stock + ?", changeQty))
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("stok tidak cukup / record tidak ditemukan")
+	}
+	return nil
+}
+
+func (r *BranchInventoryRepository) BulkUpdateStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
+	if len(details) == 0 {
+		return nil
+	}
+
+	// Build CASE WHEN
+	caseStmt := "CASE size_id"
+	sizeIDs := make([]string, len(details))
+	for i, d := range details {
+		caseStmt += fmt.Sprintf(" WHEN %d THEN stock - %d", d.SizeID, d.Qty)
+		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
+	}
+	caseStmt += " END"
+
+	validateCase := "CASE size_id"
+	for _, d := range details {
+		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
+	}
+	validateCase += " END"
+
+	query := fmt.Sprintf(`
+        UPDATE branch_inventory
+        SET stock = %s
+        WHERE branch_id = ? 
+          AND size_id IN (%s)
+          AND stock >= %s
+    `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
+
+	tx := db.Exec(query, branchID)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected != int64(len(details)) {
+		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
+	}
+	return nil
+}
+
+func (r *BranchInventoryRepository) BulkRestoreStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
+	if len(details) == 0 {
+		return nil
+	}
+
+	// Build CASE WHEN
+	caseStmt := "CASE size_id"
+	sizeIDs := make([]string, len(details))
+	for i, d := range details {
+		caseStmt += fmt.Sprintf(" WHEN %d THEN stock + %d", d.SizeID, d.Qty)
+		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
+	}
+	caseStmt += " END"
+
+	validateCase := "CASE size_id"
+	for _, d := range details {
+		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
+	}
+	validateCase += " END"
+
+	query := fmt.Sprintf(`
+        UPDATE branch_inventory
+        SET stock = %s
+        WHERE branch_id = ? 
+          AND size_id IN (%s)
+          AND stock >= %s
+    `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
+
+	tx := db.Exec(query, branchID)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected != int64(len(details)) {
+		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
+	}
+	return nil
+}
+
+func (r *BranchInventoryRepository) FindByBranchAndSizeIDs(db *gorm.DB, branchID uint, sizeIDs []uint) ([]entity.BranchInventory, error) {
+	var invs []entity.BranchInventory
+	err := db.Where("branch_id = ? AND size_id IN ?", branchID, sizeIDs).Find(&invs).Error
+	return invs, err
 }
 
 // func (r *BranchInventoryRepository) ListOwnerInventoryByBranch(db *gorm.DB) ([]model.BranchInventoryProductResponse, error) {

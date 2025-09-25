@@ -15,6 +15,7 @@ type CreateSaleDetailRequest struct {
 }
 
 type CancelSaleDetailRequest struct {
+	BranchID uint   `json:"-" validate:"required"`
 	SizeID   uint   `json:"-" validate:"required"`
 	SaleCode string `json:"-" validate:"required"`
 }

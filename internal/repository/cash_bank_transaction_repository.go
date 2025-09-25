@@ -58,6 +58,8 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 		endAt := request.EndAt
 		if startAt != 0 && endAt != 0 {
 
+			r.Log.Warn("========= ADA ===============")
+
 			tx = tx.Where(
 				"(created_at BETWEEN ? AND ?) OR (transaction_date BETWEEN ? AND ?)",
 				startAt, endAt, startAt, endAt,
