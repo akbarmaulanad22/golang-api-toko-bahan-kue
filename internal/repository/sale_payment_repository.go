@@ -21,6 +21,6 @@ func (r *SalePaymentRepository) CreateBulk(db *gorm.DB, payments []entity.SalePa
 	return db.CreateInBatches(&payments, 100).Error
 }
 
-func (r *SalePaymentRepository) DeleteByCode(db *gorm.DB, saleCode string) error {
+func (r *SalePaymentRepository) DeleteBySaleCode(db *gorm.DB, saleCode string) error {
 	return db.Where("sale_code = ?", saleCode).Delete(&entity.SalePayment{}).Error
 }

@@ -57,9 +57,6 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 		startAt := request.StartAt
 		endAt := request.EndAt
 		if startAt != 0 && endAt != 0 {
-
-			r.Log.Warn("========= ADA ===============")
-
 			tx = tx.Where(
 				"(created_at BETWEEN ? AND ?) OR (transaction_date BETWEEN ? AND ?)",
 				startAt, endAt, startAt, endAt,
@@ -72,4 +69,12 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 
 func (r *CashBankTransactionRepository) FindByKeyAndSource(db *gorm.DB, cash *entity.CashBankTransaction, expenseID uint, source string) error {
 	return db.Where("reference_key = ? AND source = ?", expenseID, source).Take(cash).Error
+}
+
+func (r *CashBankTransactionRepository) DeleteBySaleCode(db *gorm.DB, saleCode string) error {
+	return db.Where("reference_key = ? AND source = 'SALE'", saleCode).Delete(&entity.CashBankTransaction{}).Error
+}
+
+func (r *CashBankTransactionRepository) DeleteByDebtID(db *gorm.DB, debtIDs []uint) error {
+	return db.Where("reference_key IN ? AND source = 'DEBT'", debtIDs).Delete(&entity.CashBankTransaction{}).Error
 }

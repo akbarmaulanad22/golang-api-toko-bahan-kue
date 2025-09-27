@@ -16,13 +16,14 @@ import (
 )
 
 type SaleDetailUseCase struct {
-	DB                          *gorm.DB
-	Log                         *logrus.Logger
-	Validate                    *validator.Validate
-	SaleDetailRepository        *repository.SaleDetailRepository
-	SaleRepository              *repository.SaleRepository
-	InventoryMovementRepository *repository.InventoryMovementRepository
-	BranchInventoryRepository   *repository.BranchInventoryRepository
+	DB                            *gorm.DB
+	Log                           *logrus.Logger
+	Validate                      *validator.Validate
+	SaleDetailRepository          *repository.SaleDetailRepository
+	SaleRepository                *repository.SaleRepository
+	InventoryMovementRepository   *repository.InventoryMovementRepository
+	BranchInventoryRepository     *repository.BranchInventoryRepository
+	CashBankTransactionRepository *repository.CashBankTransactionRepository
 }
 
 func NewSaleDetailUseCase(
@@ -33,15 +34,17 @@ func NewSaleDetailUseCase(
 	saleRepository *repository.SaleRepository,
 	inventoryMovementRepository *repository.InventoryMovementRepository,
 	branchInventoryRepository *repository.BranchInventoryRepository,
+	cashBankTransactionRepository *repository.CashBankTransactionRepository,
 ) *SaleDetailUseCase {
 	return &SaleDetailUseCase{
-		DB:                          db,
-		Log:                         logger,
-		Validate:                    validate,
-		SaleDetailRepository:        saleDetailRepository,
-		SaleRepository:              saleRepository,
-		InventoryMovementRepository: inventoryMovementRepository,
-		BranchInventoryRepository:   branchInventoryRepository,
+		DB:                            db,
+		Log:                           logger,
+		Validate:                      validate,
+		SaleDetailRepository:          saleDetailRepository,
+		SaleRepository:                saleRepository,
+		InventoryMovementRepository:   inventoryMovementRepository,
+		BranchInventoryRepository:     branchInventoryRepository,
+		CashBankTransactionRepository: cashBankTransactionRepository,
 	}
 }
 
@@ -124,6 +127,20 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 
 	// penyesuaian total price sale dengan data detail
 	sale.TotalPrice -= (detail.SellPrice * float64(detail.Qty))
+
+	cashBankTransaction := entity.CashBankTransaction{
+		TransactionDate: time.Now().UnixMilli(),
+		Type:            "OUT",
+		Source:          "SALE",
+		Amount:          sale.TotalPrice,
+		Description:     "PENJUALAN PER ITEM DIBATALKAN",
+		ReferenceKey:    sale.Code,
+		BranchID:        &sale.BranchID,
+	}
+
+	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+		return err
+	}
 
 	if err := c.SaleRepository.UpdateTotalPrice(tx, sale.Code, sale.TotalPrice); err != nil {
 		c.Log.WithError(err).Error("error updating sale")
