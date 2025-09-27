@@ -64,6 +64,12 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 		return nil, errors.New("forbidden")
 	}
 
+	debt.PaidAmount += request.Amount
+	if err := c.DebtRepository.Update(tx, debt); err != nil {
+		c.Log.WithError(err).Error("error update paid amount debt")
+		return nil, errors.New("internal server error")
+	}
+
 	debtPayment := &entity.DebtPayment{
 		Note:        request.Note,
 		Amount:      request.Amount,
