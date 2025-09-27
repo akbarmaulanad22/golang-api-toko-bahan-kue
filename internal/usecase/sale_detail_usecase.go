@@ -85,7 +85,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	}
 
 	// Lanjut update status
-	if err := c.SaleDetailRepository.Cancel(tx, sale.Code, request.SizeID); err != nil {
+	if err := c.SaleDetailRepository.CancelBySizeID(tx, sale.Code, request.SizeID); err != nil {
 		c.Log.WithError(err).Error("error updating sale detail")
 		return errors.New("internal server error")
 	}

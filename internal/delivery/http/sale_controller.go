@@ -177,12 +177,11 @@ func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) {
 		Code: code,
 	}
 
-	response, err := c.UseCase.Cancel(r.Context(), &request)
-	if err != nil {
+	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {
 		c.Log.WithError(err).Warnf("Failed to cancel sale")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.SaleResponse]{Data: response})
+	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
 }

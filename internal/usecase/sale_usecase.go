@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 	"tokobahankue/internal/entity"
@@ -417,6 +418,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		for _, p := range request.Debt.DebtPayments {
 			paidAmount += p.Amount
 		}
+
 		debt := entity.Debt{
 			ReferenceType: "SALE",
 			ReferenceCode: saleCode,
@@ -522,57 +524,153 @@ func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*
 	return sale, nil
 }
 
-func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
+func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) error {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
-	// Validasi request
-	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+	// 1) Lock sale
+	sale := new(entity.Sale)
+	if err := c.SaleRepository.FindLockByCode(tx, request.Code, sale); err != nil {
+		return fmt.Errorf("sale not found: %w", err)
+	}
+	if sale.Status == "CANCELLED" {
+		return errors.New("sale already cancelled")
 	}
 
-	// Cari sale
-	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
+	// 2) Get sale_details (not cancelled yet)
+	details, err := c.SaleDetailRepository.FindBySaleCode(tx, request.Code)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting sale")
-		return nil, errors.New("not found")
+		return fmt.Errorf("sale details not found: %w", err)
 	}
 
-	// Cek batas waktu cancel
-	createdTime := time.UnixMilli(sale.CreatedAt)
-	if time.Since(createdTime).Hours() >= 24 {
-		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
-		return nil, errors.New("forbidden")
+	// 3) Hitung qty per size_id
+	qtyBySize := map[uint]int{}
+	for _, d := range details {
+		qtyBySize[d.SizeID] += d.Qty
+	}
+	sizeIDs := make([]uint, 0, len(qtyBySize))
+	for sid := range qtyBySize {
+		sizeIDs = append(sizeIDs, sid)
+	}
+	slices.Sort(sizeIDs)
+
+	// 4) Ambil branch_inventory (lock)
+	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, sale.BranchID, sizeIDs)
+	if err != nil {
+		return err
 	}
 
-	// Update status sale
-	if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
-		c.Log.WithError(err).Error("error updating sale")
-		return nil, errors.New("internal server error")
+	// 5) Bulk update branch_inventory.stock (CASE WHEN)
+	if err := c.BranchInventoryRepository.BulkRestoreStock(tx, inventories, qtyBySize); err != nil {
+		return err
 	}
 
-	// Update status debt kalau ada
-	debt := new(entity.Debt)
-	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, sale.Code); err != nil {
-		c.Log.WithError(err).Error("error getting debt")
-		return nil, errors.New("not found")
+	// 6) Insert inventory_movements (bulk insert)
+	movements := make([]entity.InventoryMovement, 0, len(inventories))
+	for _, inv := range inventories {
+		addQty := qtyBySize[inv.SizeID]
+		if addQty == 0 {
+			continue
+		}
+		movements = append(movements, entity.InventoryMovement{
+			BranchInventoryID: inv.ID,
+			ChangeQty:         addQty,
+			ReferenceType:     "SALE_CANCEL",
+			ReferenceKey:      request.Code,
+		})
 	}
 
-	if debt.ID != 0 {
-		if err := c.DebtRepository.UpdateStatus(tx, debt.ID); err != nil {
-			c.Log.WithError(err).Error("error update debt")
-			return nil, errors.New("internal server error")
+	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
+		return err
+	}
+
+	// 7) Update sale_details jadi cancelled (batch GORM)
+	if err := c.SaleDetailRepository.Cancel(tx, request.Code); err != nil {
+		return err
+	}
+
+	// 8) Hapus sale_payments (batch GORM)
+	if err := c.SalePaymentRepository.DeleteByCode(tx, request.Code); err != nil {
+		return err
+	}
+
+	// 9) Hapus debt_payments + void debt (GORM batch)
+	// 9a) Ambil debts yang berkaitan (pluck id)
+	debtIDs, err := c.DebtRepository.FindBySaleCode(tx, request.Code)
+	if err != nil {
+		return err
+	}
+	if len(debtIDs) > 0 {
+		// Hapus debt_payments untuk debt_ids ini (single query)
+		if err := c.DebtPaymentRepository.DeleteINDebtID(tx, debtIDs); err != nil {
+			return err
 		}
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error commit transaction")
-		return nil, errors.New("internal server error")
+	// 9b) Update debts menjadi VOID + paid_amount = 0
+	if err := c.DebtRepository.FindBySaleCodeAndVoid(tx, request.Code); err != nil {
+		return err
 	}
 
-	return sale, nil
+	// 10) Update sale status jadi CANCELLED
+	if err := c.SaleRepository.Cancel(tx, request.Code); err != nil {
+		return err
+	}
+
+	return tx.Commit().Error
 }
+
+// func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
+
+// 	// Validasi request
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		c.Log.WithError(err).Error("error validating request body")
+// 		return nil, errors.New("bad request")
+// 	}
+
+// 	// Cari sale
+// 	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error getting sale")
+// 		return nil, errors.New("not found")
+// 	}
+
+// 	// Cek batas waktu cancel
+// 	createdTime := time.UnixMilli(sale.CreatedAt)
+// 	if time.Since(createdTime).Hours() >= 24 {
+// 		c.Log.WithField("sale_code", sale.Code).Error("error updating sale: exceeded 24-hour window")
+// 		return nil, errors.New("forbidden")
+// 	}
+
+// 	// Update status sale
+// 	if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
+// 		c.Log.WithError(err).Error("error updating sale")
+// 		return nil, errors.New("internal server error")
+// 	}
+
+// 	// Update status debt kalau ada
+// 	debt := new(entity.Debt)
+// 	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, sale.Code); err != nil {
+// 		c.Log.WithError(err).Error("error getting debt")
+// 		return nil, errors.New("not found")
+// 	}
+
+// 	if debt.ID != 0 {
+// 		if err := c.DebtRepository.UpdateStatus(tx, debt.ID); err != nil {
+// 			c.Log.WithError(err).Error("error update debt")
+// 			return nil, errors.New("internal server error")
+// 		}
+// 	}
+
+// 	if err := tx.Commit().Error; err != nil {
+// 		c.Log.WithError(err).Error("error commit transaction")
+// 		return nil, errors.New("internal server error")
+// 	}
+
+// 	return sale, nil
+// }
 
 // func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
 // 	tx := c.DB.WithContext(ctx).Begin()

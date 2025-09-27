@@ -139,8 +139,27 @@ func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtReque
 	return &debt, nil
 }
 
-func (r *DebtRepository) FindBySaleCode(db *gorm.DB, debt *entity.Debt, saleCode string) error {
-	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).Take(debt).Error
+func (r *DebtRepository) FindBySaleCode(db *gorm.DB, saleCode string) ([]uint, error) {
+	var debtIDs []uint
+
+	err := db.Model(&entity.Debt{}).
+		Where("reference_type = 'SALE' AND reference_code = ?", saleCode).
+		Pluck("id", &debtIDs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return debtIDs, nil
+}
+
+func (r *DebtRepository) FindBySaleCodeAndVoid(db *gorm.DB, saleCode string) error {
+	return db.Model(&entity.Debt{}).
+		Where("reference_type = 'SALE' AND reference_code = ?", saleCode).
+		Updates(map[string]interface{}{
+			"status":      "VOID",
+			"paid_amount": 0,
+		}).Error
 }
 
 func (r *DebtRepository) FindBySaleCodeOrInit(db *gorm.DB, debt *entity.Debt, saleCode string) error {

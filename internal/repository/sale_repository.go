@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SaleRepository struct {
@@ -49,6 +50,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 	for rows.Next() {
 		var (
 			saleCode, customerName, status, branchName string
+			branchID                                   uint
 			createdAt                                  int64
 			sizeID, qty, isCancelled                   int
 			itemSellPrice, sizeSellPrice, totalPrice   float64
@@ -60,7 +62,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 		)
 
 		if err := rows.Scan(
-			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchName,
+			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchID, &branchName,
 			&sizeID, &qty, &itemSellPrice, &isCancelled,
 			&sizeName, &sizeSellPrice,
 			&productSKU, &productName,
@@ -160,11 +162,21 @@ func (r *SaleRepository) FilterSale(request *model.SearchSaleRequest) func(tx *g
 	}
 }
 
+func (r *SaleRepository) FindLockByCode(db *gorm.DB, code string, sale *entity.Sale) error {
+
+	return db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("code = ?", code).
+		First(&sale).
+		Error
+
+}
+
 func (r *SaleRepository) Cancel(db *gorm.DB, code string) error {
 	return db.Model(&entity.Sale{}).
 		Where("code = ?", code).
-		UpdateColumn("status", "CANCELLED").
-		Error
+		Updates(map[string]interface{}{
+			"status": "CANCELLED",
+		}).Error
 }
 
 func (r *SaleRepository) UpdateTotalPrice(db *gorm.DB, code string, totalPrice float64) error {

@@ -21,11 +21,17 @@ func (r *SaleDetailRepository) CreateBulk(db *gorm.DB, details []entity.SaleDeta
 	return db.CreateInBatches(&details, 100).Error
 }
 
-func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string, sizeID uint) error {
+func (r *SaleDetailRepository) CancelBySizeID(db *gorm.DB, saleCode string, sizeID uint) error {
 	return db.Model(&entity.SaleDetail{}).
 		Where("sale_code = ? AND size_id = ? AND is_cancelled = 0", saleCode, sizeID).
 		UpdateColumn("is_cancelled", 1).
 		Error
+}
+
+func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string) error {
+	return db.Model(&entity.SaleDetail{}).
+		Where("sale_code = ? AND is_cancelled = 0", saleCode).
+		UpdateColumn("is_cancelled", 1).Error
 }
 
 func (r *SaleDetailRepository) FindPriceBySizeIDAndSaleCode(db *gorm.DB, saleCode string, sizeID uint, detail *entity.SaleDetail) error {
@@ -38,7 +44,7 @@ func (r *SaleDetailRepository) FindPriceBySizeIDAndSaleCode(db *gorm.DB, saleCod
 func (r *SaleDetailRepository) FindBySaleCode(db *gorm.DB, saleCode string) ([]entity.SaleDetail, error) {
 	var details = []entity.SaleDetail{}
 
-	if err := db.Model(&entity.SaleDetail{}).Where("sale_code = ?", saleCode).Find(&details).Error; err != nil {
+	if err := db.Model(&entity.SaleDetail{}).Where("sale_code = ? AND is_cancelled = 0", saleCode).Find(&details).Error; err != nil {
 		return nil, err
 	}
 
