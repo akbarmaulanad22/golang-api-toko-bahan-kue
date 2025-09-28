@@ -3,8 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"strconv"
-	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
@@ -12,7 +13,6 @@ import (
 	"tokobahankue/internal/repository"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -68,84 +68,74 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
 		return nil, errors.New("bad request")
 	}
 
-	// validasi minimal salah satu (Debt / Payments) harus ada
 	if request.Debt == nil && len(request.Payments) == 0 {
 		return nil, errors.New("bad request: either debt or payments must be provided")
 	}
 
-	// ambil size harga dalam bentuk map
-	sizeIDs := make([]uint, 0, len(request.Details))
+	qtyBySize := map[uint]int{}
 	for _, d := range request.Details {
-		sizeIDs = append(sizeIDs, d.SizeID)
+		qtyBySize[d.SizeID] += d.Qty
 	}
+	sizeIDs := make([]uint, 0, len(qtyBySize))
+	for sid := range qtyBySize {
+		sizeIDs = append(sizeIDs, sid)
+	}
+	slices.Sort(sizeIDs)
 
-	sizeMap, err := c.SizeRepository.FindPriceMapByIDs(tx, sizeIDs)
+	// Ambil inventory
+	branchInvs, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, request.BranchID, sizeIDs)
 	if err != nil {
 		return nil, errors.New("internal server error")
 	}
 
-	// buat code
+	branchInvMap := make(map[uint]*entity.BranchInventory, len(branchInvs))
+	for i := range branchInvs {
+		branchInvMap[branchInvs[i].SizeID] = &branchInvs[i]
+	}
+
+	// Buat kode sale
 	purchaseCode := "PURCHASE-" + time.Now().Format("20060102150405")
 
-	// buat purchase details + total harga
-	details := make([]entity.PurchaseDetail, 0, len(request.Details))
+	// Build sale details & movements
+	n := len(request.Details)
+	details := make([]entity.PurchaseDetail, n)
+	movements := make([]entity.InventoryMovement, n)
 	var totalPrice float64
-	for _, d := range request.Details {
-		price, ok := sizeMap[d.SizeID]
-		if !ok {
-			return nil, errors.New("invalid size id")
+	now := time.Now().UnixMilli()
+
+	for i, d := range request.Details {
+		inv, exists := branchInvMap[d.SizeID]
+		if !exists {
+			return nil, fmt.Errorf("stok untuk size_id %d tidak ditemukan di branch %d", d.SizeID, request.BranchID)
 		}
-		totalPrice += price * float64(d.Qty)
-		details = append(details, entity.PurchaseDetail{
+
+		totalPrice += d.BuyPrice * float64(d.Qty)
+
+		details[i] = entity.PurchaseDetail{
 			PurchaseCode: purchaseCode,
 			SizeID:       d.SizeID,
 			Qty:          d.Qty,
-			BuyPrice:     price,
-		})
-
-		// ====================================================================
-
-		branchInv := &entity.BranchInventory{}
-		err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, d.SizeID)
-
-		if err != nil {
-			c.Log.WithError(err).Error("error querying branch inventory")
-			return nil, errors.New("internal server error")
+			BuyPrice:     d.BuyPrice,
 		}
-
-		if err := c.BranchInventoryRepository.UpdateStock(tx, branchInv.ID, d.Qty); err != nil {
-			return nil, errors.New("error updating stock")
-		}
-
-		// Catat movement
-		movement := &entity.InventoryMovement{
-			BranchInventoryID: branchInv.ID,
+		movements[i] = entity.InventoryMovement{
+			BranchInventoryID: inv.ID,
 			ChangeQty:         d.Qty,
 			ReferenceType:     "PURCHASE",
 			ReferenceKey:      purchaseCode,
-		}
-
-		if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
-			if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-				switch mysqlErr.Number {
-				case 1452:
-					if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
-						c.Log.Warn("branch inventory doesnt exists")
-						return nil, errors.New("invalid branch inventory id")
-					}
-					return nil, errors.New("foreign key constraint failed")
-				}
-			}
-			return nil, errors.New("error creating inventory movement")
+			CreatedAt:         now,
 		}
 	}
 
-	// buat purchase
-	purchase := entity.Purchase{
+	// Bulk update stok (1 query)
+	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, branchInvs, qtyBySize); err != nil {
+		return nil, err
+	}
+
+	// Insert sale
+	sale := entity.Purchase{
 		Code:          purchaseCode,
 		BranchID:      request.BranchID,
 		DistributorID: request.DistributorID,
@@ -153,44 +143,32 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		TotalPrice:    totalPrice,
 	}
 
-	if err := c.PurchaseRepository.Create(tx, &purchase); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			switch mysqlErr.Number {
-			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`distributor_id`)") {
-					c.Log.Warn("distributor doesnt exists")
-					return nil, errors.New("invalid distributor id")
-				}
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
-					c.Log.Warn("branch doesnt exists")
-					return nil, errors.New("invalid branch id")
-				}
-				return nil, errors.New("foreign key constraint failed")
-			}
-		}
-		return nil, errors.New("error creating purchases")
+	if err := c.PurchaseRepository.Create(tx, &sale); err != nil {
+		return nil, err
 	}
 
 	if err := c.PurchaseDetailRepository.CreateBulk(tx, details); err != nil {
 		return nil, err
 	}
 
-	// insert payments kalau ada
-	if len(request.Payments) > 0 {
-		// build purchase payments + total bayar
-		payments := make([]entity.PurchasePayment, 0, len(request.Payments))
+	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
+		return nil, err
+	}
+
+	// Insert payments (jika ada)
+	if n := len(request.Payments); n > 0 {
+		payments := make([]entity.PurchasePayment, n)
 		var totalPayment float64
-		for _, p := range request.Payments {
+		for i, p := range request.Payments {
 			totalPayment += p.Amount
-			payments = append(payments, entity.PurchasePayment{
+			payments[i] = entity.PurchasePayment{
 				PurchaseCode:  purchaseCode,
 				PaymentMethod: p.PaymentMethod,
 				Amount:        p.Amount,
 				Note:          p.Note,
-			})
+			}
 		}
 
-		// kalau ada payments → cek jumlah payment >= totalPrice
 		if totalPayment < totalPrice {
 			return nil, errors.New("bad request: total payment is less than total price")
 		}
@@ -199,28 +177,31 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			return nil, err
 		}
 
-		// masukin ke catatan keuangan
 		cashBankTransaction := entity.CashBankTransaction{
-			TransactionDate: purchase.CreatedAt,
-			Type:            "IN",
+			TransactionDate: now,
+			Type:            "OUT",
 			Source:          "PURCHASE",
 			Amount:          totalPayment,
 			ReferenceKey:    purchaseCode,
 			BranchID:        &request.BranchID,
 		}
-
 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
 			return nil, err
 		}
 	}
 
-	// insert debt kalau ada
+	// Insert debt (jika ada)
 	if request.Debt != nil {
+		var paidAmount float64
+		for _, p := range request.Debt.DebtPayments {
+			paidAmount += p.Amount
+		}
+
 		debt := entity.Debt{
 			ReferenceType: "PURCHASE",
 			ReferenceCode: purchaseCode,
 			TotalAmount:   totalPrice,
-			PaidAmount:    0,
+			PaidAmount:    paidAmount,
 			DueDate: func() int64 {
 				if request.Debt.DueDate > 0 {
 					return int64(request.Debt.DueDate)
@@ -229,61 +210,43 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			}(),
 			Status: "PENDING",
 		}
-
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
 			return nil, err
 		}
 
-		// insert debt payments kalau ada
-		if len(request.Debt.DebtPayments) > 0 {
-			debtPayments := make([]entity.DebtPayment, 0, len(request.Debt.DebtPayments))
-			for _, p := range request.Debt.DebtPayments {
-
-				// totalin biaya yang dibayar
-				debt.PaidAmount += p.Amount
-
-				debtPayments = append(debtPayments, entity.DebtPayment{
+		if n := len(request.Debt.DebtPayments); n > 0 {
+			debtPayments := make([]entity.DebtPayment, n)
+			for i, p := range request.Debt.DebtPayments {
+				debtPayments[i] = entity.DebtPayment{
 					DebtID:      debt.ID,
-					PaymentDate: purchase.CreatedAt,
-					// PaymentDate: time.Now().UnixMilli(),
-					Amount: p.Amount,
-					Note:   p.Note,
-				})
+					PaymentDate: now,
+					Amount:      p.Amount,
+					Note:        p.Note,
+				}
 			}
-
 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
 				return nil, err
 			}
-
-			// masukin ke catatan keuangan
 			cashBankTransaction := entity.CashBankTransaction{
-				TransactionDate: purchase.CreatedAt,
-				Type:            "IN",
+				TransactionDate: now,
+				Type:            "OUT",
 				Source:          "DEBT",
-				Amount:          debt.PaidAmount,
+				Amount:          paidAmount,
 				Description:     "Bayar Hutang Cicilan Pertama",
 				ReferenceKey:    strconv.Itoa(int(debt.ID)),
 				BranchID:        &request.BranchID,
 			}
-
 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
 				return nil, err
 			}
-
-		}
-
-		if err := c.DebtRepository.Update(tx, &debt); err != nil {
-			return nil, err
 		}
 	}
 
-	// commit transaksi
+	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error committing transaction")
 		return nil, errors.New("internal server error")
 	}
-
-	return converter.PurchaseToResponse(&purchase), nil
+	return converter.PurchaseToResponse(&sale), nil
 }
 
 func (c *PurchaseUseCase) Search(ctx context.Context, request *model.SearchPurchaseRequest) ([]model.PurchaseResponse, int64, error) {

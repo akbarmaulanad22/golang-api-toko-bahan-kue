@@ -39,7 +39,7 @@ func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID u
 	return nil
 }
 
-func (r *BranchInventoryRepository) BulkUpdateStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
+func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
 	if len(details) == 0 {
 		return nil
 	}
@@ -71,13 +71,14 @@ func (r *BranchInventoryRepository) BulkUpdateStock(db *gorm.DB, branchID uint, 
 	if tx.Error != nil {
 		return tx.Error
 	}
+
 	if tx.RowsAffected != int64(len(details)) {
 		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
 	}
 	return nil
 }
 
-func (r *BranchInventoryRepository) BulkRestoreStock(db *gorm.DB, inventories []entity.BranchInventory, qtyBySize map[uint]int) error {
+func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, inventories []entity.BranchInventory, qtyBySize map[uint]int) error {
 	var caseStmt strings.Builder
 	var ids []uint
 
@@ -102,7 +103,7 @@ func (r *BranchInventoryRepository) BulkRestoreStock(db *gorm.DB, inventories []
 	return db.Exec(sql, ids).Error
 }
 
-// func (r *BranchInventoryRepository) BulkRestoreStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
+// func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
 // 	if len(details) == 0 {
 // 		return nil
 // 	}

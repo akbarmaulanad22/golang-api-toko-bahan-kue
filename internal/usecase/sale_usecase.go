@@ -70,6 +70,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	if err := c.Validate.Struct(request); err != nil {
 		return nil, errors.New("bad request")
 	}
+
 	if request.Debt == nil && len(request.Payments) == 0 {
 		return nil, errors.New("bad request: either debt or payments must be provided")
 	}
@@ -137,7 +138,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	}
 
 	// Bulk update stok (1 query)
-	if err := c.BranchInventoryRepository.BulkUpdateStock(tx, request.BranchID, details); err != nil {
+	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, details); err != nil {
 		return nil, err
 	}
 
@@ -344,7 +345,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	}
 
 	// 5) Bulk update branch_inventory.stock (CASE WHEN)
-	if err := c.BranchInventoryRepository.BulkRestoreStock(tx, inventories, qtyBySize); err != nil {
+	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, inventories, qtyBySize); err != nil {
 		return err
 	}
 
