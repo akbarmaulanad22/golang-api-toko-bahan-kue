@@ -57,8 +57,8 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		return errors.New("bad request")
 	}
 
-	sale, err := c.SaleRepository.FindByCode(tx, request.SaleCode)
-	if err != nil {
+	sale := new(entity.Sale)
+	if err := c.SaleRepository.FindLockByCode(tx, request.SaleCode, sale); err != nil {
 		c.Log.WithError(err).Error("error getting sale")
 		return errors.New("not found")
 	}
@@ -83,7 +83,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	}
 
 	if detail.IsCancelled {
-		c.Log.WithError(err).Error("error updating sale detail")
+		c.Log.Error("error updating sale detail")
 		return errors.New("forbidden")
 	}
 
@@ -94,7 +94,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	}
 
 	branchInv := &entity.BranchInventory{}
-	if err = c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, request.SizeID); err != nil {
+	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, request.BranchID, request.SizeID); err != nil {
 		c.Log.WithError(err).Error("error querying branch inventory")
 		return errors.New("internal server error")
 	}
@@ -132,7 +132,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		TransactionDate: time.Now().UnixMilli(),
 		Type:            "OUT",
 		Source:          "SALE",
-		Amount:          sale.TotalPrice,
+		Amount:          detail.SellPrice * float64(detail.Qty),
 		Description:     "PENJUALAN PER ITEM DIBATALKAN",
 		ReferenceKey:    sale.Code,
 		BranchID:        &sale.BranchID,

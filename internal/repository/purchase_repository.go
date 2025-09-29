@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PurchaseRepository struct {
@@ -19,6 +20,7 @@ func NewPurchaseRepository(log *logrus.Logger) *PurchaseRepository {
 		Log: log,
 	}
 }
+
 func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.PurchaseResponse, error) {
 	query := `
 		SELECT 
@@ -171,4 +173,10 @@ func (r *PurchaseRepository) UpdateTotalPrice(db *gorm.DB, code string, totalPri
 		Where("code = ?", code).
 		UpdateColumn("total_price", totalPrice).
 		Error
+}
+
+func (r *PurchaseRepository) FindLockByCode(db *gorm.DB, code string, out *entity.Purchase) error {
+	return db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("code = ?", code).
+		First(out).Error
 }

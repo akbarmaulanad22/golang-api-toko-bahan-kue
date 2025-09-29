@@ -77,7 +77,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 	}
 
 	// Lanjut update status
-	if err := c.PurchaseDetailRepository.Cancel(tx, purchase.Code, request.SizeID); err != nil {
+	if err := c.PurchaseDetailRepository.CancelBySizeID(tx, purchase.Code, request.SizeID); err != nil {
 		c.Log.WithError(err).Error("error updating purchase detail")
 		return errors.New("internal server error")
 	}

@@ -107,6 +107,9 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	var totalPrice float64
 	now := time.Now().UnixMilli()
 
+	// Juga siapkan qtyBySize untuk BulkDecreaseStock
+	qtyBySize := make(map[uint]int, len(request.Details))
+
 	for i, d := range request.Details {
 		price, ok := sizeMap[d.SizeID]
 		if !ok {
@@ -121,6 +124,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		totalPrice += price * float64(d.Qty)
+		qtyBySize[d.SizeID] += d.Qty // ✅ simpan untuk bulk decrease
 
 		details[i] = entity.SaleDetail{
 			SaleCode:  saleCode,
@@ -137,8 +141,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 	}
 
-	// Bulk update stok (1 query)
-	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, details); err != nil {
+	// Bulk update stok (pakai qtyBySize)
+	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, qtyBySize); err != nil {
 		return nil, err
 	}
 
@@ -187,7 +191,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			TransactionDate: now,
 			Type:            "IN",
 			Source:          "SALE",
-			Amount:          totalPayment,
+			Amount:          totalPrice,
 			ReferenceKey:    saleCode,
 			BranchID:        &request.BranchID,
 		}
@@ -256,6 +260,200 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	}
 	return converter.SaleToResponse(&sale), nil
 }
+
+// func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleRequest) (*model.SaleResponse, error) {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
+
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		return nil, errors.New("bad request")
+// 	}
+
+// 	if request.Debt == nil && len(request.Payments) == 0 {
+// 		return nil, errors.New("bad request: either debt or payments must be provided")
+// 	}
+
+// 	// Ambil harga per size
+// 	sizeIDs := make([]uint, len(request.Details))
+// 	for i, d := range request.Details {
+// 		sizeIDs[i] = d.SizeID
+// 	}
+
+// 	sizeMap, err := c.SizeRepository.FindPriceMapByIDs(tx, sizeIDs)
+// 	if err != nil {
+// 		return nil, errors.New("internal server error")
+// 	}
+
+// 	// Ambil inventory
+// 	branchInvs, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, request.BranchID, sizeIDs)
+// 	if err != nil {
+// 		return nil, errors.New("internal server error")
+// 	}
+
+// 	branchInvMap := make(map[uint]*entity.BranchInventory, len(branchInvs))
+// 	for i := range branchInvs {
+// 		branchInvMap[branchInvs[i].SizeID] = &branchInvs[i]
+// 	}
+
+// 	// Buat kode sale
+// 	saleCode := "SALE-" + time.Now().Format("20060102150405")
+
+// 	// Build sale details & movements
+// 	n := len(request.Details)
+// 	details := make([]entity.SaleDetail, n)
+// 	movements := make([]entity.InventoryMovement, n)
+// 	var totalPrice float64
+// 	now := time.Now().UnixMilli()
+
+// 	for i, d := range request.Details {
+// 		price, ok := sizeMap[d.SizeID]
+// 		if !ok {
+// 			return nil, errors.New("invalid size id")
+// 		}
+// 		inv, exists := branchInvMap[d.SizeID]
+// 		if !exists {
+// 			return nil, fmt.Errorf("stok untuk size_id %d tidak ditemukan di branch %d", d.SizeID, request.BranchID)
+// 		}
+// 		if inv.Stock < d.Qty {
+// 			return nil, fmt.Errorf("stok tidak cukup untuk size_id %d (stok: %d, diminta: %d)", d.SizeID, inv.Stock, d.Qty)
+// 		}
+
+// 		totalPrice += price * float64(d.Qty)
+
+// 		details[i] = entity.SaleDetail{
+// 			SaleCode:  saleCode,
+// 			SizeID:    d.SizeID,
+// 			Qty:       d.Qty,
+// 			SellPrice: price,
+// 		}
+// 		movements[i] = entity.InventoryMovement{
+// 			BranchInventoryID: inv.ID,
+// 			ChangeQty:         -d.Qty,
+// 			ReferenceType:     "SALE",
+// 			ReferenceKey:      saleCode,
+// 			CreatedAt:         now,
+// 		}
+// 	}
+
+// 	// Bulk update stok (1 query)
+// 	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, details); err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Insert sale
+// 	sale := entity.Sale{
+// 		Code:         saleCode,
+// 		BranchID:     request.BranchID,
+// 		CustomerName: request.CustomerName,
+// 		TotalPrice:   totalPrice,
+// 		CreatedAt:    now,
+// 	}
+// 	if err := c.SaleRepository.Create(tx, &sale); err != nil {
+// 		return nil, err
+// 	}
+// 	if err := c.SaleDetailRepository.CreateBulk(tx, details); err != nil {
+// 		return nil, err
+// 	}
+// 	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Insert payments (jika ada)
+// 	if n := len(request.Payments); n > 0 {
+// 		payments := make([]entity.SalePayment, n)
+// 		var totalPayment float64
+// 		for i, p := range request.Payments {
+// 			totalPayment += p.Amount
+// 			payments[i] = entity.SalePayment{
+// 				SaleCode:      saleCode,
+// 				PaymentMethod: p.PaymentMethod,
+// 				Amount:        p.Amount,
+// 				Note:          p.Note,
+// 				CreatedAt:     now,
+// 			}
+// 		}
+
+// 		if totalPayment < totalPrice {
+// 			return nil, errors.New("bad request: total payment is less than total price")
+// 		}
+
+// 		if err := c.SalePaymentRepository.CreateBulk(tx, payments); err != nil {
+// 			return nil, err
+// 		}
+
+// 		cashBankTransaction := entity.CashBankTransaction{
+// 			TransactionDate: now,
+// 			Type:            "IN",
+// 			Source:          "SALE",
+// 			Amount:          totalPayment,
+// 			ReferenceKey:    saleCode,
+// 			BranchID:        &request.BranchID,
+// 		}
+// 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+// 			return nil, err
+// 		}
+// 	}
+
+// 	// Insert debt (jika ada)
+// 	if request.Debt != nil {
+// 		var paidAmount float64
+// 		for _, p := range request.Debt.DebtPayments {
+// 			paidAmount += p.Amount
+// 		}
+
+// 		debt := entity.Debt{
+// 			ReferenceType: "SALE",
+// 			ReferenceCode: saleCode,
+// 			TotalAmount:   totalPrice,
+// 			PaidAmount:    paidAmount,
+// 			DueDate: func() int64 {
+// 				if request.Debt.DueDate > 0 {
+// 					return int64(request.Debt.DueDate)
+// 				}
+// 				return time.Now().Add(7 * 24 * time.Hour).UnixMilli()
+// 			}(),
+// 			Status:    "PENDING",
+// 			CreatedAt: now,
+// 			UpdatedAt: now,
+// 		}
+// 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
+// 			return nil, err
+// 		}
+
+// 		if n := len(request.Debt.DebtPayments); n > 0 {
+// 			debtPayments := make([]entity.DebtPayment, n)
+// 			for i, p := range request.Debt.DebtPayments {
+// 				debtPayments[i] = entity.DebtPayment{
+// 					DebtID:      debt.ID,
+// 					PaymentDate: now,
+// 					Amount:      p.Amount,
+// 					Note:        p.Note,
+// 				}
+// 			}
+// 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
+// 				return nil, err
+// 			}
+// 			cashBankTransaction := entity.CashBankTransaction{
+// 				TransactionDate: now,
+// 				Type:            "IN",
+// 				Source:          "DEBT",
+// 				Amount:          paidAmount,
+// 				Description:     "Bayar Hutang Cicilan Pertama",
+// 				ReferenceKey:    strconv.Itoa(int(debt.ID)),
+// 				BranchID:        &request.BranchID,
+// 			}
+// 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+// 				return nil, err
+// 			}
+// 		}
+// 	}
+
+// 	// Commit transaksi
+// 	if err := tx.Commit().Error; err != nil {
+// 		return nil, errors.New("internal server error")
+// 	}
+// 	return converter.SaleToResponse(&sale), nil
+// }
 
 func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
 	tx := c.DB.WithContext(ctx).Begin()
@@ -398,7 +596,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	}
 
 	// 9b) Update debts menjadi VOID + paid_amount = 0
-	if err := c.DebtRepository.FindBySaleCodeAndVoid(tx, request.Code); err != nil {
+	if err := c.DebtRepository.VoidBySaleCode(tx, request.Code); err != nil {
 		return err
 	}
 

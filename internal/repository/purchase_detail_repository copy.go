@@ -21,11 +21,17 @@ func (r *PurchaseDetailRepository) CreateBulk(db *gorm.DB, details []entity.Purc
 	return db.CreateInBatches(&details, 100).Error
 }
 
-func (r *PurchaseDetailRepository) Cancel(db *gorm.DB, purchaseCode string, sizeID uint) error {
+func (r *PurchaseDetailRepository) CancelBySizeID(db *gorm.DB, purchaseCode string, sizeID uint) error {
 	return db.Model(&entity.PurchaseDetail{}).
 		Where("purchase_code = ? AND size_id = ? AND is_cancelled = 0", purchaseCode, sizeID).
 		UpdateColumn("is_cancelled", 1).
 		Error
+}
+
+func (r *PurchaseDetailRepository) Cancel(db *gorm.DB, purchaseCode string) error {
+	return db.Model(&entity.PurchaseDetail{}).
+		Where("purchase_code = ? AND is_cancelled = 0", purchaseCode).
+		UpdateColumn("is_cancelled", 1).Error
 }
 
 func (r *PurchaseDetailRepository) FindPriceBySizeIDAndPurchaseCode(db *gorm.DB, purchaseCode string, sizeID uint, detail *entity.PurchaseDetail) error {
@@ -33,4 +39,14 @@ func (r *PurchaseDetailRepository) FindPriceBySizeIDAndPurchaseCode(db *gorm.DB,
 		Where("purchase_code = ? AND size_id = ?", purchaseCode, sizeID).
 		Take(&detail).
 		Error
+}
+
+func (r *PurchaseDetailRepository) FindByPurchaseCode(db *gorm.DB, purchaseCode string) ([]entity.PurchaseDetail, error) {
+	var details []entity.PurchaseDetail
+	if err := db.Model(&entity.PurchaseDetail{}).
+		Where("purchase_code = ? AND is_cancelled = 0", purchaseCode).
+		Find(&details).Error; err != nil {
+		return nil, err
+	}
+	return details, nil
 }

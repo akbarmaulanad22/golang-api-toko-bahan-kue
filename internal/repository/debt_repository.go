@@ -153,7 +153,7 @@ func (r *DebtRepository) FindBySaleCode(db *gorm.DB, saleCode string) ([]uint, e
 	return debtIDs, nil
 }
 
-func (r *DebtRepository) FindBySaleCodeAndVoid(db *gorm.DB, saleCode string) error {
+func (r *DebtRepository) VoidBySaleCode(db *gorm.DB, saleCode string) error {
 	return db.Model(&entity.Debt{}).
 		Where("reference_type = 'SALE' AND reference_code = ?", saleCode).
 		Updates(map[string]interface{}{
@@ -179,6 +179,22 @@ func (r *DebtRepository) UpdateStatus(db *gorm.DB, id uint) error {
 		Where("id = ?", id).
 		UpdateColumn("status", "VOID").
 		Error
+}
+
+func (r *DebtRepository) FindPluckByPurchaseCode(db *gorm.DB, purchaseCode string) ([]uint, error) {
+	var ids []uint
+	if err := db.Model(&entity.Debt{}).
+		Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).
+		Pluck("id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (r *DebtRepository) VoidByPurchaseCode(db *gorm.DB, purchaseCode string) error {
+	return db.Model(&entity.Debt{}).
+		Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).
+		Updates(map[string]interface{}{"status": "VOID", "paid_amount": 0}).Error
 }
 
 // func (r *DebtRepository) Search(db *gorm.DB, request *model.SearchDebtRequest) ([]entity.Debt, int64, error) {

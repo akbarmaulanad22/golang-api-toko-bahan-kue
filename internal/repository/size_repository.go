@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -59,4 +61,26 @@ func (r *SizeRepository) FindPriceMapByIDs(tx *gorm.DB, ids []uint) (map[uint]fl
 		result[s.ID] = s.SellPrice
 	}
 	return result, nil
+}
+
+func (r *SizeRepository) BulkUpdateBuyPrice(db *gorm.DB, buyPriceBySize map[uint]float64) error {
+	if len(buyPriceBySize) == 0 {
+		return nil
+	}
+
+	var caseStmt strings.Builder
+	var ids []uint
+
+	for sizeID, buyPrice := range buyPriceBySize {
+		caseStmt.WriteString(fmt.Sprintf(" WHEN %d THEN %f", sizeID, buyPrice))
+		ids = append(ids, sizeID)
+	}
+
+	sql := fmt.Sprintf(`
+		UPDATE sizes
+		SET buy_price = CASE id %s END
+		WHERE id IN ?
+	`, caseStmt.String())
+
+	return db.Exec(sql, ids).Error
 }

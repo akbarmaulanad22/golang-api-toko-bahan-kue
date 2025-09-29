@@ -20,3 +20,7 @@ func NewPurchasePaymentRepository(log *logrus.Logger) *PurchasePaymentRepository
 func (r *PurchasePaymentRepository) CreateBulk(db *gorm.DB, payments []entity.PurchasePayment) error {
 	return db.CreateInBatches(&payments, 100).Error
 }
+
+func (r *PurchasePaymentRepository) DeleteByCode(db *gorm.DB, code string) error {
+	return db.Where("purchase_code = ?", code).Delete(&entity.PurchasePayment{}).Error
+}

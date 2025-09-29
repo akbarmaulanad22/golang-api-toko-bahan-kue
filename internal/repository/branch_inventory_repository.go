@@ -39,23 +39,61 @@ func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID u
 	return nil
 }
 
-func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
-	if len(details) == 0 {
+// func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
+// 	if len(details) == 0 {
+// 		return nil
+// 	}
+
+// 	// Build CASE WHEN
+// 	caseStmt := "CASE size_id"
+// 	sizeIDs := make([]string, len(details))
+// 	for i, d := range details {
+// 		caseStmt += fmt.Sprintf(" WHEN %d THEN stock - %d", d.SizeID, d.Qty)
+// 		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
+// 	}
+// 	caseStmt += " END"
+
+// 	validateCase := "CASE size_id"
+// 	for _, d := range details {
+// 		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
+// 	}
+// 	validateCase += " END"
+
+// 	query := fmt.Sprintf(`
+//         UPDATE branch_inventory
+//         SET stock = %s
+//         WHERE branch_id = ?
+//           AND size_id IN (%s)
+//           AND stock >= %s
+//     `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
+
+// 	tx := db.Exec(query, branchID)
+// 	if tx.Error != nil {
+// 		return tx.Error
+// 	}
+
+// 	if tx.RowsAffected != int64(len(details)) {
+// 		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
+// 	}
+// 	return nil
+// }
+
+func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, qtyBySize map[uint]int) error {
+	if len(qtyBySize) == 0 {
 		return nil
 	}
 
-	// Build CASE WHEN
 	caseStmt := "CASE size_id"
-	sizeIDs := make([]string, len(details))
-	for i, d := range details {
-		caseStmt += fmt.Sprintf(" WHEN %d THEN stock - %d", d.SizeID, d.Qty)
-		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
+	sizeIDs := make([]string, 0, len(qtyBySize))
+	for sizeID, qty := range qtyBySize {
+		caseStmt += fmt.Sprintf(" WHEN %d THEN stock - %d", sizeID, qty)
+		sizeIDs = append(sizeIDs, fmt.Sprintf("%d", sizeID))
 	}
 	caseStmt += " END"
 
 	validateCase := "CASE size_id"
-	for _, d := range details {
-		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
+	for sizeID, qty := range qtyBySize {
+		validateCase += fmt.Sprintf(" WHEN %d THEN %d", sizeID, qty)
 	}
 	validateCase += " END"
 
@@ -72,7 +110,7 @@ func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint
 		return tx.Error
 	}
 
-	if tx.RowsAffected != int64(len(details)) {
+	if tx.RowsAffected != int64(len(qtyBySize)) {
 		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
 	}
 	return nil
