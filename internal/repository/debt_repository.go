@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -195,6 +196,25 @@ func (r *DebtRepository) VoidByPurchaseCode(db *gorm.DB, purchaseCode string) er
 	return db.Model(&entity.Debt{}).
 		Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).
 		Updates(map[string]interface{}{"status": "VOID", "paid_amount": 0}).Error
+}
+
+func (r *DebtRepository) UpdateStatusIfVoid(db *gorm.DB, purchaseCode string) error {
+	var debt entity.Debt
+	if err := db.Where("purchase_code = ?", purchaseCode).First(&debt).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // tidak ada hutang, aman
+		}
+		return err
+	}
+
+	// cek kondisi void
+	if debt.TotalAmount == 0 && debt.PaidAmount == 0 {
+		return db.Model(&entity.Debt{}).
+			Where("id = ?", debt.ID).
+			Update("status", "VOID").Error
+	}
+
+	return nil
 }
 
 // func (r *DebtRepository) Search(db *gorm.DB, request *model.SearchDebtRequest) ([]entity.Debt, int64, error) {

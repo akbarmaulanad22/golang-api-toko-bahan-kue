@@ -517,7 +517,7 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	}
 
 	// 6) Update buy_price ke last price (jika ada)
-	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs)
+	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs, purchaseEntity.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error get last buy prices")
 		return errors.New("internal server error")
@@ -615,6 +615,8 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 				return errors.New("internal server error")
 			}
 		}
+		debt.TotalAmount = 0
+		debt.PaidAmount = 0
 		debt.Status = "VOID"
 		if err := c.DebtRepository.Update(tx, debt); err != nil {
 			c.Log.WithError(err).Error("error update debt")

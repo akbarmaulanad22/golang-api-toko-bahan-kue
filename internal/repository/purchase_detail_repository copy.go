@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"tokobahankue/internal/entity"
 
 	"github.com/sirupsen/logrus"
@@ -51,6 +52,14 @@ func (r *PurchaseDetailRepository) FindByPurchaseCode(db *gorm.DB, purchaseCode 
 	return details, nil
 }
 
+func (r *PurchaseDetailRepository) CountActiveByPurchaseCode(db *gorm.DB, purchaseCode string) (int64, error) {
+	var count int64
+	err := db.Model(&entity.PurchaseDetail{}).
+		Where("purchase_code = ? AND is_cancelled = 0", purchaseCode).
+		Count(&count).Error
+	return count, err
+}
+
 // func (r *PurchaseDetailRepository) GetLastBuyPricePerSize(db *gorm.DB, sizeIDs []uint, excludePurchaseCode string) (map[uint]float64, error) {
 // 	results := make([]struct {
 // 		SizeID   uint
@@ -79,24 +88,53 @@ func (r *PurchaseDetailRepository) FindByPurchaseCode(db *gorm.DB, purchaseCode 
 // 	return buyPriceBySize, nil
 // }
 
-func (r *PurchaseDetailRepository) FindLastBuyPricesBySizeIDs(db *gorm.DB, sizeIDs []uint) (map[uint]float64, error) {
+func (r *PurchaseDetailRepository) FindLastBuyPricesBySizeIDs(db *gorm.DB, sizeIDs []uint, excludeCode string) (map[uint]float64, error) {
 	if len(sizeIDs) == 0 {
 		return map[uint]float64{}, nil
 	}
 
-	rows, err := db.Raw(`
-		SELECT pd.size_id, pd.buy_price
-		FROM purchase_details pd
-		JOIN purchases p ON p.code = pd.purchase_code
-		JOIN (
-			SELECT pd.size_id, MAX(p.created_at) AS last_created
-			FROM purchase_details pd
-			JOIN purchases p ON p.code = pd.purchase_code
-			WHERE pd.size_id IN ? AND pd.is_cancelled <> 1 AND p.status <> 'CANCELLED'
-			GROUP BY pd.size_id
-		) latest
-		ON latest.size_id = pd.size_id AND latest.last_created = p.created_at
-	`, sizeIDs).Rows()
+	var rows *sql.Rows
+	var err error
+
+	if excludeCode != "" {
+		// versi dengan exclude purchase tertentu
+		rows, err = db.Raw(`
+            SELECT pd.size_id, pd.buy_price
+            FROM purchase_details pd
+            JOIN purchases p ON p.code = pd.purchase_code
+            JOIN (
+                SELECT pd2.size_id, MAX(p2.created_at) AS last_created
+                FROM purchase_details pd2
+                JOIN purchases p2 ON p2.code = pd2.purchase_code
+                WHERE pd2.size_id IN ? 
+                  AND pd2.is_cancelled <> 1 
+                  AND p2.status <> 'CANCELLED'
+                  AND p2.code <> ?                 -- exclude current purchase
+                GROUP BY pd2.size_id
+            ) latest
+            ON latest.size_id = pd.size_id 
+            AND latest.last_created = p.created_at
+        `, sizeIDs, excludeCode).Rows()
+	} else {
+		// versi tanpa exclude
+		rows, err = db.Raw(`
+            SELECT pd.size_id, pd.buy_price
+            FROM purchase_details pd
+            JOIN purchases p ON p.code = pd.purchase_code
+            JOIN (
+                SELECT pd2.size_id, MAX(p2.created_at) AS last_created
+                FROM purchase_details pd2
+                JOIN purchases p2 ON p2.code = pd2.purchase_code
+                WHERE pd2.size_id IN ? 
+                  AND pd2.is_cancelled <> 1 
+                  AND p2.status <> 'CANCELLED'
+                GROUP BY pd2.size_id
+            ) latest
+            ON latest.size_id = pd.size_id 
+            AND latest.last_created = p.created_at
+        `, sizeIDs).Rows()
+	}
+
 	if err != nil {
 		return nil, err
 	}

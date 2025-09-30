@@ -8,6 +8,7 @@ import (
 )
 
 type PurchasePaymentRepository struct {
+	Repository[entity.PurchasePayment]
 	Log *logrus.Logger
 }
 
