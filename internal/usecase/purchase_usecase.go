@@ -367,94 +367,192 @@ func (c *PurchaseUseCase) Get(ctx context.Context, request *model.GetPurchaseReq
 // 	return purchase, nil
 // }
 
-func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurchaseRequest) (*model.PurchaseResponse, error) {
+// func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurchaseRequest) error {
+// 	tx := c.DB.WithContext(ctx).Begin()
+// 	defer tx.Rollback()
+
+// 	if err := c.Validate.Struct(request); err != nil {
+// 		c.Log.WithError(err).Error("error validating request body")
+// 		return errors.New("bad request")
+// 	}
+
+// 	purchase := new(entity.Purchase)
+// 	if err := c.PurchaseRepository.FindLockByCode(tx, request.Code, purchase); err != nil {
+// 		c.Log.WithError(err).Error("error getting purchase")
+// 		return errors.New("not found")
+// 	}
+
+// 	createdTime := time.UnixMilli(purchase.CreatedAt)
+// 	now := time.Now()
+
+// 	// Hitung durasi sejak dibuat
+// 	duration := now.Sub(createdTime)
+// 	if duration.Hours() >= 24 {
+// 		c.Log.WithField("purchase_code", purchase.Code).Error("error updating purchase: exceeded 24-hour window")
+// 		return errors.New("forbidden")
+// 	}
+
+// 	// Update status purchase jadi CANCELLED
+// 	if err := c.PurchaseRepository.Cancel(tx, purchase.Code); err != nil {
+// 		c.Log.WithError(err).Error("error cancel purchase")
+// 		return errors.New("internal server error")
+// 	}
+
+// 	if err := c.PurchaseDetailRepository.Cancel(tx, purchase.Code); err != nil {
+// 		c.Log.WithError(err).Error("error cancel purchase detaik")
+// 		return errors.New("internal server error")
+// 	}
+
+// 	// Cek apakah ada hutang terkait
+// 	debt := new(entity.Debt)
+// 	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchase.Code); err != nil {
+// 		c.Log.WithError(err).Error("error getting debt")
+// 		return errors.New("not found")
+// 	}
+
+// 	if debt.ID != 0 {
+// 		if debt.PaidAmount > 0 {
+// 			refundTx := entity.CashBankTransaction{
+// 				TransactionDate: now.UnixMilli(),
+// 				Type:            "IN", // uang masuk kembali
+// 				Source:          "PURCHASE_DEBT_VOID",
+// 				Amount:          debt.PaidAmount,
+// 				Description:     "Refund karena pembatalan pembelian " + purchase.Code,
+// 				ReferenceKey:    purchase.Code,
+// 				BranchID:        &purchase.BranchID,
+// 			}
+
+// 			if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
+// 				c.Log.WithError(err).Error("error insert refund transaction")
+// 				return errors.New("internal server error")
+// 			}
+// 		}
+
+// 		debt.Status = "VOID"
+// 		if err := c.DebtRepository.Update(tx, debt); err != nil {
+// 			c.Log.WithError(err).Error("error update debt")
+// 			return errors.New("internal server error")
+// 		}
+// 	} else {
+// 		refundTx := entity.CashBankTransaction{
+// 			TransactionDate: now.UnixMilli(),
+// 			Type:            "IN", // uang masuk kembali
+// 			Source:          "PURCHASE_VOID",
+// 			Amount:          purchase.TotalPrice,
+// 			Description:     "Refund karena pembatalan pembelian " + purchase.Code,
+// 			ReferenceKey:    purchase.Code,
+// 			BranchID:        &purchase.BranchID,
+// 		}
+
+// 		if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
+// 			c.Log.WithError(err).Error("error insert refund transaction")
+// 			return errors.New("internal server error")
+// 		}
+// 	}
+
+// 	if err := tx.Commit().Error; err != nil {
+// 		c.Log.WithError(err).Error("error updating purchase")
+// 		return errors.New("internal server error")
+// 	}
+
+// 	return nil
+// }
+
+func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurchaseRequest) error {
 	tx := c.DB.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
 	defer tx.Rollback()
 
 	// validate input
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return errors.New("bad request")
 	}
 
-	// 1) Load purchase entity (lock) - must return entity.Purchase with BranchID, CreatedAt, Code, Status
+	// 1) Load purchase entity (lock)
 	purchaseEntity := new(entity.Purchase)
 	if err := c.PurchaseRepository.FindLockByCode(tx, request.Code, purchaseEntity); err != nil {
 		c.Log.WithError(err).Error("error getting purchase")
-		return nil, errors.New("not found")
+		return errors.New("not found")
 	}
-
 	if purchaseEntity.Status == "CANCELLED" {
-		return nil, errors.New("purchase already cancelled")
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Warn("purchase already cancelled")
+		return errors.New("purchase already cancelled")
 	}
 
-	// 2) check 24-hour window (use CreatedAt stored in millis)
+	// 2) Check 24-hour window
 	createdTime := time.UnixMilli(purchaseEntity.CreatedAt)
 	if time.Since(createdTime).Hours() >= 24 {
-		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("error cancelling purchase: exceeded 24-hour window")
-		return nil, errors.New("forbidden")
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("exceeded 24-hour window")
+		return errors.New("forbidden")
 	}
 
-	// 3) load purchase details (only not-cancelled)
+	// 3) Load purchase details
 	details, err := c.PurchaseDetailRepository.FindByPurchaseCode(tx, request.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting purchase details")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
 
-	// 4) aggregate qty per size_id (avoid duplicate sizes)
+	// 4) Aggregate qty per size_id
 	qtyBySize := make(map[uint]int, len(details))
 	for _, d := range details {
-		// only consider not-cancelled rows; repo should return only is_cancelled=0
 		qtyBySize[d.SizeID] += d.Qty
 	}
 
-	// build sorted sizeIDs for deterministic lock order (reduce deadlock risk)
+	// 5) Fetch & lock branch_inventory rows
 	sizeIDs := make([]uint, 0, len(qtyBySize))
 	for sid := range qtyBySize {
 		sizeIDs = append(sizeIDs, sid)
 	}
 	slices.Sort(sizeIDs)
 
-	// 5) fetch & lock branch_inventory rows for this branch and sizes
 	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, purchaseEntity.BranchID, sizeIDs)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting branch inventory")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
 	if len(inventories) == 0 {
-		// data integrity issue
-		return nil, errors.New("branch inventory rows not found for purchase sizes")
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("branch inventory rows not found")
+		return errors.New("branch inventory rows not found for purchase sizes")
 	}
 
-	// map size->inventory and also ensure stock enough
+	// 6) Update buy_price ke last price (jika ada)
+	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs)
+	if err != nil {
+		c.Log.WithError(err).Error("error get last buy prices")
+		return errors.New("internal server error")
+	}
+	if len(lastPrices) > 0 {
+		if err := c.SizeRepository.BulkUpdateBuyPrice(tx, lastPrices); err != nil {
+			c.Log.WithError(err).Error("error bulk update buy price")
+			return errors.New("internal server error")
+		}
+		c.Log.WithField("count", len(lastPrices)).Info("updated last buy prices")
+	}
+
+	// 7) Ensure no negative stock
 	invBySize := make(map[uint]entity.BranchInventory, len(inventories))
 	for _, inv := range inventories {
 		invBySize[inv.SizeID] = inv
 	}
-
-	// 6) optional: ensure no negative stock after decreasing
 	for sid, qty := range qtyBySize {
 		inv, ok := invBySize[sid]
 		if !ok {
-			return nil, fmt.Errorf("branch_inventory not found for size_id %d", sid)
+			return fmt.Errorf("branch_inventory not found for size_id %d", sid)
 		}
 		if inv.Stock < qty {
-			return nil, fmt.Errorf("insufficient stock for size_id %d: have %d need %d", sid, inv.Stock, qty)
+			return fmt.Errorf("insufficient stock for size_id %d: have %d need %d", sid, inv.Stock, qty)
 		}
 	}
 
-	// 7) Bulk decrease stock with single UPDATE CASE (stock = stock - qty)
+	// 8) Bulk decrease stock
 	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchaseEntity.BranchID, qtyBySize); err != nil {
 		c.Log.WithError(err).Error("error decreasing branch inventory")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
+	c.Log.WithField("purchase_code", purchaseEntity.Code).Info("branch inventory decreased")
 
-	// 8) Insert inventory_movements (bulk) with negative change_qty (prealloc without append)
-	// count valid movements
+	// 9) Insert inventory movements
 	mvCount := 0
 	for sid, qty := range qtyBySize {
 		if qty > 0 {
@@ -473,8 +571,8 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 		inv := invBySize[sid]
 		movements[idx] = entity.InventoryMovement{
 			BranchInventoryID: inv.ID,
-			ChangeQty:         -qty, // negative because returning to distributor
-			ReferenceType:     "PURCHASE_CANCEL",
+			ChangeQty:         -qty,
+			ReferenceType:     "PURCHASE_CANCELLED",
 			ReferenceKey:      purchaseEntity.Code,
 			CreatedAt:         now,
 		}
@@ -483,58 +581,73 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	if mvCount > 0 {
 		if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
 			c.Log.WithError(err).Error("error inserting inventory movements")
-			return nil, errors.New("internal server error")
+			return errors.New("internal server error")
 		}
+		c.Log.WithField("count", mvCount).Info("inventory movements inserted")
 	}
 
-	// 9) Mark purchase_details as cancelled (single UPDATE)
+	// 10) Cancel purchase details
 	if err := c.PurchaseDetailRepository.Cancel(tx, purchaseEntity.Code); err != nil {
 		c.Log.WithError(err).Error("error updating purchase details")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
 
-	// 10) Delete purchase_payments (single query)
-	if err := c.PurchasePaymentRepository.DeleteByCode(tx, purchaseEntity.Code); err != nil {
-		c.Log.WithError(err).Error("error deleting purchase payments")
-		return nil, errors.New("internal server error")
+	// 11) Handle debt + refund
+	debt := new(entity.Debt)
+	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchaseEntity.Code); err != nil {
+		c.Log.WithError(err).Error("error getting debt")
+		return errors.New("not found")
 	}
 
-	// 11) Handle debts: delete debt_payments (by debt ids) & mark debts VOID
-	// 11a) pluck debt ids for this purchase
-	debtIDs, err := c.DebtRepository.FindPluckByPurchaseCode(tx, purchaseEntity.Code)
-	if err != nil {
-		c.Log.WithError(err).Error("error fetching debts")
-		return nil, errors.New("internal server error")
-	}
-	if len(debtIDs) > 0 {
-		if err := c.DebtPaymentRepository.DeleteINDebtID(tx, debtIDs); err != nil {
-			c.Log.WithError(err).Error("error deleting debt payments")
-			return nil, errors.New("internal server error")
+	if debt.ID != 0 {
+		if debt.PaidAmount > 0 {
+			refundTx := entity.CashBankTransaction{
+				TransactionDate: time.Now().UnixMilli(),
+				Type:            "IN",
+				Source:          "PURCHASE_DEBT_CANCELLED",
+				Amount:          debt.PaidAmount,
+				Description:     "Refund karena pembatalan pembelian " + purchaseEntity.Code,
+				ReferenceKey:    purchaseEntity.Code,
+				BranchID:        &purchaseEntity.BranchID,
+			}
+			if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
+				c.Log.WithError(err).Error("error insert refund transaction (debt)")
+				return errors.New("internal server error")
+			}
 		}
-		if err := c.DebtRepository.VoidByPurchaseCode(tx, purchaseEntity.Code); err != nil {
-			c.Log.WithError(err).Error("error updating debts to VOID")
-			return nil, errors.New("internal server error")
+		debt.Status = "VOID"
+		if err := c.DebtRepository.Update(tx, debt); err != nil {
+			c.Log.WithError(err).Error("error update debt")
+			return errors.New("internal server error")
+		}
+	} else {
+		refundTx := entity.CashBankTransaction{
+			TransactionDate: time.Now().UnixMilli(),
+			Type:            "IN",
+			Source:          "PURCHASE_CANCELLED",
+			Amount:          purchaseEntity.TotalPrice,
+			Description:     "Refund karena pembatalan pembelian " + purchaseEntity.Code,
+			ReferenceKey:    purchaseEntity.Code,
+			BranchID:        &purchaseEntity.BranchID,
+		}
+		if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
+			c.Log.WithError(err).Error("error insert refund transaction")
+			return errors.New("internal server error")
 		}
 	}
 
-	// 12) Update purchase status to CANCELLED
+	// 12) Update purchase status
 	if err := c.PurchaseRepository.Cancel(tx, purchaseEntity.Code); err != nil {
 		c.Log.WithError(err).Error("error updating purchase status")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
 
 	// commit
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error committing cancel purchase")
-		return nil, errors.New("internal server error")
+		return errors.New("internal server error")
 	}
 
-	// finally return the purchase response (fresh)
-	resp, err := c.PurchaseRepository.FindByCode(c.DB, purchaseEntity.Code)
-	if err != nil {
-		// commit succeeded but fetch failed — still return success-ish but with minimal info
-		c.Log.WithError(err).Warn("cancel succeeded but failed to fetch response")
-		return &model.PurchaseResponse{Code: purchaseEntity.Code, Status: "CANCELLED"}, nil
-	}
-	return resp, nil
+	c.Log.WithField("purchase_code", purchaseEntity.Code).Info("purchase cancelled successfully")
+	return nil
 }

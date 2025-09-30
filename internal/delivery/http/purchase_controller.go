@@ -43,7 +43,7 @@ func (c *PurchaseController) Create(w http.ResponseWriter, r *http.Request) {
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create sale: %+v", err)
+		c.Log.Warnf("Failed to create purchase: %+v", err)
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
@@ -122,7 +122,7 @@ func (c *PurchaseController) List(w http.ResponseWriter, r *http.Request) {
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Error("error searching sale")
+		c.Log.WithError(err).Error("error searching purchase")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
@@ -145,7 +145,7 @@ func (c *PurchaseController) Get(w http.ResponseWriter, r *http.Request) {
 
 	code, ok := params["code"]
 	if !ok || code == "" {
-		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
+		http.Error(w, "Invalid purchase code parameter", http.StatusBadRequest)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (c *PurchaseController) Get(w http.ResponseWriter, r *http.Request) {
 
 	response, err := c.UseCase.Get(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting sale")
+		c.Log.WithError(err).Error("error getting purchase")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
@@ -169,7 +169,7 @@ func (c *PurchaseController) Cancel(w http.ResponseWriter, r *http.Request) {
 
 	code, ok := params["code"]
 	if !ok || code == "" {
-		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
+		http.Error(w, "Invalid purchase code parameter", http.StatusBadRequest)
 		return
 	}
 
@@ -177,12 +177,11 @@ func (c *PurchaseController) Cancel(w http.ResponseWriter, r *http.Request) {
 		Code: code,
 	}
 
-	response, err := c.UseCase.Cancel(r.Context(), &request)
-	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to cancel sale")
+	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {
+		c.Log.WithError(err).Warnf("Failed to cancel purchase")
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
 		return
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.PurchaseResponse]{Data: response})
+	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
 }

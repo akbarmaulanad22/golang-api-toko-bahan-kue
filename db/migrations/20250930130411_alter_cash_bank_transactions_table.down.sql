@@ -1,0 +1,1 @@
+ALTER TABLE cash_bank_transactions MODIFY COLUMN source ENUM('SALE','PURCHASE','EXPENSE','DEBT','CAPITAL') NOT NULL;
