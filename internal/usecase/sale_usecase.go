@@ -71,7 +71,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		return nil, errors.New("bad request")
 	}
 
-	if request.Debt == nil && len(request.Payments) == 0 {
+	if request.Debt == nil && len(request.Payments) == 0 || (request.Debt != nil && len(request.Payments) > 0) {
 		return nil, errors.New("bad request: either debt or payments must be provided")
 	}
 
@@ -205,6 +205,9 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		var paidAmount float64
 		for _, p := range request.Debt.DebtPayments {
 			paidAmount += p.Amount
+		}
+		if paidAmount > totalPrice {
+			return nil, errors.New("bad request: total debt payment is more than total price")
 		}
 
 		debt := entity.Debt{
@@ -510,44 +513,62 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	c.Log.Infof("SALE_CANCEL: start cancel sale %s", request.Code)
+
 	// 1) Lock sale
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.Code, sale); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: sale %s not found", request.Code)
 		return fmt.Errorf("sale not found: %w", err)
 	}
 	if sale.Status == "CANCELLED" {
+		c.Log.Warnf("SALE_CANCEL: sale %s already cancelled", request.Code)
 		return errors.New("sale already cancelled")
 	}
+	c.Log.Infof("SALE_CANCEL: sale %s locked, status=%s, total_price=%f", sale.Code, sale.Status, sale.TotalPrice)
 
-	// 2) Get sale_details (not cancelled yet)
+	// 2) Get sale_details
 	details, err := c.SaleDetailRepository.FindBySaleCode(tx, request.Code)
 	if err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed to find sale details %s", request.Code)
 		return fmt.Errorf("sale details not found: %w", err)
 	}
 
 	// 3) Hitung qty per size_id
 	qtyBySize := map[uint]int{}
+
 	for _, d := range details {
-		qtyBySize[d.SizeID] += d.Qty
+		if !d.IsCancelled {
+			qtyBySize[d.SizeID] += d.Qty
+		}
 	}
+	if len(qtyBySize) == 0 {
+		c.Log.Warnf("SALE_CANCEL: all details already cancelled %s", request.Code)
+		return errors.New("all sale details already cancelled")
+	}
+	c.Log.Infof("SALE_CANCEL: qtyBySize=%+v", qtyBySize)
+
 	sizeIDs := make([]uint, 0, len(qtyBySize))
 	for sid := range qtyBySize {
 		sizeIDs = append(sizeIDs, sid)
 	}
 	slices.Sort(sizeIDs)
 
-	// 4) Ambil branch_inventory (lock)
+	// 4) Ambil branch_inventory
 	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, sale.BranchID, sizeIDs)
 	if err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed get branch_inventory branch=%d, sizes=%+v", sale.BranchID, sizeIDs)
 		return err
 	}
 
-	// 5) Bulk update branch_inventory.stock (CASE WHEN)
+	// 5) Update stock
 	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, inventories, qtyBySize); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: bulk increase stock failed sale=%s", sale.Code)
 		return err
 	}
+	c.Log.Infof("SALE_CANCEL: stock increased branch=%d sale=%s", sale.BranchID, sale.Code)
 
-	// 6) Insert inventory_movements (bulk insert)
+	// 6) Insert inventory_movements
 	movements := make([]entity.InventoryMovement, 0, len(inventories))
 	for _, inv := range inventories {
 		addQty := qtyBySize[inv.SizeID]
@@ -557,75 +578,99 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 		movements = append(movements, entity.InventoryMovement{
 			BranchInventoryID: inv.ID,
 			ChangeQty:         addQty,
-			ReferenceType:     "SALE_CANCEL",
+			ReferenceType:     "SALE_CANCELLED",
 			ReferenceKey:      request.Code,
+			CreatedAt:         time.Now().UnixMilli(),
 		})
 	}
-
 	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed create inventory_movements sale=%s", sale.Code)
 		return err
 	}
+	c.Log.Infof("SALE_CANCEL: inventory movements created sale=%s count=%d", sale.Code, len(movements))
 
-	// 7) Update sale_details jadi cancelled (batch GORM)
+	// 7) Cancel sale_details
 	if err := c.SaleDetailRepository.Cancel(tx, request.Code); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed cancel sale_details %s", sale.Code)
+		return err
+	}
+	c.Log.Infof("SALE_CANCEL: sale_details cancelled sale=%s", sale.Code)
+
+	// 8) Debt handling
+	debt := new(entity.Debt)
+	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, request.Code); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed get debt sale=%s", sale.Code)
 		return err
 	}
 
-	// 8) Hapus sale_payments (batch GORM)
-	if err := c.SalePaymentRepository.DeleteBySaleCode(tx, request.Code); err != nil {
-		return err
-	}
+	if debt.ID != 0 {
+		c.Log.Infof("SALE_CANCEL: debt found sale=%s debt_id=%d", sale.Code, debt.ID)
 
-	// 9) Hapus debt_payments + void debt (GORM batch)
-	// 9a) Ambil debts yang berkaitan (pluck id)
-	debtIDs, err := c.DebtRepository.FindBySaleCode(tx, request.Code)
-	if err != nil {
-		return err
-	}
+		if debt.PaidAmount > 0 {
+			outTx := entity.CashBankTransaction{
+				TransactionDate: time.Now().UnixMilli(),
+				Type:            "OUT",
+				Source:          "SALE_DEBT_CANCELLED",
+				Amount:          debt.PaidAmount,
+				Description:     fmt.Sprintf("Pembatalan penjualan berutang %s", sale.Code),
+				ReferenceKey:    sale.Code,
+				BranchID:        &sale.BranchID,
+				CreatedAt:       time.Now().UnixMilli(),
+				UpdatedAt:       time.Now().UnixMilli(),
+			}
+			if err := c.CashBankTransactionRepository.Create(tx, &outTx); err != nil {
+				c.Log.WithError(err).Errorf("SALE_CANCEL: failed create cashbank transaction debt sale=%s", sale.Code)
+				return err
+			}
+			c.Log.Infof("SALE_CANCEL: cashbank OUT debt cancelled sale=%s amount=%f", sale.Code, outTx.Amount)
 
-	if len(debtIDs) > 0 {
-		// Hapus debt_payments untuk debt_ids ini (single query)
-		if err := c.DebtPaymentRepository.DeleteINDebtID(tx, debtIDs); err != nil {
-			return err
 		}
 
-		if err := c.CashBankTransactionRepository.DeleteByDebtID(tx, debtIDs); err != nil {
+		debt.Status = "VOID"
+		debt.TotalAmount = 0
+		debt.PaidAmount = 0
+		if err := c.DebtRepository.Update(tx, debt); err != nil {
+			c.Log.WithError(err).Errorf("SALE_CANCEL: failed update debt sale=%s", sale.Code)
 			return err
 		}
+		c.Log.Infof("SALE_CANCEL: debt voided sale=%s debt_id=%d", sale.Code, debt.ID)
 
+	} else {
+		c.Log.Infof("SALE_CANCEL: no debt found, logging cashbank directly sale=%s", sale.Code)
+
+		outTx := entity.CashBankTransaction{
+			TransactionDate: time.Now().UnixMilli(),
+			Type:            "OUT",
+			Source:          "SALE_CANCELLED",
+			Amount:          sale.TotalPrice,
+			Description:     fmt.Sprintf("Pembatalan penjualan %s", sale.Code),
+			ReferenceKey:    sale.Code,
+			BranchID:        &sale.BranchID,
+			CreatedAt:       time.Now().UnixMilli(),
+			UpdatedAt:       time.Now().UnixMilli(),
+		}
+		if err := c.CashBankTransactionRepository.Create(tx, &outTx); err != nil {
+			c.Log.WithError(err).Errorf("SALE_CANCEL: failed create cashbank transaction sale=%s", sale.Code)
+			return err
+		}
+		c.Log.Infof("SALE_CANCEL: cashbank OUT sale cancelled sale=%s amount=%f", sale.Code, outTx.Amount)
 	}
 
-	// 9b) Update debts menjadi VOID + paid_amount = 0
-	if err := c.DebtRepository.VoidBySaleCode(tx, request.Code); err != nil {
+	// 9) Update sale status
+	if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed update sale status %s", sale.Code)
 		return err
 	}
+	c.Log.Infof("SALE_CANCEL: sale status updated to CANCELLED sale=%s", sale.Code)
 
-	// 10) create cash bank transaction
-	cashBankTransaction := entity.CashBankTransaction{
-		TransactionDate: time.Now().UnixMilli(),
-		Type:            "OUT",
-		Source:          "SALE",
-		Amount:          sale.TotalPrice,
-		Description:     "PEMNJUALAN DIBATALKAN",
-		ReferenceKey:    sale.Code,
-		BranchID:        &sale.BranchID,
-	}
-
-	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+	// 10) Commit
+	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Errorf("SALE_CANCEL: failed commit transaction sale=%s", sale.Code)
 		return err
 	}
+	c.Log.Infof("SALE_CANCEL: completed successfully sale=%s", sale.Code)
 
-	// 10) delete cash bank transaction
-	// if err := c.CashBankTransactionRepository.DeleteBySaleCode(tx, request.Code); err != nil {
-	// 	return err
-	// }
-
-	// 11) Update sale status jadi CANCELLED
-	if err := c.SaleRepository.Cancel(tx, request.Code); err != nil {
-		return err
-	}
-
-	return tx.Commit().Error
+	return nil
 }
 
 // func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) (*model.SaleResponse, error) {
