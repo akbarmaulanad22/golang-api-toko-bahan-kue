@@ -20,3 +20,18 @@ type SearchBranchInventoryRequest struct {
 	Page     int    `json:"page" validate:"min=1"`
 	Size     int    `json:"size" validate:"min=1,max=100"`
 }
+
+type CreateBranchInventoryRequest struct {
+	BranchID uint `json:"branch_id" validate:"required"`
+	SizeID   uint `json:"size_id" validate:"required"`
+}
+
+type UpdateBranchInventoryRequest struct {
+	ID       uint `json:"-" validate:"required"`
+	BranchID uint `json:"branch_id" validate:"required"`
+	SizeID   uint `json:"size_id" validate:"required"`
+}
+
+type DeleteBranchInventoryRequest struct {
+	ID uint `json:"-" validate:"required"`
+}
