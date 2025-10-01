@@ -51,3 +51,14 @@ func (r *SaleDetailRepository) FindBySaleCode(db *gorm.DB, saleCode string) ([]e
 	return details, nil
 
 }
+
+func (r *SaleDetailRepository) CountActiveBySaleCode(db *gorm.DB, saleCode string) (int64, error) {
+	var count int64
+	err := db.Model(&entity.SaleDetail{}).
+		Where("sale_code = ? AND is_cancelled = 0", saleCode).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

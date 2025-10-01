@@ -175,7 +175,8 @@ func (r *SaleRepository) Cancel(db *gorm.DB, code string) error {
 	return db.Model(&entity.Sale{}).
 		Where("code = ?", code).
 		Updates(map[string]interface{}{
-			"status": "CANCELLED",
+			"status":      "CANCELLED",
+			"total_price": 0,
 		}).Error
 }
 

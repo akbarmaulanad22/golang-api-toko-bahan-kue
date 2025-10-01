@@ -164,8 +164,10 @@ func (r *PurchaseRepository) FilterPurchase(request *model.SearchPurchaseRequest
 func (r *PurchaseRepository) Cancel(db *gorm.DB, code string) error {
 	return db.Model(&entity.Purchase{}).
 		Where("code = ?", code).
-		UpdateColumn("status", "CANCELLED").
-		Error
+		Updates(map[string]interface{}{
+			"status":      "CANCELLED",
+			"total_price": 0,
+		}).Error
 }
 
 func (r *PurchaseRepository) UpdateTotalPrice(db *gorm.DB, code string, totalPrice float64) error {
