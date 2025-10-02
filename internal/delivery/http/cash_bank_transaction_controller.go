@@ -11,7 +11,6 @@ import (
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
 
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,28 +24,6 @@ func NewCashBankTransactionController(useCase *usecase.CashBankTransactionUseCas
 		Log:     logger,
 		UseCase: useCase,
 	}
-}
-
-func (c *CashBankTransactionController) Create(w http.ResponseWriter, r *http.Request) {
-
-	var request model.CreateCashBankTransactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	auth := middleware.GetUser(r)
-	request.BranchID = auth.BranchID
-
-	response, err := c.UseCase.Create(r.Context(), &request)
-	if err != nil {
-		c.Log.Warnf("Failed to create cashBankTransaction: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
-
-	json.NewEncoder(w).Encode(model.WebResponse[*model.CashBankTransactionResponse]{Data: response})
 }
 
 func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Request) {
@@ -136,73 +113,4 @@ func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Requ
 		Data:   responses,
 		Paging: paging,
 	})
-}
-
-func (c *CashBankTransactionController) Get(w http.ResponseWriter, r *http.Request) {
-	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-
-	request := &model.GetCashBankTransactionRequest{
-		ID: uint(idInt),
-	}
-
-	response, err := c.UseCase.Get(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting cash bank transaction")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
-
-	json.NewEncoder(w).Encode(model.WebResponse[*model.CashBankTransactionResponse]{Data: response})
-}
-
-func (c *CashBankTransactionController) Update(w http.ResponseWriter, r *http.Request) {
-
-	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-
-	request := new(model.UpdateCashBankTransactionRequest)
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	request.ID = uint(idInt)
-
-	response, err := c.UseCase.Update(r.Context(), request)
-	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update cash bank transaction")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
-
-	json.NewEncoder(w).Encode(model.WebResponse[*model.CashBankTransactionResponse]{Data: response})
-}
-
-func (c *CashBankTransactionController) Delete(w http.ResponseWriter, r *http.Request) {
-
-	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-
-	request := &model.DeleteCashBankTransactionRequest{
-		ID: uint(idInt),
-	}
-
-	if err := c.UseCase.Delete(r.Context(), request); err != nil {
-		c.Log.WithError(err).Error("error deleting cash bank transaction")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
-	}
-
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
 }

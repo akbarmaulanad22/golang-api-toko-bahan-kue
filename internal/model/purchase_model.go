@@ -6,6 +6,7 @@ type PurchaseResponse struct {
 	Status          string                    `json:"status,omitempty"`
 	CreatedAt       int64                     `json:"created_at,omitempty"`
 	BranchName      string                    `json:"branch_name,omitempty"`
+	BranchID        uint                      `json:"branch_id,omitempty"`
 	DistributorName string                    `json:"distributor_name,omitempty"`
 	TotalQty        int                       `json:"total_qty,omitempty"`
 	TotalPrice      float64                   `json:"total_price,omitempty"`

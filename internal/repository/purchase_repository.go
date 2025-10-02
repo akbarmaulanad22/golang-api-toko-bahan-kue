@@ -24,7 +24,7 @@ func NewPurchaseRepository(log *logrus.Logger) *PurchaseRepository {
 func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.PurchaseResponse, error) {
 	query := `
 		SELECT 
-			s.code, s.sales_name, s.status, s.created_at, s.total_price,
+			s.code, s.sales_name, s.status, s.created_at, s.total_price, s.branch_id,
 			b.name AS branch_name,
 			sd.size_id, sd.qty, sd.buy_price AS item_buy_price, sd.is_cancelled,
 			sz.name AS size_name, sz.buy_price AS size_buy_price,
@@ -54,6 +54,7 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 			sizeID, qty, isCancelled                        int
 			itemBuyPrice, sizeBuyPrice, totalPrice          float64
 			sizeName, productSKU, productName               string
+			branchID                                        uint
 
 			paymentMethod, note sql.NullString
 			amount              sql.NullFloat64
@@ -61,7 +62,7 @@ func (r *PurchaseRepository) FindByCode(db *gorm.DB, code string) (*model.Purcha
 		)
 
 		if err := rows.Scan(
-			&purchaseCode, &purchasesName, &status, &createdAt, &totalPrice, &branchName,
+			&purchaseCode, &purchasesName, &status, &createdAt, &totalPrice, &branchID, &branchName,
 			&sizeID, &qty, &itemBuyPrice, &isCancelled,
 			&sizeName, &sizeBuyPrice,
 			&productSKU, &productName,

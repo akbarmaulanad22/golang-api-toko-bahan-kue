@@ -73,7 +73,7 @@ func Bootstrap(config *BootstrapConfig) {
 	debtUseCase := usecase.NewDebtUseCase(config.DB, config.Log, config.Validate, debtRepository)
 	branchInventoryUseCase := usecase.NewBranchInventoryUseCase(config.DB, config.Log, config.Validate, branchInventoryRepository)
 	inventoryMovementUseCase := usecase.NewInventoryMovementUseCase(config.DB, config.Log, config.Validate, inventoryMovementRepository, branchInventoryRepository)
-	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository, cashBankTransactionRepository, debtRepository)
+	debtPaymentUseCase := usecase.NewDebtPaymentUseCase(config.DB, config.Log, config.Validate, debtPaymentRepository, cashBankTransactionRepository, debtRepository, saleRepository, purchaseRepository)
 	saleDetailUseCase := usecase.NewSaleDetailUseCase(config.DB, config.Log, config.Validate, saleDetailRepository, saleRepository, inventoryMovementRepository, branchInventoryRepository, cashBankTransactionRepository, debtRepository)
 	purchaseDetailUseCase := usecase.NewPurchaseDetailUseCase(config.DB, config.Log, config.Validate, purchaseDetailRepository, purchaseRepository, branchInventoryRepository, inventoryMovementRepository, sizeRepository, debtRepository, cashBankTransactionRepository, purchasePaymentRepository)
 	purchaseReportUseCase := usecase.NewPurchaseReportUseCase(config.DB, config.Log, config.Validate, purchaseReportRepository)

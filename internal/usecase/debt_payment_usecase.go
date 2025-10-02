@@ -24,6 +24,8 @@ type DebtPaymentUseCase struct {
 	DebtPaymentRepository         *repository.DebtPaymentRepository
 	CashBankTransactionRepository *repository.CashBankTransactionRepository
 	DebtRepository                *repository.DebtRepository
+	SaleRepository                *repository.SaleRepository
+	PurchaseRepository            *repository.PurchaseRepository
 }
 
 func NewDebtPaymentUseCase(
@@ -33,6 +35,8 @@ func NewDebtPaymentUseCase(
 	debtPaymentRepository *repository.DebtPaymentRepository,
 	cashBankTransactionRepository *repository.CashBankTransactionRepository,
 	debtRepository *repository.DebtRepository,
+	saleRepository *repository.SaleRepository,
+	purchaseRepository *repository.PurchaseRepository,
 ) *DebtPaymentUseCase {
 	return &DebtPaymentUseCase{
 		DB:                            db,
@@ -41,6 +45,8 @@ func NewDebtPaymentUseCase(
 		DebtPaymentRepository:         debtPaymentRepository,
 		CashBankTransactionRepository: cashBankTransactionRepository,
 		DebtRepository:                debtRepository,
+		SaleRepository:                saleRepository,
+		PurchaseRepository:            purchaseRepository,
 	}
 }
 
@@ -64,7 +70,14 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 		return nil, errors.New("forbidden")
 	}
 
+	// Tambah paid amount
 	debt.PaidAmount += request.Amount
+
+	// Jika sudah lunas, update status jadi PAID
+	if debt.PaidAmount >= debt.TotalAmount {
+		debt.Status = "PAID"
+	}
+
 	if err := c.DebtRepository.Update(tx, debt); err != nil {
 		c.Log.WithError(err).Error("error update paid amount debt")
 		return nil, errors.New("internal server error")
@@ -93,9 +106,16 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 		return nil, errors.New("internal server error")
 	}
 
+	var txType string
+	if debt.ReferenceType == "SALE" {
+		txType = "IN"
+	} else {
+		txType = "OUT"
+	}
+
 	cashBankTransaction := &entity.CashBankTransaction{
 		TransactionDate: request.PaymentDate,
-		Type:            "IN",
+		Type:            txType,
 		Source:          "DEBT",
 		Amount:          request.Amount,
 		Description:     request.Note,
@@ -127,42 +147,6 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 	return converter.DebtPaymentToResponse(debtPayment), nil
 }
 
-// func (c *DebtPaymentUseCase) Update(ctx context.Context, request *model.UpdateDebtPaymentRequest) (*model.DebtPaymentResponse, error) {
-// 	tx := c.DB.WithContext(ctx).Begin()
-// 	defer tx.Rollback()
-
-// 	if err := c.Validate.Struct(request); err != nil {
-// 		c.Log.WithError(err).Error("error validating request body")
-// 		return nil, errors.New("bad request")
-// 	}
-
-// 	debtPayment := new(entity.DebtPayment)
-// 	if err := c.DebtPaymentRepository.FindById(tx, debtPayment, request.ID); err != nil {
-// 		c.Log.WithError(err).Error("error getting debt payment")
-// 		return nil, errors.New("not found")
-// 	}
-
-// 	if debtPayment.Note == request.Note && debtPayment.Amount == request.Amount {
-// 		return converter.DebtPaymentToResponse(debtPayment), nil
-// 	}
-
-// 	debtPayment.Note = request.Note
-// 	debtPayment.Amount = request.Amount
-// 	debtPayment.Type = request.Type
-
-// 	if err := c.DebtPaymentRepository.Update(tx, debtPayment); err != nil {
-// 		c.Log.WithError(err).Error("error updating debt payment")
-// 		return nil, errors.New("internal server error")
-// 	}
-
-// 	if err := tx.Commit().Error; err != nil {
-// 		c.Log.WithError(err).Error("error updating debt payment")
-// 		return nil, errors.New("internal server error")
-// 	}
-
-// 	return converter.DebtPaymentToResponse(debtPayment), nil
-// }
-
 func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDebtPaymentRequest) error {
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
@@ -172,28 +156,94 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 		return errors.New("bad request")
 	}
 
+	// ambil debt payment
 	debtPayment := new(entity.DebtPayment)
 	if err := c.DebtPaymentRepository.FindById(tx, debtPayment, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting debt payment")
 		return errors.New("not found")
 	}
 
-	// Konversi CreatedAt (milli detik) ke time.Time
-	createdAtTime := time.UnixMilli(debtPayment.CreatedAt)
+	// ambil debt
+	debt := new(entity.Debt)
+	if err := c.DebtRepository.FindById(tx, debt, debtPayment.DebtID); err != nil {
+		c.Log.WithError(err).Error("error getting debt")
+		return errors.New("not found")
+	}
 
-	// bandingkan waktu debtPayment.CreatedAt dengan saat ini
+	var branchID *uint
+	var txType string
+
+	switch debt.ReferenceType {
+	case "SALE":
+		sale, err := c.SaleRepository.FindByCode(tx, debt.ReferenceCode)
+		if err != nil {
+			c.Log.WithError(err).Error("error getting sale for branch id")
+			return errors.New("not found")
+		}
+		branchID = &sale.BranchID
+		txType = "OUT"
+
+	case "PURCHASE":
+		purchase, err := c.PurchaseRepository.FindByCode(tx, debt.ReferenceCode)
+		if err != nil {
+			c.Log.WithError(err).Error("error getting purchase for branch id")
+			return errors.New("not found")
+		}
+		branchID = &purchase.BranchID
+		txType = "IN"
+	}
+
+	// validasi waktu (hanya boleh dihapus < 1 jam)
+	createdAtTime := time.UnixMilli(debtPayment.CreatedAt)
 	if time.Since(createdAtTime) > time.Hour {
 		c.Log.Warnf("error deleting debt payment: %d", request.ID)
 		return errors.New("forbidden")
 	}
 
+	// kurangi paid_amount di debt
+	newPaidAmount := debt.PaidAmount - debtPayment.Amount
+	if newPaidAmount < 0 {
+		newPaidAmount = 0
+	}
+
+	debt.PaidAmount = newPaidAmount
+
+	// update status kalau paid amount jadi 0
+	if debt.PaidAmount == 0 {
+		debt.Status = "PENDING"
+	}
+
+	if err := c.DebtRepository.Update(tx, debt); err != nil {
+		c.Log.WithError(err).Error("error updating debt after delete payment")
+		return errors.New("internal server error")
+	}
+
+	// buat transaksi cash bank
+	cashBankTransaction := &entity.CashBankTransaction{
+		TransactionDate: time.Now().UnixMilli(),
+		Type:            txType,
+		Source:          "DEBT",
+		Amount:          debtPayment.Amount,
+		Description:     "PEMBATALAN BIAYA UTANG",
+		ReferenceKey:    strconv.Itoa(int(debt.ID)),
+		BranchID:        branchID,
+		CreatedAt:       time.Now().UnixMilli(),
+		UpdatedAt:       time.Now().UnixMilli(),
+	}
+
+	if err := c.CashBankTransactionRepository.Create(tx, cashBankTransaction); err != nil {
+		c.Log.WithError(err).Error("error inserting cash bank transaction")
+		return errors.New("internal server error")
+	}
+
+	// hapus debt payment
 	if err := c.DebtPaymentRepository.Delete(tx, debtPayment); err != nil {
 		c.Log.WithError(err).Error("error deleting debt payment")
 		return errors.New("internal server error")
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error deleting debt payment")
+		c.Log.WithError(err).Error("error committing delete debt payment")
 		return errors.New("internal server error")
 	}
 
