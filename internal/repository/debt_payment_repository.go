@@ -21,7 +21,3 @@ func NewDebtPaymentRepository(log *logrus.Logger) *DebtPaymentRepository {
 func (r *DebtPaymentRepository) CreateBulk(db *gorm.DB, payments []entity.DebtPayment) error {
 	return db.CreateInBatches(&payments, 100).Error
 }
-
-func (r *DebtPaymentRepository) DeleteINDebtID(db *gorm.DB, debtIDs []uint) error {
-	return db.Where("debt_id IN ?", debtIDs).Delete(&entity.DebtPayment{}).Error
-}

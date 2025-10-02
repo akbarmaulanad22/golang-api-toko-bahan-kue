@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -168,13 +169,17 @@ func (r *PurchaseRepository) Cancel(db *gorm.DB, code string) error {
 		Updates(map[string]interface{}{
 			"status":      "CANCELLED",
 			"total_price": 0,
+			"updated_at":  time.Now().UnixMilli(),
 		}).Error
 }
 
 func (r *PurchaseRepository) UpdateTotalPrice(db *gorm.DB, code string, totalPrice float64) error {
 	return db.Model(&entity.Purchase{}).
 		Where("code = ?", code).
-		UpdateColumn("total_price", totalPrice).
+		Updates(map[string]interface{}{
+			"total_price": totalPrice,
+			"updated_at":  time.Now().UnixMilli(),
+		}).
 		Error
 }
 

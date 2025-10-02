@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"strings"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -76,11 +77,15 @@ func (r *SizeRepository) BulkUpdateBuyPrice(db *gorm.DB, buyPriceBySize map[uint
 		ids = append(ids, sizeID)
 	}
 
+	// Ambil waktu sekarang dalam unix milli
+	now := time.Now().UnixMilli()
+
 	sql := fmt.Sprintf(`
 		UPDATE sizes
-		SET buy_price = CASE id %s END
+		SET buy_price = CASE id %s END,
+		    updated_at = %d
 		WHERE id IN ?
-	`, caseStmt.String())
+	`, caseStmt.String(), now)
 
 	return db.Exec(sql, ids).Error
 }

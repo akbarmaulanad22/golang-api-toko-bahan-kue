@@ -20,7 +20,3 @@ func NewSalePaymentRepository(log *logrus.Logger) *SalePaymentRepository {
 func (r *SalePaymentRepository) CreateBulk(db *gorm.DB, payments []entity.SalePayment) error {
 	return db.CreateInBatches(&payments, 100).Error
 }
-
-func (r *SalePaymentRepository) DeleteBySaleCode(db *gorm.DB, saleCode string) error {
-	return db.Where("sale_code = ?", saleCode).Delete(&entity.SalePayment{}).Error
-}

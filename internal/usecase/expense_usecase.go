@@ -123,6 +123,7 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 	}
 
 	cashBankTransaction.Amount = expense.Amount
+	cashBankTransaction.Description = expense.Description
 
 	if err := c.CashBankTransactionRepository.Update(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error updating cash bank transaction")

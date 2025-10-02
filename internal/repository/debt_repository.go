@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"errors"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -140,29 +140,8 @@ func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtReque
 	return &debt, nil
 }
 
-// func (r *DebtRepository) FindBySaleCode(db *gorm.DB, saleCode string, debt *entity.Debt) error {
-
-// 	return db.Model(&entity.Debt{}).
-// 		Where("reference_type = 'SALE' AND reference_code = ?", saleCode).
-// 		First(debt).Error
-
-// }
-
-func (r *DebtRepository) VoidBySaleCode(db *gorm.DB, saleCode string) error {
-	return db.Model(&entity.Debt{}).
-		Where("reference_type = 'SALE' AND reference_code = ?", saleCode).
-		Updates(map[string]interface{}{
-			"status":      "VOID",
-			"paid_amount": 0,
-		}).Error
-}
-
 func (r *DebtRepository) FindBySaleCodeOrInit(db *gorm.DB, debt *entity.Debt, saleCode string) error {
 	return db.Where("reference_type = 'SALE' AND reference_code = ?", saleCode).FirstOrInit(debt).Error
-}
-
-func (r *DebtRepository) FindByPurchaseCode(db *gorm.DB, debt *entity.Debt, purchaseCode string) error {
-	return db.Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).First(debt).Error
 }
 
 func (r *DebtRepository) FindByPurchaseCodeOrInit(db *gorm.DB, debt *entity.Debt, purchaseCode string) error {
@@ -172,78 +151,9 @@ func (r *DebtRepository) FindByPurchaseCodeOrInit(db *gorm.DB, debt *entity.Debt
 func (r *DebtRepository) UpdateStatus(db *gorm.DB, id uint) error {
 	return db.Model(&entity.Debt{}).
 		Where("id = ?", id).
-		UpdateColumn("status", "VOID").
+		Updates(map[string]interface{}{
+			"status":     "VOID",
+			"updated_at": time.Now().UnixMilli(),
+		}).
 		Error
 }
-
-func (r *DebtRepository) FindPluckByPurchaseCode(db *gorm.DB, purchaseCode string) ([]uint, error) {
-	var ids []uint
-	if err := db.Model(&entity.Debt{}).
-		Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).
-		Pluck("id", &ids).Error; err != nil {
-		return nil, err
-	}
-	return ids, nil
-}
-
-func (r *DebtRepository) VoidByPurchaseCode(db *gorm.DB, purchaseCode string) error {
-	return db.Model(&entity.Debt{}).
-		Where("reference_type = 'PURCHASE' AND reference_code = ?", purchaseCode).
-		Updates(map[string]interface{}{"status": "VOID", "paid_amount": 0}).Error
-}
-
-func (r *DebtRepository) UpdateStatusIfVoid(db *gorm.DB, purchaseCode string) error {
-	var debt entity.Debt
-	if err := db.Where("purchase_code = ?", purchaseCode).First(&debt).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil // tidak ada hutang, aman
-		}
-		return err
-	}
-
-	// cek kondisi void
-	if debt.TotalAmount == 0 && debt.PaidAmount == 0 {
-		return db.Model(&entity.Debt{}).
-			Where("id = ?", debt.ID).
-			Update("status", "VOID").Error
-	}
-
-	return nil
-}
-
-// func (r *DebtRepository) Search(db *gorm.DB, request *model.SearchDebtRequest) ([]entity.Debt, int64, error) {
-// 	var users []entity.Debt
-// 	if err := db.Scopes(r.FilterDebt(request)).Offset((request.Page - 1) * request.Size).Limit(request.Size).Find(&users).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	var total int64 = 0
-// 	if err := db.Model(&entity.Debt{}).Scopes(r.FilterDebt(request)).Count(&total).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	return users, total, nil
-// }
-
-// func (r *DebtRepository) FilterDebt(request *model.SearchDebtRequest) func(tx *gorm.DB) *gorm.DB {
-// 	return func(tx *gorm.DB) *gorm.DB {
-// 		if referenceType := request.ReferenceType; referenceType != "" {
-// 			referenceType = "%" + referenceType + "%"
-// 			tx = tx.Where("reference_type = ?", referenceType)
-// 		}
-
-// 		if referenceCode := request.ReferenceCode; referenceCode != "" {
-// 			referenceCode = "%" + referenceCode + "%"
-// 			tx = tx.Where("reference_code LIKE ?", referenceCode)
-// 		}
-
-// 		startAt := request.StartAt
-// 		endAt := request.EndAt
-
-// 		if startAt != 0 && endAt != 0 {
-// 			tx = tx.Where("(due_date BETWEEN ? AND ?) OR (created_at BETWEEN ? AND ?)", startAt, endAt, startAt, endAt)
-// 		}
-
-// 		return tx
-// 	}
-// }

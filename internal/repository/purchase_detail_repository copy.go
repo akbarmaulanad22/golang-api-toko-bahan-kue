@@ -25,14 +25,18 @@ func (r *PurchaseDetailRepository) CreateBulk(db *gorm.DB, details []entity.Purc
 func (r *PurchaseDetailRepository) CancelBySizeID(db *gorm.DB, purchaseCode string, sizeID uint) error {
 	return db.Model(&entity.PurchaseDetail{}).
 		Where("purchase_code = ? AND size_id = ? AND is_cancelled = 0", purchaseCode, sizeID).
-		UpdateColumn("is_cancelled", 1).
+		Updates(map[string]interface{}{
+			"is_cancelled": 1,
+		}).
 		Error
 }
 
 func (r *PurchaseDetailRepository) Cancel(db *gorm.DB, purchaseCode string) error {
 	return db.Model(&entity.PurchaseDetail{}).
 		Where("purchase_code = ? AND is_cancelled = 0", purchaseCode).
-		UpdateColumn("is_cancelled", 1).Error
+		Updates(map[string]interface{}{
+			"is_cancelled": 1,
+		}).Error
 }
 
 func (r *PurchaseDetailRepository) FindPriceBySizeIDAndPurchaseCode(db *gorm.DB, purchaseCode string, sizeID uint, detail *entity.PurchaseDetail) error {
@@ -59,34 +63,6 @@ func (r *PurchaseDetailRepository) CountActiveByPurchaseCode(db *gorm.DB, purcha
 		Count(&count).Error
 	return count, err
 }
-
-// func (r *PurchaseDetailRepository) GetLastBuyPricePerSize(db *gorm.DB, sizeIDs []uint, excludePurchaseCode string) (map[uint]float64, error) {
-// 	results := make([]struct {
-// 		SizeID   uint
-// 		BuyPrice float64
-// 	}, 0)
-
-// 	// Ambil record terbaru per size_id selain dari purchase yang mau dibatalkan
-// 	err := db.Table("purchase_detail pd").
-// 		Select("pd.size_id, pd.buy_price").
-// 		Joins("JOIN purchase p ON p.code = pd.purchase_code").
-// 		Where("pd.size_id IN ? AND pd.purchase_code <> ?", sizeIDs, excludePurchaseCode).
-// 		Order("pd.created_at DESC").
-// 		Find(&results).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	// Map hasil ke sizeID -> buyPrice (ambil yang pertama saja karena sudah ORDER DESC)
-// 	buyPriceBySize := make(map[uint]float64)
-// 	for _, r := range results {
-// 		if _, ok := buyPriceBySize[r.SizeID]; !ok {
-// 			buyPriceBySize[r.SizeID] = r.BuyPrice
-// 		}
-// 	}
-
-// 	return buyPriceBySize, nil
-// }
 
 func (r *PurchaseDetailRepository) FindLastBuyPricesBySizeIDs(db *gorm.DB, sizeIDs []uint, excludeCode string) (map[uint]float64, error) {
 	if len(sizeIDs) == 0 {

@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"strings"
+	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/model"
 
@@ -97,13 +98,16 @@ func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint
 	}
 	validateCase += " END"
 
+	now := time.Now().UnixMilli()
+
 	query := fmt.Sprintf(`
         UPDATE branch_inventory
-        SET stock = %s
+        SET stock = %s,
+			updated_at = %d
         WHERE branch_id = ? 
           AND size_id IN (%s)
           AND stock >= %s
-    `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
+    `, caseStmt, now, strings.Join(sizeIDs, ","), validateCase)
 
 	tx := db.Exec(query, branchID)
 	if tx.Error != nil {
@@ -132,52 +136,16 @@ func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, inventories [
 		return nil
 	}
 
+	now := time.Now().UnixMilli()
 	sql := fmt.Sprintf(`
 		UPDATE branch_inventory 
-		SET stock = stock + CASE id %s END 
+		SET stock = stock + CASE id %s END,
+			updated_at = %d
 		WHERE id IN ?
-	`, caseStmt.String())
+	`, caseStmt.String(), now)
 
 	return db.Exec(sql, ids).Error
 }
-
-// func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
-// 	if len(details) == 0 {
-// 		return nil
-// 	}
-
-// 	// Build CASE WHEN
-// 	caseStmt := "CASE size_id"
-// 	sizeIDs := make([]string, len(details))
-// 	for i, d := range details {
-// 		caseStmt += fmt.Sprintf(" WHEN %d THEN stock + %d", d.SizeID, d.Qty)
-// 		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
-// 	}
-// 	caseStmt += " END"
-
-// 	validateCase := "CASE size_id"
-// 	for _, d := range details {
-// 		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
-// 	}
-// 	validateCase += " END"
-
-// 	query := fmt.Sprintf(`
-//         UPDATE branch_inventory
-//         SET stock = %s
-//         WHERE branch_id = ?
-//           AND size_id IN (%s)
-//           AND stock >= %s
-//     `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
-
-// 	tx := db.Exec(query, branchID)
-// 	if tx.Error != nil {
-// 		return tx.Error
-// 	}
-// 	if tx.RowsAffected != int64(len(details)) {
-// 		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
-// 	}
-// 	return nil
-// }
 
 func (r *BranchInventoryRepository) FindByBranchAndSizeIDs(db *gorm.DB, branchID uint, sizeIDs []uint) ([]entity.BranchInventory, error) {
 	var inventories []entity.BranchInventory
@@ -189,90 +157,6 @@ func (r *BranchInventoryRepository) FindByBranchAndSizeIDs(db *gorm.DB, branchID
 
 	return inventories, nil
 }
-
-// func (r *BranchInventoryRepository) ListOwnerInventoryByBranch(db *gorm.DB) ([]model.BranchInventoryProductResponse, error) {
-// 	// Flat query result
-// 	type result struct {
-// 		ID          uint
-// 		BranchID    uint
-// 		BranchName  string
-// 		ProductSKU  string
-// 		ProductName string
-// 		SizeID      uint
-// 		Size        string
-// 		Stock       int
-// 		CreatedAt   int64
-// 		UpdatedAt   int64
-// 	}
-
-// 	var rows []result
-// 	query := `
-// 		SELECT
-// 			bi.id        AS id,
-// 			b.id         AS branch_id,
-// 			b.name       AS branch_name,
-// 			p.sku        AS product_sku,
-// 			p.name       AS product_name,
-// 			s.id         AS size_id,
-// 			s.name       AS size,
-// 			bi.stock,
-// 			bi.created_at,
-// 			bi.updated_at
-// 		FROM branch_inventory bi
-// 		JOIN branches b      ON bi.branch_id = b.id
-// 		JOIN sizes 	  s      ON bi.size_id = s.id
-// 		JOIN products p      ON s.product_sku = p.sku
-// 		ORDER BY b.id, p.sku, s.id;
-// 	`
-// 	if err := db.Raw(query).Scan(&rows).Error; err != nil {
-// 		return nil, err
-// 	}
-
-// 	// Transform ke nested
-// 	branchMap := make(map[uint]*model.BranchInventoryResponse)
-// 	productMap := make(map[string]*model.BranchInventoryProductResponse) // key: request.BranchID_sku
-
-// 	for _, row := range rows {
-// 		// Branch
-// 		if _, ok := branchMap[row.BranchID]; !ok {
-// 			branchMap[row.BranchID] = &model.BranchInventoryResponse{
-// 				ID:         row.ID,
-// 				BranchID:   row.BranchID,
-// 				BranchName: row.BranchName,
-// 				Products:   []model.BranchInventoryProductResponse{},
-// 				CreatedAt:  row.CreatedAt,
-// 				UpdatedAt:  row.UpdatedAt,
-// 			}
-// 		}
-
-// 		// Product per branch
-// 		key := fmt.Sprintf("%d_%d", row.BranchID, row.ProductSKU)
-// 		if _, ok := productMap[key]; !ok {
-// 			product := model.BranchInventoryProductResponse{
-// 				ProductSKU:  row.ProductSKU,
-// 				ProductName: row.ProductName,
-// 				Sizes:       []model.BranchInventorySizeResponse{},
-// 			}
-// 			branchMap[row.BranchID].Products = append(branchMap[row.BranchID].Products, product)
-// 			// simpan referensi pointer ke product terakhir
-// 			productMap[key] = &branchMap[row.BranchID].Products[len(branchMap[row.BranchID].Products)-1]
-// 		}
-
-// 		// Tambah size ke product
-// 		productMap[key].Sizes = append(productMap[key].Sizes, model.BranchInventorySizeResponse{
-// 			SizeID: row.SizeID,
-// 			Size:   row.Size,
-// 			Stock:  row.Stock,
-// 		})
-// 	}
-
-// 	// Convert map ke slice
-// 	branches := make([]model.BranchInventoryResponse, 0)
-// 	for _, b := range branchMap {
-// 		branches = append(branches, *b)
-// 	}
-// 	return branches, nil
-// }
 
 func (r *BranchInventoryRepository) Search(db *gorm.DB, req *model.SearchBranchInventoryRequest) ([]model.BranchInventoryProductResponse, int64, error) {
 	type row struct {

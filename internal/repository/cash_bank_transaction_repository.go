@@ -70,11 +70,3 @@ func (r *CashBankTransactionRepository) FilterCashBankTransaction(request *model
 func (r *CashBankTransactionRepository) FindByKeyAndSource(db *gorm.DB, cash *entity.CashBankTransaction, expenseID uint, source string) error {
 	return db.Where("reference_key = ? AND source = ?", expenseID, source).Take(cash).Error
 }
-
-func (r *CashBankTransactionRepository) DeleteBySaleCode(db *gorm.DB, saleCode string) error {
-	return db.Where("reference_key = ? AND source = 'SALE'", saleCode).Delete(&entity.CashBankTransaction{}).Error
-}
-
-func (r *CashBankTransactionRepository) DeleteByDebtID(db *gorm.DB, debtIDs []uint) error {
-	return db.Where("reference_key IN ? AND source = 'DEBT'", debtIDs).Delete(&entity.CashBankTransaction{}).Error
-}

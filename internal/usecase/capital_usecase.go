@@ -149,6 +149,7 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 
 	cashBankTransaction.Amount = capital.Amount
 	cashBankTransaction.Type = capital.Type
+	cashBankTransaction.Description = capital.Note
 
 	if err := c.CashBankTransactionRepository.Update(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error updating cash bank transaction")
