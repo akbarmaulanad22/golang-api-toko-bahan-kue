@@ -25,25 +25,23 @@ func NewBranchController(useCase *usecase.BranchUseCase, logger *logrus.Logger) 
 	}
 }
 
-func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateBranchRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
 		c.Log.Warnf("Failed to create branch: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.BranchResponse]{Data: response})
 }
 
-func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
+func (c *BranchController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
 	pageStr := params.Get("page")
@@ -67,8 +65,7 @@ func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -78,17 +75,16 @@ func (c *BranchController) List(w http.ResponseWriter, r *http.Request) {
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.BranchResponse]{
 		Data:   responses,
 		Paging: paging,
 	})
 }
 
-func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) {
+func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) error {
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.GetBranchRequest{
@@ -98,26 +94,23 @@ func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Get(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BranchResponse]{Data: response})
 }
 
-func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) {
+func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateBranchRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.ID = uint(idInt)
@@ -125,19 +118,17 @@ func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Warnf("Failed to update branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BranchResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BranchResponse]{Data: response})
 }
 
-func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.DeleteBranchRequest{
@@ -146,9 +137,8 @@ func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

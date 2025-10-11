@@ -2,6 +2,7 @@ package route
 
 import (
 	"tokobahankue/internal/delivery/http"
+	"tokobahankue/internal/delivery/http/middleware"
 
 	"github.com/gorilla/mux"
 )
@@ -75,11 +76,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// master data
 
 	// cabang
-	authRouter.HandleFunc("/branches", route.BranchController.Create).Methods("POST")
-	authRouter.HandleFunc("/branches", route.BranchController.List).Methods("GET")
-	authRouter.HandleFunc("/branches/{id}", route.BranchController.Update).Methods("PUT")
-	authRouter.HandleFunc("/branches/{id}", route.BranchController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/branches/{id}", route.BranchController.Get).Methods("GET")
+	authRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.Create)).Methods("POST")
+	authRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.List)).Methods("GET")
+	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Get)).Methods("GET")
 
 	// jabatan/posisi
 	authRouter.HandleFunc("/roles", route.RoleController.Create).Methods("POST")

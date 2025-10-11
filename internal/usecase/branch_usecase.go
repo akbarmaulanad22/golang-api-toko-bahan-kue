@@ -2,9 +2,8 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -38,7 +37,14 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
+		// details := make([]map[string]string, 0)
+		// for _, e := range err.(validator.ValidationErrors) {
+		// 	details = append(details, map[string]string{
+		// 		"field": e.Field(),
+		// 		"rule":  e.Tag(),
+		// 	})
+		// }
 	}
 
 	branch := &entity.Branch{
@@ -47,28 +53,17 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 	}
 
 	if err := c.BranchRepository.Create(tx, branch); err != nil {
+		c.Log.WithError(err).Error("error creating branch")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'branches.name'"): // name
-				c.Log.Warn("Branch name already exists")
-				return nil, errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'branches.address'"): // address
-				c.Log.Warn("Branch address already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "branch name or address already exists")
 		}
 
-		c.Log.WithError(err).Error("error creating branch")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating branch")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.BranchToResponse(branch), nil
@@ -80,13 +75,13 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting branch")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("branch", err)
 	}
 
 	if branch.Name == request.Name && branch.Address == request.Address {
@@ -97,28 +92,17 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 	branch.Address = request.Address
 
 	if err := c.BranchRepository.Update(tx, branch); err != nil {
+		c.Log.WithError(err).Error("error updating branch")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'branches.name'"): // name
-				c.Log.Warn("Branch name already exists")
-				return nil, errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'branches.address'"): // address
-				c.Log.Warn("Branch address already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "branch name or address already exists")
 		}
 
-		c.Log.WithError(err).Error("error updating branch")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating branch")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.BranchToResponse(branch), nil
@@ -130,18 +114,18 @@ func (c *BranchUseCase) Get(ctx context.Context, request *model.GetBranchRequest
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting branch")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("branch", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting branch")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.BranchToResponse(branch), nil
@@ -153,23 +137,23 @@ func (c *BranchUseCase) Delete(ctx context.Context, request *model.DeleteBranchR
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting branch")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("branch", err)
 	}
 
 	if err := c.BranchRepository.Delete(tx, branch); err != nil {
 		c.Log.WithError(err).Error("error deleting branch")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting branch")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -181,18 +165,18 @@ func (c *BranchUseCase) Search(ctx context.Context, request *model.SearchBranchR
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	branches, total, err := c.BranchRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting branches")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting branches")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.BranchResponse, len(branches))
