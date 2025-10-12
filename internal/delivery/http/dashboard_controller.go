@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -22,14 +21,13 @@ func NewDashboardController(useCase *usecase.DashboardUseCase, logger *logrus.Lo
 	}
 }
 
-func (c *DashboardController) Get(w http.ResponseWriter, r *http.Request) {
+func (c *DashboardController) Get(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Get(r.Context())
 	if err != nil {
 		c.Log.WithError(err).Error("error getting count card dashboard")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DashboardResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DashboardResponse]{Data: response})
 }

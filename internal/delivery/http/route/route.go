@@ -105,7 +105,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// end master data
 
 	// dashboard
-	authRouter.HandleFunc("/dashboard", route.DashboardController.Get).Methods("GET")
+	authRouter.HandleFunc("/dashboard", middleware.WithErrorHandler(route.DashboardController.Get)).Methods("GET")
 
 	// produk
 	authRouter.HandleFunc("/products", route.ProductController.Create).Methods("POST")

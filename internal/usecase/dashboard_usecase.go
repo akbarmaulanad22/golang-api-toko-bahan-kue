@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -35,12 +35,13 @@ func (c *DashboardUseCase) Get(ctx context.Context) (*model.DashboardResponse, e
 	dashboard := new(model.DashboardResponse)
 	if err := c.DashboardRepository.CardCount(tx, dashboard); err != nil {
 		c.Log.WithError(err).Error("error getting count card dashboard")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("dashbaord", err)
+
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting count card dashboard")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return dashboard, nil
