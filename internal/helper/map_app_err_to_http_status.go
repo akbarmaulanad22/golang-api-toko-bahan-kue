@@ -14,7 +14,7 @@ func MapAppErrorToHTTPStatus(err *model.AppError) int {
 		return http.StatusNotFound
 	case strings.Contains(msg, "invalid"):
 		return http.StatusBadRequest
-	case strings.Contains(msg, "validation"):
+	case strings.Contains(msg, "validation") || strings.Contains(msg, "referenced resource not found"):
 		return http.StatusUnprocessableEntity
 	case strings.Contains(msg, "unauthorized"):
 		return http.StatusUnauthorized

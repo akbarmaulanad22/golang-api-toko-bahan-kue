@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"strconv"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/usecase"
@@ -25,50 +24,38 @@ func NewProductController(useCase *usecase.ProductUseCase, logger *logrus.Logger
 	}
 }
 
-func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateProductRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
 		c.Log.Warnf("Failed to create product: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.ProductResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.ProductResponse]{Data: response})
 }
 
-func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
+func (c *ProductController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
-
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-	sizeInt, _ := strconv.Atoi(sizeStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
 
 	request := &model.SearchProductRequest{
 		Search: params.Get("search"),
-		Page:   pageInt,
-		Size:   sizeInt,
+		Page:   page,
+		Size:   size,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching product")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -78,13 +65,13 @@ func (c *ProductController) List(w http.ResponseWriter, r *http.Request) {
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.ProductResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.ProductResponse]{
 		Data:   responses,
 		Paging: paging,
 	})
 }
 
-func (c *ProductController) Get(w http.ResponseWriter, r *http.Request) {
+func (c *ProductController) Get(w http.ResponseWriter, r *http.Request) error {
 
 	request := &model.GetProductRequest{
 		SKU: mux.Vars(r)["sku"],
@@ -93,20 +80,18 @@ func (c *ProductController) Get(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Get(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.ProductResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.ProductResponse]{Data: response})
 }
 
-func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
+func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	request := new(model.UpdateProductRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.SKU = mux.Vars(r)["sku"]
@@ -114,14 +99,13 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Warnf("Failed to update product")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.ProductResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.ProductResponse]{Data: response})
 }
 
-func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	request := &model.DeleteProductRequest{
 		SKU: mux.Vars(r)["sku"],
@@ -129,9 +113,8 @@ func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting product")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

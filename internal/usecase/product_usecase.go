@@ -2,9 +2,8 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -38,7 +37,7 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	product := &entity.Product{
@@ -48,36 +47,25 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 	}
 
 	if err := c.ProductRepository.Create(tx, product); err != nil {
+		c.Log.WithError(err).Error("error creating product")
+
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				if strings.Contains(mysqlErr.Message, "for key 'products.PRIMARY'") {
-					c.Log.Warn("sku already exists")
-					return nil, errors.New("conflict")
-				}
-				if strings.Contains(mysqlErr.Message, "for key 'products.name'") {
-					c.Log.Warn("product name already exists")
-					return nil, errors.New("conflict")
-				}
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
+				c.Log.WithError(err).Error("duplicate entry")
+				return nil, model.NewAppErr("conflict", "product sku or name already exists")
 			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`category_id`)") {
-					c.Log.Warn("category doesnt exists")
-					return nil, errors.New("invalid category id")
-				}
 				c.Log.WithError(err).Error("foreign key constraint failed")
-				return nil, errors.New("foreign key constraint failed")
+				return nil, model.NewAppErr("referenced resource not found", "the specified category does not exist.")
 			}
 		}
 
-		c.Log.WithError(err).Error("error creating product")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating product")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.ProductToResponse(product), nil
@@ -89,13 +77,13 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("product", err)
 	}
 
 	if product.Name == request.Name && product.CategoryID == request.CategoryID {
@@ -106,36 +94,25 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 	product.Name = request.Name
 
 	if err := c.ProductRepository.Update(tx, product); err != nil {
+		c.Log.WithError(err).Error("error updating product")
+
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				if strings.Contains(mysqlErr.Message, "for key 'products.PRIMARY'") {
-					c.Log.Warn("sku already exists")
-					return nil, errors.New("conflict")
-				}
-				if strings.Contains(mysqlErr.Message, "for key 'products.name'") {
-					c.Log.Warn("product name already exists")
-					return nil, errors.New("conflict")
-				}
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
+				c.Log.WithError(err).Error("duplicate entry")
+				return nil, model.NewAppErr("conflict", "product sku or name already exists")
 			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`category_id`)") {
-					c.Log.Warn("category doesnt exists")
-					return nil, errors.New("invalid category id")
-				}
 				c.Log.WithError(err).Error("foreign key constraint failed")
-				return nil, errors.New("foreign key constraint failed")
+				return nil, model.NewAppErr("referenced resource not found", "the specified category does not exist.")
 			}
 		}
 
-		c.Log.WithError(err).Error("error creating product")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating product")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.ProductToResponse(product), nil
@@ -147,18 +124,19 @@ func (c *ProductUseCase) Get(ctx context.Context, request *model.GetProductReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
+
 	}
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("branch", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.ProductToResponse(product), nil
@@ -170,23 +148,23 @@ func (c *ProductUseCase) Delete(ctx context.Context, request *model.DeleteProduc
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("branch", err)
 	}
 
 	if err := c.ProductRepository.Delete(tx, product); err != nil {
 		c.Log.WithError(err).Error("error deleting product")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting product")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -198,18 +176,18 @@ func (c *ProductUseCase) Search(ctx context.Context, request *model.SearchProduc
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	products, total, err := c.ProductRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting products")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting products")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.ProductResponse, len(products))

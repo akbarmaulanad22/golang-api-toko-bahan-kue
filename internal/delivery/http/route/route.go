@@ -108,11 +108,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/dashboard", middleware.WithErrorHandler(route.DashboardController.Get)).Methods("GET")
 
 	// produk
-	authRouter.HandleFunc("/products", route.ProductController.Create).Methods("POST")
-	authRouter.HandleFunc("/products", route.ProductController.List).Methods("GET")
-	authRouter.HandleFunc("/products/{sku}", route.ProductController.Update).Methods("PUT")
-	authRouter.HandleFunc("/products/{sku}", route.ProductController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/products/{sku}", route.ProductController.Get).Methods("GET")
+	authRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.Create)).Methods("POST")
+	authRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.List)).Methods("GET")
+	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Get)).Methods("GET")
 
 	// karyawan/pengguna aplikasi
 	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")
