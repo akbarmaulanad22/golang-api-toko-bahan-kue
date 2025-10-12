@@ -25,50 +25,38 @@ func NewDistributorController(useCase *usecase.DistributorUseCase, logger *logru
 	}
 }
 
-func (c *DistributorController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *DistributorController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateDistributorRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
 		c.Log.Warnf("Failed to create distributor: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DistributorResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DistributorResponse]{Data: response})
 }
 
-func (c *DistributorController) List(w http.ResponseWriter, r *http.Request) {
+func (c *DistributorController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
-
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-	sizeInt, _ := strconv.Atoi(sizeStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
 
 	request := &model.SearchDistributorRequest{
 		Search: params.Get("search"),
-		Page:   pageInt,
-		Size:   sizeInt,
+		Page:   page,
+		Size:   size,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching distributor")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -78,17 +66,16 @@ func (c *DistributorController) List(w http.ResponseWriter, r *http.Request) {
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.DistributorResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.DistributorResponse]{
 		Data:   responses,
 		Paging: paging,
 	})
 }
 
-func (c *DistributorController) Get(w http.ResponseWriter, r *http.Request) {
+func (c *DistributorController) Get(w http.ResponseWriter, r *http.Request) error {
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.GetDistributorRequest{
@@ -98,26 +85,23 @@ func (c *DistributorController) Get(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Get(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting distributor")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DistributorResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DistributorResponse]{Data: response})
 }
 
-func (c *DistributorController) Update(w http.ResponseWriter, r *http.Request) {
+func (c *DistributorController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateDistributorRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.ID = uint(idInt)
@@ -125,19 +109,17 @@ func (c *DistributorController) Update(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Warnf("Failed to update distributor")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DistributorResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DistributorResponse]{Data: response})
 }
 
-func (c *DistributorController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *DistributorController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.DeleteDistributorRequest{
@@ -146,9 +128,8 @@ func (c *DistributorController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting distributor")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -38,7 +38,7 @@ func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDi
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	distributor := &entity.Distributor{
@@ -47,28 +47,17 @@ func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDi
 	}
 
 	if err := c.DistributorRepository.Create(tx, distributor); err != nil {
+		c.Log.WithError(err).Error("error creating distributor")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'distributors.name'"): // name
-				c.Log.Warn("distributor name already exists")
-				return nil, errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'distributors.address'"): // address
-				c.Log.Warn("distributor address already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "distributor name or address already exists")
 		}
 
-		c.Log.WithError(err).Error("error creating distributor")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating distributor")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.DistributorToResponse(distributor), nil
@@ -80,13 +69,13 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	distributor := new(entity.Distributor)
 	if err := c.DistributorRepository.FindById(tx, distributor, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting distributor")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("distributor", err)
 	}
 
 	if distributor.Name == request.Name && distributor.Address == request.Address {
@@ -97,28 +86,17 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 	distributor.Address = request.Address
 
 	if err := c.DistributorRepository.Update(tx, distributor); err != nil {
+		c.Log.WithError(err).Error("error updating distributor")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'distributors.name'"): // name
-				c.Log.Warn("distributor name already exists")
-				return nil, errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'distributors.address'"): // address
-				c.Log.Warn("distributor address already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "distributor name or address already exists")
 		}
 
-		c.Log.WithError(err).Error("error updating distributor")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating distributor")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.DistributorToResponse(distributor), nil
@@ -130,18 +108,18 @@ func (c *DistributorUseCase) Get(ctx context.Context, request *model.GetDistribu
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	distributor := new(entity.Distributor)
 	if err := c.DistributorRepository.FindById(tx, distributor, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting distributor")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("distributor", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting distributor")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.DistributorToResponse(distributor), nil
@@ -153,7 +131,7 @@ func (c *DistributorUseCase) Delete(ctx context.Context, request *model.DeleteDi
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	distributor := new(entity.Distributor)
@@ -164,12 +142,12 @@ func (c *DistributorUseCase) Delete(ctx context.Context, request *model.DeleteDi
 
 	if err := c.DistributorRepository.Delete(tx, distributor); err != nil {
 		c.Log.WithError(err).Error("error deleting distributor")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting distributor")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -181,18 +159,18 @@ func (c *DistributorUseCase) Search(ctx context.Context, request *model.SearchDi
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	distributors, total, err := c.DistributorRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting distributors")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting distributors")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.DistributorResponse, len(distributors))

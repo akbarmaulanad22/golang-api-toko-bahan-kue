@@ -97,11 +97,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Get)).Methods("GET")
 
 	// distributor
-	authRouter.HandleFunc("/distributors", route.DistributorController.Create).Methods("POST")
-	authRouter.HandleFunc("/distributors", route.DistributorController.List).Methods("GET")
-	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Update).Methods("PUT")
-	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/distributors/{id}", route.DistributorController.Get).Methods("GET")
+	authRouter.HandleFunc("/distributors", middleware.WithErrorHandler(route.DistributorController.Create)).Methods("POST")
+	authRouter.HandleFunc("/distributors", middleware.WithErrorHandler(route.DistributorController.List)).Methods("GET")
+	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Get)).Methods("GET")
 	// end master data
 
 	// dashboard
