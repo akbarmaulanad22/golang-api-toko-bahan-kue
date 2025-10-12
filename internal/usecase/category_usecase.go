@@ -3,8 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -38,7 +38,7 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	category := &entity.Category{
@@ -46,20 +46,12 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 	}
 
 	if err := c.CategoryRepository.Create(tx, category); err != nil {
+		c.Log.WithError(err).Error("error creating category")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("category name already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "category already exists")
 		}
 
-		c.Log.WithError(err).Error("error creating category")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -76,13 +68,13 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("category", err)
 	}
 
 	if category.Name == request.Name {
@@ -92,25 +84,17 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 	category.Name = request.Name
 
 	if err := c.CategoryRepository.Update(tx, category); err != nil {
+		c.Log.WithError(err).Error("error updating category")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'categories.name'"): // name
-				c.Log.Warn("category name already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			return nil, model.NewAppErr("conflict", "category already exists")
 		}
 
-		c.Log.WithError(err).Error("error updating category")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating category")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.CategoryToResponse(category), nil
@@ -122,18 +106,18 @@ func (c *CategoryUseCase) Get(ctx context.Context, request *model.GetCategoryReq
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("category", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting category")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.CategoryToResponse(category), nil
@@ -145,23 +129,23 @@ func (c *CategoryUseCase) Delete(ctx context.Context, request *model.DeleteCateg
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting category")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("category", err)
 	}
 
 	if err := c.CategoryRepository.Delete(tx, category); err != nil {
 		c.Log.WithError(err).Error("error deleting category")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting category")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -173,18 +157,18 @@ func (c *CategoryUseCase) Search(ctx context.Context, request *model.SearchTopSe
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	categories, total, err := c.CategoryRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting categories")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting categories")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.CategoryResponse, len(categories))

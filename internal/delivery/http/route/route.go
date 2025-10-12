@@ -83,18 +83,18 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Get)).Methods("GET")
 
 	// jabatan/posisi
-	authRouter.HandleFunc("/roles", route.RoleController.Create).Methods("POST")
-	authRouter.HandleFunc("/roles", route.RoleController.List).Methods("GET")
-	authRouter.HandleFunc("/roles/{id}", route.RoleController.Update).Methods("PUT")
-	authRouter.HandleFunc("/roles/{id}", route.RoleController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/roles/{id}", route.RoleController.Get).Methods("GET")
+	authRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.Create)).Methods("POST")
+	authRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.List)).Methods("GET")
+	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Get)).Methods("GET")
 
 	// kategori
-	authRouter.HandleFunc("/categories", route.CategoryController.Create).Methods("POST")
-	authRouter.HandleFunc("/categories", route.CategoryController.List).Methods("GET")
-	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Update).Methods("PUT")
-	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/categories/{id}", route.CategoryController.Get).Methods("GET")
+	authRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.Create)).Methods("POST")
+	authRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.List)).Methods("GET")
+	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Get)).Methods("GET")
 
 	// distributor
 	authRouter.HandleFunc("/distributors", route.DistributorController.Create).Methods("POST")
