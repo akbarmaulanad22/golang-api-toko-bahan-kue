@@ -38,13 +38,6 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
-		// details := make([]map[string]string, 0)
-		// for _, e := range err.(validator.ValidationErrors) {
-		// 	details = append(details, map[string]string{
-		// 		"field": e.Field(),
-		// 		"rule":  e.Tag(),
-		// 	})
-		// }
 	}
 
 	branch := &entity.Branch{

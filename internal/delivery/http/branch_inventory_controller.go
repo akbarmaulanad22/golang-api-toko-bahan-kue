@@ -27,59 +27,45 @@ func NewBranchInventoryController(useCase *usecase.BranchInventoryUseCase, logge
 	}
 }
 
-func (c *BranchInventoryController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *BranchInventoryController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	var request model.CreateBranchInventoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	if err := c.UseCase.Create(r.Context(), &request); err != nil {
 		c.Log.Warnf("Failed to create branch inventory: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }
 
-func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) {
+func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
-
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-	sizeInt, _ := strconv.Atoi(sizeStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
+	branchID := params.Get("branch_id")
 
 	request := &model.SearchBranchInventoryRequest{
 		Search: params.Get("search"),
-		Page:   pageInt,
-		Size:   sizeInt,
+		Page:   page,
+		Size:   size,
 	}
 
 	auth := middleware.GetUser(r)
-	if strings.ToUpper(auth.Role) == "OWNER" {
-		branchID := params.Get("branch_id")
-		if branchID != "" {
-			branchIDInt, err := strconv.Atoi(branchID)
-			if err != nil {
-				c.Log.WithError(err).Error("invalid branch id parameter")
-				http.Error(w, err.Error(), helper.GetStatusCode(err))
-				return
-			}
-			branchIDUint := uint(branchIDInt)
-			request.BranchID = &branchIDUint
+	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
+		branchIDInt, err := strconv.Atoi(branchID)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid branch id parameter")
+			return model.NewAppErr("invalid branch id parameter", nil)
 		}
+		branchIDUint := uint(branchIDInt)
+		request.BranchID = &branchIDUint
 
 	} else {
 		request.BranchID = auth.BranchID
@@ -88,8 +74,7 @@ func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request)
 	responses, total, err := c.UseCase.List(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching branch inventory")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -99,25 +84,23 @@ func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request)
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.BranchInventoryProductResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.BranchInventoryProductResponse]{
 		Data:   responses,
 		Paging: paging,
 	})
 }
 
-func (c *BranchInventoryController) Update(w http.ResponseWriter, r *http.Request) {
+func (c *BranchInventoryController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	var request model.UpdateBranchInventoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.ID = uint(idInt)
@@ -125,18 +108,17 @@ func (c *BranchInventoryController) Update(w http.ResponseWriter, r *http.Reques
 	if err := c.UseCase.Update(r.Context(), &request); err != nil {
 		c.Log.Warnf("Failed to update branch inventory: %+v", err)
 		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }
 
-func (c *BranchInventoryController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *BranchInventoryController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.DeleteBranchInventoryRequest{
@@ -145,9 +127,8 @@ func (c *BranchInventoryController) Delete(w http.ResponseWriter, r *http.Reques
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting branch")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

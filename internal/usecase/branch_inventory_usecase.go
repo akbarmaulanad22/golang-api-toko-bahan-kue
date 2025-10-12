@@ -2,9 +2,8 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -35,7 +34,7 @@ func (c *BranchInventoryUseCase) List(ctx context.Context, request *model.Search
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	tx := c.DB.WithContext(ctx).Begin()
@@ -44,12 +43,12 @@ func (c *BranchInventoryUseCase) List(ctx context.Context, request *model.Search
 	inventory, total, err := c.BranchInventoryRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventory")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting inventory")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return inventory, total, nil
@@ -62,37 +61,27 @@ func (c *BranchInventoryUseCase) Create(ctx context.Context, request *model.Crea
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
-	branch := &entity.BranchInventory{
+	inventory := &entity.BranchInventory{
 		BranchID: request.BranchID,
 		SizeID:   request.SizeID,
 	}
 
-	if err := c.BranchInventoryRepository.Create(tx, branch); err != nil {
+	if err := c.BranchInventoryRepository.Create(tx, inventory); err != nil {
+		c.Log.WithError(err).Error("error creating inventory")
+
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'branch_inventory.branch_id'"):
-				c.Log.Warn("Branch Inventory branch_id already exists")
-				return errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'branch_inventory.size_id'"):
-				c.Log.Warn("Branch Inventory size_id already exists")
-				return errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return errors.New("conflict")
-			}
+			return model.NewAppErr("conflict", "size already exists for this branch")
 		}
 
-		c.Log.WithError(err).Error("error creating branch")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error creating branch")
-		return errors.New("internal server error")
+		c.Log.WithError(err).Error("error creating inventory")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -104,41 +93,33 @@ func (c *BranchInventoryUseCase) Update(ctx context.Context, request *model.Upda
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
+
 	}
 
-	branch := new(entity.BranchInventory)
-	if err := c.BranchInventoryRepository.FindById(tx, branch, request.ID); err != nil {
-		c.Log.WithError(err).Error("error getting branch")
-		return errors.New("not found")
+	inventory := new(entity.BranchInventory)
+	if err := c.BranchInventoryRepository.FindById(tx, inventory, request.ID); err != nil {
+		c.Log.WithError(err).Error("error getting inventory")
+		return helper.GetNotFoundMessage("inventory", err)
+
 	}
 
-	branch.BranchID = request.BranchID
-	branch.SizeID = request.SizeID
+	inventory.BranchID = request.BranchID
+	inventory.SizeID = request.SizeID
 
-	if err := c.BranchInventoryRepository.Update(tx, branch); err != nil {
+	if err := c.BranchInventoryRepository.Update(tx, inventory); err != nil {
+		c.Log.WithError(err).Error("error updating inventory")
+
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key 'branch_inventory.branch_id'"):
-				c.Log.Warn("Branch Inventory branch_id already exists")
-				return errors.New("conflict")
-			case strings.Contains(mysqlErr.Message, "for key 'branch_inventory.size_id'"):
-				c.Log.Warn("Branch Inventory size_id already exists")
-				return errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return errors.New("conflict")
-			}
+			return model.NewAppErr("conflict", "size already exists for this branch")
 		}
 
-		c.Log.WithError(err).Error("error updating branch")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error updating branch")
-		return errors.New("internal server error")
+		c.Log.WithError(err).Error("error updating inventory")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -150,23 +131,23 @@ func (c *BranchInventoryUseCase) Delete(ctx context.Context, request *model.Dele
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	branchInventory := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindById(tx, branchInventory, request.ID); err != nil {
-		c.Log.WithError(err).Error("error getting branch inventory")
-		return errors.New("not found")
+		c.Log.WithError(err).Error("error getting inventory")
+		return helper.GetNotFoundMessage("inventory", err)
 	}
 
 	if err := c.BranchInventoryRepository.Delete(tx, branchInventory); err != nil {
-		c.Log.WithError(err).Error("error deleting branch inventory")
-		return errors.New("internal server error")
+		c.Log.WithError(err).Error("error deleting inventory")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error deleting branch inventory")
-		return errors.New("internal server error")
+		c.Log.WithError(err).Error("error deleting inventory")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil

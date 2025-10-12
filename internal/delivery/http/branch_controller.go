@@ -44,22 +44,13 @@ func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) error 
 func (c *BranchController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
-
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-	sizeInt, _ := strconv.Atoi(sizeStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
 
 	request := &model.SearchBranchRequest{
 		Search: params.Get("search"),
-		Page:   pageInt,
-		Size:   sizeInt,
+		Page:   page,
+		Size:   size,
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
