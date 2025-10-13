@@ -31,12 +31,6 @@ func (r *UserRepository) FindByUsername(db *gorm.DB, user *entity.User, username
 		Error
 }
 
-// func (r *UserRepository) CountByUsername(db *gorm.DB, username any) (int64, error) {
-// 	var total int64
-// 	err := db.Model(&entity.User{}).Where("username = ?", username).Count(&total).Error
-// 	return total, err
-// }
-
 func (r *UserRepository) Search(db *gorm.DB, request *model.SearchUserRequest) ([]entity.User, int64, error) {
 	var users []entity.User
 	if err := db.Select("username, name, address, created_at").Scopes(r.FilterUser(request)).

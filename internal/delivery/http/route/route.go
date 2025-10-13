@@ -52,8 +52,8 @@ func (route *RouteConfig) SetupGuestRoute() {
 	// routes that do not require authentication
 
 	// auth
-	route.Router.HandleFunc("/gate/auth/login", route.UserController.Login).Methods("POST")
-	route.Router.HandleFunc("/gate/auth/register", route.UserController.Register).Methods("POST")
+	route.Router.HandleFunc("/gate/auth/login", middleware.WithErrorHandler(route.UserController.Login)).Methods("POST")
+	route.Router.HandleFunc("/gate/auth/register", middleware.WithErrorHandler(route.UserController.Register)).Methods("POST")
 	// end auth
 }
 
@@ -64,10 +64,10 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.Use(route.AuthMiddleware)
 
 	// logout
-	authRouter.HandleFunc("/gate/auth/logout", route.UserController.Logout).Methods("POST")
+	authRouter.HandleFunc("/gate/auth/logout", middleware.WithErrorHandler(route.UserController.Logout)).Methods("POST")
 
 	// profile
-	authRouter.HandleFunc("/gate/auth/me", route.UserController.Current).Methods("GET")
+	authRouter.HandleFunc("/gate/auth/me", middleware.WithErrorHandler(route.UserController.Current)).Methods("GET")
 
 	// base path
 	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
@@ -115,11 +115,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Get)).Methods("GET")
 
 	// karyawan/pengguna aplikasi
-	authRouter.HandleFunc("/users", route.UserController.Register).Methods("POST")
-	authRouter.HandleFunc("/users", route.UserController.List).Methods("GET")
-	authRouter.HandleFunc("/users/{username}", route.UserController.Update).Methods("PUT")
-	authRouter.HandleFunc("/users/{username}", route.UserController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/users/{username}", route.UserController.Get).Methods("GET")
+	authRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.Register)).Methods("POST")
+	authRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.List)).Methods("GET")
+	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Get)).Methods("GET")
 
 	// ukuran produk
 	authRouter.HandleFunc("/products/{productSKU}/sizes", route.SizeController.Create).Methods("POST")
