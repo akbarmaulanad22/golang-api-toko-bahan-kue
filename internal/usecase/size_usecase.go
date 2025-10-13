@@ -3,8 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
-	"strings"
+	"fmt"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -38,7 +39,7 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	size := &entity.Size{
@@ -49,37 +50,29 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 	}
 
 	if err := c.SizeRepository.Create(tx, size); err != nil {
+		c.Log.WithError(err).Error("error creating size")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				if strings.Contains(mysqlErr.Message, "for key") {
-					c.Log.Warn("size already exists")
-					return nil, errors.New("conflict")
-				}
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
+				c.Log.WithError(err).Error("duplicate entry")
+				return nil, model.NewAppErr("conflict", "size already exists")
 			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`product_sku`)") {
-					c.Log.Warn("product doesnt exists")
-					return nil, errors.New("invalid product id")
-				}
 				c.Log.WithError(err).Error("foreign key constraint failed")
-				return nil, errors.New("foreign key constraint failed")
+				return nil, model.NewAppErr("referenced resource not found", "the specified product does not exist.")
 			}
 		}
 
-		c.Log.WithError(err).Error("error creating size")
 		return nil, errors.New("internal server error")
 	}
 
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, size.ID, request.ProductSKU); err != nil {
 		c.Log.WithError(err).Error("error getting size")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("size", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating size")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.SizeToResponse(size), nil
@@ -91,13 +84,13 @@ func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
 		c.Log.WithError(err).Error("error getting size")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("size", err)
 	}
 
 	if size.Name == request.Name && size.SellPrice == request.SellPrice && size.BuyPrice == request.BuyPrice {
@@ -110,24 +103,17 @@ func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeReque
 
 	if err := c.SizeRepository.Update(tx, size); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			// Tangani duplikat
-			switch {
-			case strings.Contains(mysqlErr.Message, "for key"): // name
-				c.Log.Warn("size name already exists")
-				return nil, errors.New("conflict")
-			default:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
-				return nil, errors.New("conflict")
-			}
+			c.Log.Warn("size name already exists")
+			return nil, model.NewAppErr("conflict", fmt.Sprintf("size for %s already exists", request.ProductSKU))
 		}
 
-		c.Log.WithError(err).Error("error creating size")
-		return nil, errors.New("internal server error")
+		c.Log.WithError(err).Error("error updating size")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating size")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.SizeToResponse(size), nil
@@ -139,18 +125,18 @@ func (c *SizeUseCase) Get(ctx context.Context, request *model.GetSizeRequest) (*
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
 		c.Log.WithError(err).Error("error getting size")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("size", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting size")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.SizeToResponse(size), nil
@@ -162,23 +148,23 @@ func (c *SizeUseCase) Delete(ctx context.Context, request *model.DeleteSizeReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
 		c.Log.WithError(err).Error("error getting size")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("size", err)
 	}
 
 	if err := c.SizeRepository.Delete(tx, size); err != nil {
 		c.Log.WithError(err).Error("error deleting size")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting size")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -190,18 +176,18 @@ func (c *SizeUseCase) Search(ctx context.Context, request *model.SearchSizeReque
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	sizes, total, err := c.SizeRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting sizes")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting sizes")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.SizeResponse, len(sizes))

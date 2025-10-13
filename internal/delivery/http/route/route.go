@@ -122,11 +122,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Get)).Methods("GET")
 
 	// ukuran produk
-	authRouter.HandleFunc("/products/{productSKU}/sizes", route.SizeController.Create).Methods("POST")
-	authRouter.HandleFunc("/products/{productSKU}/sizes", route.SizeController.List).Methods("GET")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Update).Methods("PUT")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Delete).Methods("DELETE")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", route.SizeController.Get).Methods("GET")
+	authRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.Create)).Methods("POST")
+	authRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.List)).Methods("GET")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Get)).Methods("GET")
 
 	// POS (order barang keluar)
 	authRouter.HandleFunc("/sales", route.SaleController.Create).Methods("POST")
