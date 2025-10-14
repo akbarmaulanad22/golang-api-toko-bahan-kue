@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"tokobahankue/internal/delivery/http/middleware"
@@ -25,26 +24,23 @@ func NewSaleDetailController(useCase *usecase.SaleDetailUseCase, logger *logrus.
 	}
 }
 
-func (c *SaleDetailController) Cancel(w http.ResponseWriter, r *http.Request) {
+func (c *SaleDetailController) Cancel(w http.ResponseWriter, r *http.Request) error {
 
 	params := mux.Vars(r)
 
 	code, ok := params["code"]
 	if !ok || code == "" {
-		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid sale code parameter", nil)
 	}
 
 	sizeID, ok := params["sizeID"]
 	if !ok || code == "" {
-		http.Error(w, "Invalid size id parameter", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid size id parameter", nil)
 	}
 
 	sizeIDInt, err := strconv.Atoi(sizeID)
 	if err != nil {
-		http.Error(w, "Invalid sale code parameter", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid size id parameter", nil)
 	}
 
 	request := model.CancelSaleDetailRequest{
@@ -59,9 +55,8 @@ func (c *SaleDetailController) Cancel(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {
 		c.Log.WithError(err).Warnf("Failed to cancel sale")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

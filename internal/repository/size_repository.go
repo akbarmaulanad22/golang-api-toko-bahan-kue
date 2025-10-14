@@ -52,16 +52,14 @@ func (r *SizeRepository) FilterSize(request *model.SearchSizeRequest) func(tx *g
 	}
 }
 
-func (r *SizeRepository) FindPriceMapByIDs(tx *gorm.DB, ids []uint) (map[uint]float64, error) {
-	var sizes []entity.Size
-	result := make(map[uint]float64)
-	if err := tx.Select("id", "sell_price").Where("id IN ?", ids).Find(&sizes).Error; err != nil {
-		return nil, err
-	}
-	for _, s := range sizes {
-		result[s.ID] = s.SellPrice
-	}
-	return result, nil
+func (r *SizeRepository) FindSizesWithProductByIDs(tx *gorm.DB, ids []uint) ([]model.SizeWithProduct, error) {
+	var result []model.SizeWithProduct
+	err := tx.Table("sizes").
+		Select("sizes.id, sizes.name as size, sizes.sell_price, products.name AS product_name").
+		Joins("JOIN products ON products.sku = sizes.product_sku").
+		Where("sizes.id IN ?", ids).
+		Scan(&result).Error
+	return result, err
 }
 
 func (r *SizeRepository) BulkUpdateBuyPrice(db *gorm.DB, buyPriceBySize map[uint]float64) error {

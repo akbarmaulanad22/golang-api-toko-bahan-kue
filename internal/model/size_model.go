@@ -40,3 +40,10 @@ type DeleteSizeRequest struct {
 	ProductSKU string `json:"-" validate:"required"`
 	ID         uint   `json:"-" validate:"required"`
 }
+
+type SizeWithProduct struct {
+	ID          uint
+	Size        string
+	SellPrice   float64
+	ProductName string
+}

@@ -6,6 +6,7 @@ type Sale struct {
 	Status       string        `gorm:"column:status;default:COMPLETED"`
 	BranchID     uint          `gorm:"column:branch_id"`
 	CreatedAt    int64         `gorm:"column:created_at;autoCreateTime:milli"`
+	UpdatedAt    int64         `gorm:"column:updated_at;autoCreateTime:milli;autoUpdateTime:milli"`
 	Details      []SaleDetail  `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Payments     []SalePayment `gorm:"foreignKey:SaleCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Debt         *Debt         `gorm:"foreignKey:ReferenceCode;references:Code;"`

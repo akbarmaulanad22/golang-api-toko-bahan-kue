@@ -129,11 +129,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Get)).Methods("GET")
 
 	// POS (order barang keluar)
-	authRouter.HandleFunc("/sales", route.SaleController.Create).Methods("POST")
-	authRouter.HandleFunc("/sales", route.SaleController.List).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}", route.SaleController.Cancel).Methods("DELETE")
-	authRouter.HandleFunc("/sales/{code}", route.SaleController.Get).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", route.SaleDetailController.Cancel).Methods("DELETE")
+	authRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.Create)).Methods("POST")
+	authRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.List)).Methods("GET")
+	authRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Cancel)).Methods("DELETE")
+	authRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Get)).Methods("GET")
+	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
 
 	// POS (order barang masuk)
 	authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")

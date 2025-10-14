@@ -1,0 +1,2 @@
+ALTER TABLE sales
+ADD COLUMN updated_at BIGINT NOT NULL;

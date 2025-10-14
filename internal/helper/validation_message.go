@@ -14,5 +14,5 @@ func GetValidationMessage(err error) error {
 			"rule":  e.Tag(),
 		})
 	}
-	return model.NewAppErr("validation not match", details)
+	return model.NewAppErr("validation error", details)
 }
