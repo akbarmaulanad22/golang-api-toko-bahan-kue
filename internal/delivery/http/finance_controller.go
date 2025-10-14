@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,36 +25,32 @@ func NewFinanceController(useCase *usecase.FinanceUseCase, logger *logrus.Logger
 	}
 }
 
-func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) {
+func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
-
-	c.Log.Warn(startAtStr)
-	c.Log.Warn(endAtStr)
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid start at parameter")
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid end at parameter")
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	request := model.GetFinanceSummaryOwnerRequest{
@@ -66,108 +61,101 @@ func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.GetOwnerSummary(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance summary")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceSummaryOwnerResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.FinanceSummaryOwnerResponse]{Data: response})
 }
 
-func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request) {
+func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid start at parameter")
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid end at parameter")
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	auth := middleware.GetUser(r)
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		// BranchID: auth.BranchID,
-		Role: auth.Role,
+		Role:    auth.Role,
 	}
 
 	response, err := c.UseCase.GetProfitLoss(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance profit loss")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceProfitLossResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.FinanceProfitLossResponse]{Data: response})
 }
 
-func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) {
+func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid start at parameter")
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid end at parameter")
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	auth := middleware.GetUser(r)
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		// BranchID: auth.BranchID,
-		Role: auth.Role,
+		Role:    auth.Role,
 	}
 
 	response, err := c.UseCase.GetCashFlow(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance cash flow")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceCashFlowResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.FinanceCashFlowResponse]{Data: response})
 }
 
-func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Request) {
+func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
@@ -178,8 +166,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 
 	asOfMilli, err := helper.ParseDateToMilli(asOfStr, true)
 	if err != nil {
-		http.Error(w, "Invalid as_of format. Use YYYY-MM-DD", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid as parameter. Use YYYY-MM-DD", nil)
 	}
 
 	auth := middleware.GetUser(r)
@@ -188,19 +175,15 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 		Role: auth.Role,
 	}
 
-	if strings.ToUpper(auth.Role) == "OWNER" {
-		branchID := params.Get("branch_id")
-		if branchID != "" {
-			branchIDInt, err := strconv.Atoi(branchID)
-			if err != nil {
-				c.Log.WithError(err).Error("invalid branch id parameter")
-				http.Error(w, err.Error(), helper.GetStatusCode(err))
-				return
-			}
-			branchIDUint := uint(branchIDInt)
-			request.BranchID = &branchIDUint
+	branchID := params.Get("branch_id")
+	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
+		branchIDInt, err := strconv.Atoi(branchID)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid branch id parameter")
+			return model.NewAppErr("invalid branch id parameter", nil)
 		}
-
+		branchIDUint := uint(branchIDInt)
+		request.BranchID = &branchIDUint
 	} else {
 		request.BranchID = auth.BranchID
 	}
@@ -208,9 +191,8 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 	response, err := c.UseCase.GetBalanceSheet(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance balance sheet")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.FinanceBalanceSheetResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.FinanceBalanceSheetResponse]{Data: response})
 }

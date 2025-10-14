@@ -58,8 +58,8 @@ func (c *PurchaseReportController) ListDaily(w http.ResponseWriter, r *http.Requ
 	request := &model.SearchPurchasesReportRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		Page:    pageInt,
-		Size:    sizeInt,
+		Page:    page,
+		Size:    size,
 	}
 
 	branchID := params.Get("branch_id")

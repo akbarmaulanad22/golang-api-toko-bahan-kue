@@ -26,18 +26,16 @@ func NewDebtPaymentController(useCase *usecase.DebtPaymentUseCase, logger *logru
 	}
 }
 
-func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	var request model.CreateDebtPaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 	debtIDInt, err := strconv.Atoi(mux.Vars(r)["debtID"])
 	if err != nil {
-		http.Error(w, "invalid debt ID", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid debt id parameter", nil)
 	}
 
 	auth := middleware.GetUser(r)
@@ -48,19 +46,17 @@ func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) {
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
 		c.Log.Warnf("Failed to create debt payment: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.DebtPaymentResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DebtPaymentResponse]{Data: response})
 }
 
-func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := &model.DeleteDebtPaymentRequest{
@@ -69,9 +65,8 @@ func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := c.UseCase.Delete(r.Context(), request); err != nil {
 		c.Log.WithError(err).Error("error deleting debt payment")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
 }

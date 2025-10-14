@@ -172,31 +172,30 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/cash-bank-transactions", middleware.WithErrorHandler(route.CashBankTransactionController.List)).Methods("GET")
 
 	// utang / piutang
-	authRouter.HandleFunc("/debt", route.DebtController.List).Methods("GET")
-	authRouter.HandleFunc("/debt/{id}", route.DebtController.Get).Methods("GET")
-	authRouter.HandleFunc("/debt/{debtID}/payments", route.DebtPaymentController.Create).Methods("POST")
-	authRouter.HandleFunc("/debt/{debtID}/payments/{id}", route.DebtPaymentController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/debt", middleware.WithErrorHandler(route.DebtController.List)).Methods("GET")
+	authRouter.HandleFunc("/debt/{id}", middleware.WithErrorHandler(route.DebtController.Get)).Methods("GET")
+	authRouter.HandleFunc("/debt/{debtID}/payments", middleware.WithErrorHandler(route.DebtPaymentController.Create)).Methods("POST")
+	authRouter.HandleFunc("/debt/{debtID}/payments/{id}", middleware.WithErrorHandler(route.DebtPaymentController.Delete)).Methods("DELETE")
 
 	// ringkasan laporan keuangan [ owner only ]
-	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")
+	authRouter.HandleFunc("/finance-report/summary", middleware.WithErrorHandler(route.FinanceController.GetSummary)).Methods("GET")
 	// laporan keuangan laba rugi [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/profit-loss", route.FinanceController.GetProfitLoss).Methods("GET")
+	authRouter.HandleFunc("/finance-report/profit-loss", middleware.WithErrorHandler(route.FinanceController.GetProfitLoss)).Methods("GET")
 	// laporan keuangan arus kas [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
+	authRouter.HandleFunc("/finance-report/cashflow", middleware.WithErrorHandler(route.FinanceController.GetCashFlow)).Methods("GET")
 	// laporan keuangan neraca [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/balance-sheet", route.FinanceController.GetBalanceSheet).Methods("GET")
+	authRouter.HandleFunc("/finance-report/balance-sheet", middleware.WithErrorHandler(route.FinanceController.GetBalanceSheet)).Methods("GET")
 
 	// stok barang
 	authRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.List)).Methods("GET")
 	authRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.Create)).Methods("POST")
 	authRouter.HandleFunc("/branch-inventory/{id}", middleware.WithErrorHandler(route.BranchInventoryController.Delete)).Methods("DELETE")
-	// authRouter.HandleFunc("/branch-inventory/{id}", middleware.WithErrorHandler(route.BranchInventoryController.Update)).Methods("PUT")
 
 	// pergerakan stok barang masuk/keluar
-	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.List).Methods("GET")
-	authRouter.HandleFunc("/inventory-movement", route.InventoryMovementController.Create).Methods("POST")
-	authRouter.HandleFunc("/inventory-movement/stock-opname", route.InventoryMovementController.CreateStockOpname).Methods("POST")
+	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.List)).Methods("GET")
+	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.Create)).Methods("POST")
+	authRouter.HandleFunc("/inventory-movement/stock-opname", middleware.WithErrorHandler(route.InventoryMovementController.CreateStockOpname)).Methods("POST")
 	// [owner only]
-	authRouter.HandleFunc("/inventory-movement/summary", route.InventoryMovementController.Summary).Methods("GET")
+	authRouter.HandleFunc("/inventory-movement/summary", middleware.WithErrorHandler(route.InventoryMovementController.Summary)).Methods("GET")
 
 }

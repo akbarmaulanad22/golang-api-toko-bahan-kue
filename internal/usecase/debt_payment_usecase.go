@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -153,21 +154,19 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
-	// ambil debt payment
 	debtPayment := new(entity.DebtPayment)
 	if err := c.DebtPaymentRepository.FindById(tx, debtPayment, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting debt payment")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("debt payments", err)
 	}
 
-	// ambil debt
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindById(tx, debt, debtPayment.DebtID); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("debt", err)
 	}
 
 	var branchID *uint
@@ -178,7 +177,7 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 		sale, err := c.SaleRepository.FindByCode(tx, debt.ReferenceCode)
 		if err != nil {
 			c.Log.WithError(err).Error("error getting sale for branch id")
-			return errors.New("not found")
+			return helper.GetNotFoundMessage("sale", err)
 		}
 		branchID = &sale.BranchID
 		txType = "OUT"
@@ -187,20 +186,18 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 		purchase, err := c.PurchaseRepository.FindByCode(tx, debt.ReferenceCode)
 		if err != nil {
 			c.Log.WithError(err).Error("error getting purchase for branch id")
-			return errors.New("not found")
+			return helper.GetNotFoundMessage("purchase", err)
 		}
 		branchID = &purchase.BranchID
 		txType = "IN"
 	}
 
-	// validasi waktu (hanya boleh dihapus < 1 jam)
 	createdAtTime := time.UnixMilli(debtPayment.CreatedAt)
 	if time.Since(createdAtTime) > time.Hour {
-		c.Log.Warnf("error deleting debt payment: %d", request.ID)
-		return errors.New("forbidden")
+		c.Log.WithField("debt", debt.ID).Error("DEBT_DELETE: exceeded 1-hour window")
+		return model.NewAppErr("forbidden", "debt cannot be deleted after 1 hours")
 	}
 
-	// kurangi paid_amount di debt
 	newPaidAmount := debt.PaidAmount - debtPayment.Amount
 	if newPaidAmount < 0 {
 		newPaidAmount = 0
@@ -208,17 +205,15 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 
 	debt.PaidAmount = newPaidAmount
 
-	// update status kalau paid amount jadi 0
 	if debt.PaidAmount == 0 {
 		debt.Status = "PENDING"
 	}
 
 	if err := c.DebtRepository.Update(tx, debt); err != nil {
 		c.Log.WithError(err).Error("error updating debt after delete payment")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// buat transaksi cash bank
 	cashBankTransaction := &entity.CashBankTransaction{
 		TransactionDate: time.Now().UnixMilli(),
 		Type:            txType,
@@ -233,18 +228,17 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 
 	if err := c.CashBankTransactionRepository.Create(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error inserting cash bank transaction")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// hapus debt payment
 	if err := c.DebtPaymentRepository.Delete(tx, debtPayment); err != nil {
 		c.Log.WithError(err).Error("error deleting debt payment")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error committing delete debt payment")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil

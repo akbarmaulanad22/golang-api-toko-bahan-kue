@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -35,12 +34,12 @@ func (c *FinanceUseCase) GetOwnerSummary(ctx context.Context, request *model.Get
 	dailyFinances, err := c.FinanceRepository.GetOwnerSummary(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting summary finances")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting finances summary")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return dailyFinances, nil
@@ -53,12 +52,12 @@ func (c *FinanceUseCase) GetProfitLoss(ctx context.Context, request *model.GetFi
 	dailyFinances, err := c.FinanceRepository.GetProfitLoss(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finances profit loss")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting finances profit loss")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return dailyFinances, nil
@@ -71,12 +70,12 @@ func (c *FinanceUseCase) GetCashFlow(ctx context.Context, request *model.GetFina
 	dailyFinances, err := c.FinanceRepository.GetCashFlow(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finances cash flow")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting finances cash flow")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return dailyFinances, nil
@@ -89,12 +88,12 @@ func (c *FinanceUseCase) GetBalanceSheet(ctx context.Context, request *model.Get
 	dailyFinances, err := c.FinanceRepository.GetBalanceSheet(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finances balance sheet")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting finances balance sheet")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return dailyFinances, nil

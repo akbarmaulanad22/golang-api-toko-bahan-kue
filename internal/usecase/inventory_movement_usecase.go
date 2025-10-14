@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -37,7 +38,7 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, model.NewAppErr("invalid request body", nil)
 	}
 
 	tx := c.DB.WithContext(ctx).Begin()
@@ -60,27 +61,18 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 				if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 					switch mysqlErr.Number {
 					case 1452:
-						if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
-							c.Log.Warn("branch doesnt exists")
-							return nil, errors.New("invalid branch id")
-						}
-						if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`size_id`)") {
-							c.Log.Warn("size doesnt exists")
-							return nil, errors.New("invalid size id")
-						}
-						return nil, errors.New("foreign key constraint failed")
+						c.Log.WithError(err).Error("foreign key constraint failed")
+						return nil, model.NewAppErr("referenced resource not found", "the specified branch or size does not exist.")
 					}
 				}
-
-				return nil, errors.New("error creating branch inventory")
+				return nil, model.NewAppErr("internal server error", nil)
 			}
 		} else if err != nil {
 			c.Log.WithError(err).Error("error querying branch inventory")
-			return nil, errors.New("internal server error")
+			return nil, model.NewAppErr("internal server error", nil)
 		} else {
-			// Sudah ada → update stok
 			if err := c.BranchInventoryRepository.UpdateStock(tx, branchInv.ID, m.ChangeQty); err != nil {
-				return nil, errors.New("error updating stock")
+				return nil, model.NewAppErr("internal server error", nil)
 			}
 		}
 
@@ -96,13 +88,13 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 				switch mysqlErr.Number {
 				case 1452:
 					if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
-						c.Log.Warn("branch inventory doesnt exists")
-						return nil, errors.New("invalid branch inventory id")
+						c.Log.WithError(err).Error("foreign key constraint failed")
+						return nil, model.NewAppErr("referenced resource not found", "the specified branch inventory does not exist.")
 					}
-					return nil, errors.New("foreign key constraint failed")
+					return nil, model.NewAppErr("internal server error", nil)
 				}
 			}
-			return nil, errors.New("error creating inventory movement")
+			return nil, model.NewAppErr("internal server error", nil)
 		}
 
 		responses = append(responses, model.InventoryMovementResponse{
@@ -113,7 +105,7 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, errors.New("commit transaction failed")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return &model.BulkInventoryMovementResponse{
@@ -130,18 +122,18 @@ func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.Se
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	inventoryMovements, total, err := c.InventoryMovementRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventory movements")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting inventory movements")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return inventoryMovements, total, nil
@@ -153,18 +145,18 @@ func (c *InventoryMovementUseCase) Summary(ctx context.Context, request *model.S
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	inventoryMovements, err := c.InventoryMovementRepository.Summary(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventory movements summary")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting inventory movements summary")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return inventoryMovements, nil

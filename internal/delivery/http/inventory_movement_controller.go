@@ -26,12 +26,11 @@ func NewInventoryMovementController(useCase *usecase.InventoryMovementUseCase, l
 	}
 }
 
-func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Request) {
+func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.BulkCreateInventoryMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	auth := middleware.GetUser(r)
@@ -41,20 +40,18 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create capital: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
 }
 
-func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) {
+func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) error {
 	var request model.BulkCreateInventoryMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		c.Log.Warnf("Failed to parse request body: %+v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
+		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.ReferenceType = "ADJUST"
@@ -66,28 +63,18 @@ func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create capital: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		return err
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
 }
 
-func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Request) {
+func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
-
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-	sizeInt, _ := strconv.Atoi(sizeStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
 
 	startAt := params.Get("start_at")
 	endAt := params.Get("end_at")
@@ -101,43 +88,37 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
 			c.Log.WithError(err).Error("invalid start at parameter")
-			http.Error(w, err.Error(), helper.GetStatusCode(err))
-			return
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
 			c.Log.WithError(err).Error("invalid end at parameter")
-			http.Error(w, err.Error(), helper.GetStatusCode(err))
-			return
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
 	}
 
 	request := &model.SearchInventoryMovementRequest{
-		Page:    pageInt,
-		Size:    sizeInt,
+		Page:    page,
+		Size:    size,
 		Type:    params.Get("type"),
 		Search:  params.Get("search"),
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
 	}
 
+	branchID := params.Get("branch_id")
 	auth := middleware.GetUser(r)
-	if strings.ToUpper(auth.Role) == "OWNER" {
-		branchID := params.Get("branch_id")
-		if branchID != "" {
-			branchIDInt, err := strconv.Atoi(branchID)
-			if err != nil {
-				c.Log.WithError(err).Error("invalid branch id parameter")
-				http.Error(w, err.Error(), helper.GetStatusCode(err))
-				return
-			}
-			branchIDUint := uint(branchIDInt)
-			request.BranchID = &branchIDUint
+	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
+		branchIDInt, err := strconv.Atoi(branchID)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid branch id parameter")
+			return model.NewAppErr("invalid branch id parameter", nil)
 		}
-
+		branchIDUint := uint(branchIDInt)
+		request.BranchID = &branchIDUint
 	} else {
 		request.BranchID = auth.BranchID
 	}
@@ -145,8 +126,7 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching inventory movements")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -156,54 +136,50 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.InventoryMovementResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.InventoryMovementResponse]{
 		Data:   responses,
 		Paging: paging,
 	})
 }
 
-func (c *InventoryMovementController) Summary(w http.ResponseWriter, r *http.Request) {
+func (c *InventoryMovementController) Summary(w http.ResponseWriter, r *http.Request) error {
 
 	params := r.URL.Query()
 
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid start at parameter")
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid end at parameter")
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	request := &model.SearchInventoryMovementRequest{
-		Page:    1,
-		Size:    1,
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
 	}
 
 	response, err := c.UseCase.Summary(r.Context(), request)
 	if err != nil {
-		c.Log.Warnf("Failed to create capital: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		return err
 	}
 
-	json.NewEncoder(w).Encode(response)
+	return helper.WriteJSON(w, http.StatusOK, response)
 }
