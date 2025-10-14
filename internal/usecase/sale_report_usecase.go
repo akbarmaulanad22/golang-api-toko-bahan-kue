@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -34,18 +34,18 @@ func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.Sear
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	salesReports, total, err := c.SaleReportRepository.SearchDaily(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting daily sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting daily sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return salesReports, total, nil
@@ -57,18 +57,18 @@ func (c *SaleReportUseCase) SearchTopSellerProduct(ctx context.Context, request 
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	salesReports, total, err := c.SaleReportRepository.SearchTopSellerProduct(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting top seller sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting top seller sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return salesReports, total, nil
@@ -80,18 +80,18 @@ func (c *SaleReportUseCase) SearchTopSellerCategory(ctx context.Context, request
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	salesReports, total, err := c.SaleReportRepository.SearchTopSellerCategory(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting top seller category sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting top seller category sales reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return salesReports, total, nil

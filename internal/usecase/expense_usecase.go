@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -211,18 +212,18 @@ func (c *ExpenseUseCase) ConsolidateReport(ctx context.Context, request *model.S
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	expenses, err := c.ExpenseRepository.ConsolidateReport(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting expenses consolidated report")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting expenses consolidated report")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return expenses, nil
