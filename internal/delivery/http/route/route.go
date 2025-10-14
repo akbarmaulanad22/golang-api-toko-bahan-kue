@@ -155,11 +155,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/purchases-reports/daily", middleware.WithErrorHandler(route.PurchaseReportController.ListDaily)).Methods("GET")
 
 	// pengeluaran
-	authRouter.HandleFunc("/expenses/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
-	authRouter.HandleFunc("/expenses", route.ExpenseController.Create).Methods("POST")
-	authRouter.HandleFunc("/expenses", route.ExpenseController.List).Methods("GET")
-	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Update).Methods("PUT")
-	authRouter.HandleFunc("/expenses/{id}", route.ExpenseController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/expenses/consolidated", middleware.WithErrorHandler(route.ExpenseController.ConsolidatedReport)).Methods("GET")
+	authRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.Create)).Methods("POST")
+	authRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.List)).Methods("GET")
+	authRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Delete)).Methods("DELETE")
 
 	// pencatatan modal masuk/keluar
 	// authRouter.HandleFunc("/capitals/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")

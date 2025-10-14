@@ -2,9 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"strconv"
-	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/helper"
@@ -43,7 +41,7 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	expense := &entity.Expense{
@@ -53,22 +51,19 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 	}
 
 	if err := c.ExpenseRepository.Create(tx, expense); err != nil {
+		c.Log.WithError(err).Error("error creating expense")
+
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
-					c.Log.Warn("branch doesnt exists")
-					return nil, errors.New("invalid branch id")
-				}
-				return nil, errors.New("foreign key constraint failed")
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
 			}
 		}
 
-		c.Log.WithError(err).Error("error creating expense")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
-	// masukin ke catatan keuangan
 	cashBankTransaction := entity.CashBankTransaction{
 		TransactionDate: time.Now().UnixMilli(),
 		Type:            "IN",
@@ -79,12 +74,12 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 	}
 
 	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating expense")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.ExpenseToResponse(expense), nil
@@ -96,13 +91,13 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	expense := new(entity.Expense)
 	if err := c.ExpenseRepository.FindById(tx, expense, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting expense")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("expense", err)
 	}
 
 	if expense.Description == request.Description && expense.Amount == request.Amount {
@@ -114,13 +109,13 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 
 	if err := c.ExpenseRepository.Update(tx, expense); err != nil {
 		c.Log.WithError(err).Error("error updating expense")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
 	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "EXPENSE"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("cash bank transaction", err)
 	}
 
 	cashBankTransaction.Amount = expense.Amount
@@ -128,12 +123,12 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 
 	if err := c.CashBankTransactionRepository.Update(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error updating cash bank transaction")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating expense")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.ExpenseToResponse(expense), nil
@@ -145,34 +140,34 @@ func (c *ExpenseUseCase) Delete(ctx context.Context, request *model.DeleteExpens
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	expense := new(entity.Expense)
 	if err := c.ExpenseRepository.FindById(tx, expense, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting expense")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("expense", err)
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
 	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "EXPENSE"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("cash bank transaction", err)
 	}
 
 	if err := c.CashBankTransactionRepository.Delete(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error deleting cash bank transaction")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := c.ExpenseRepository.Delete(tx, expense); err != nil {
 		c.Log.WithError(err).Error("error deleting expense")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting expense")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -184,18 +179,18 @@ func (c *ExpenseUseCase) Search(ctx context.Context, request *model.SearchExpens
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	expenses, total, err := c.ExpenseRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting expenses")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting expenses")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.ExpenseResponse, len(expenses))
