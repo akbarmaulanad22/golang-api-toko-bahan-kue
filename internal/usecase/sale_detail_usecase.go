@@ -62,7 +62,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.SaleCode, sale); err != nil {
 		c.Log.WithError(err).WithField("sale_code", request.SaleCode).Error("SALE_DETAIL_CANCEL: sale not found")
-		return helper.GetNotFoundMessage("sale detail", err)
+		return helper.GetNotFoundMessage("sale", err)
 	}
 
 	createdTime := time.UnixMilli(sale.CreatedAt)
@@ -74,7 +74,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	detail := new(entity.SaleDetail)
 	if err := c.SaleDetailRepository.FindPriceBySizeIDAndSaleCode(tx, sale.Code, request.SizeID, detail); err != nil {
 		c.Log.WithError(err).WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Error("SALE_DETAIL_CANCEL: sale detail not found")
-		return helper.GetNotFoundMessage("sale detail", err)
+		return helper.GetNotFoundMessage("sale details", err)
 	}
 
 	if detail.IsCancelled {
@@ -90,7 +90,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	branchInv := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, sale.BranchID, detail.SizeID); err != nil {
 		c.Log.WithError(err).WithFields(logrus.Fields{"branch_id": sale.BranchID, "size_id": detail.SizeID}).Error("SALE_DETAIL_CANCEL: branch inventory not found")
-		return model.NewAppErr("internal server error", nil)
+		return helper.GetNotFoundMessage("inventory", err)
 	}
 
 	inventories := []entity.BranchInventory{*branchInv}

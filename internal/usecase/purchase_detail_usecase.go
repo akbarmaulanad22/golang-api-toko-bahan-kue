@@ -2,10 +2,10 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -60,58 +60,51 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
-	// 1. Validasi input
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
-	// 2. Ambil purchase (lock)
 	purchase := new(entity.Purchase)
 	if err := c.PurchaseRepository.FindLockByCode(tx, request.PurchaseCode, purchase); err != nil {
 		c.Log.WithError(err).Error("error getting purchase")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("purchase", err)
 	}
 
-	// cek 24 jam
 	createdTime := time.UnixMilli(purchase.CreatedAt)
 	if time.Since(createdTime).Hours() >= 24 {
 		c.Log.WithField("purchase_code", purchase.Code).
 			Error("error cancelling purchase detail: exceeded 24-hour window")
-		return errors.New("forbidden")
+		return model.NewAppErr("forbidden", "purchase cannot be deleted after 24 hours")
 	}
 
-	// 3. Ambil detail
 	detail := new(entity.PurchaseDetail)
 	if err := c.PurchaseDetailRepository.FindPriceBySizeIDAndPurchaseCode(tx, purchase.Code, request.SizeID, detail); err != nil {
 		c.Log.WithError(err).Error("error getting purchase detail")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("purchase details", err)
 	}
 	if detail.IsCancelled {
-		return errors.New("purchase detail already cancelled")
+		return model.NewAppErr("conflict", "purchase detail already cancelled")
 	}
 
-	// 4. Update status cancelled
 	if err := c.PurchaseDetailRepository.CancelBySizeID(tx, purchase.Code, request.SizeID); err != nil {
 		c.Log.WithError(err).Error("error cancelling purchase detail")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// 5. Update stock (branch_inventory)
 	inv := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, inv, purchase.BranchID, detail.SizeID); err != nil {
 		c.Log.WithError(err).Error("branch inventory not found")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 	if inv.Stock < detail.Qty {
 		return fmt.Errorf("insufficient stock for size_id %d", detail.SizeID)
 	}
 	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchase.BranchID, map[uint]int{detail.SizeID: detail.Qty}); err != nil {
 		c.Log.WithError(err).Error("error decreasing stock")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// 6. Insert inventory_movement
 	mv := entity.InventoryMovement{
 		BranchInventoryID: inv.ID,
 		ChangeQty:         -detail.Qty,
@@ -121,39 +114,36 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 
 	if err := c.InventoryMovementRepository.Create(tx, &mv); err != nil {
 		c.Log.WithError(err).Error("error inserting inventory movement")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// 7. Update buy price kalau perlu
 	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, []uint{detail.SizeID}, purchase.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error finding last buy price")
-		return errors.New("internal server error")
+		return helper.GetNotFoundMessage("inventory", err)
 	}
+
 	if lastPrice, ok := lastPrices[detail.SizeID]; ok {
 		if err := c.SizeRepository.BulkUpdateBuyPrice(tx, map[uint]float64{detail.SizeID: lastPrice}); err != nil {
 			c.Log.WithError(err).Error("error updating buy price")
-			return errors.New("internal server error")
+			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	// 8. Debt handling
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchase.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	cancelAmount := detail.BuyPrice * float64(detail.Qty)
 
 	if debt.ID != 0 {
-		// Kurangi total_amount
 		debt.TotalAmount -= cancelAmount
 		if debt.TotalAmount < 0 {
 			debt.TotalAmount = 0
 		}
 
-		// Refund kalau overpaid
 		if debt.PaidAmount > debt.TotalAmount {
 			refund := debt.PaidAmount - debt.TotalAmount
 			refundTx := entity.CashBankTransaction{
@@ -167,18 +157,16 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
 				c.Log.WithError(err).Error("error insert refund transaction")
-				return errors.New("internal server error")
+				return model.NewAppErr("internal server error", nil)
 			}
 			debt.PaidAmount = debt.TotalAmount
 		}
 
-		// Update status debt
 		if debt.TotalAmount == 0 && debt.PaidAmount == 0 {
 			debt.Status = "VOID"
 		} else if debt.PaidAmount >= debt.TotalAmount {
 			debt.Status = "PAID"
 
-			// Buat purchase_payment
 			payment := &entity.PurchasePayment{
 				PurchaseCode:  purchase.Code,
 				PaymentMethod: "CASH",
@@ -186,7 +174,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 			}
 			if err := c.PurchasePaymentRepository.Create(tx, payment); err != nil {
 				c.Log.WithError(err).Error("error creating purchase payment")
-				return errors.New("internal server error")
+				return model.NewAppErr("internal server error", nil)
 			}
 		} else {
 			debt.Status = "PENDING"
@@ -194,14 +182,13 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 
 		if err := c.DebtRepository.Update(tx, debt); err != nil {
 			c.Log.WithError(err).Error("error update debt")
-			return errors.New("internal server error")
+			return model.NewAppErr("internal server error", nil)
 		}
 	} else {
-		// Ga ada debt → kurangi total_price + refund langsung
 		purchase.TotalPrice -= cancelAmount
 		if err := c.PurchaseRepository.UpdateTotalPrice(tx, purchase.Code, purchase.TotalPrice); err != nil {
 			c.Log.WithError(err).Error("error update purchase total_price")
-			return errors.New("internal server error")
+			return model.NewAppErr("internal server error", nil)
 		}
 
 		refundTx := entity.CashBankTransaction{
@@ -215,37 +202,34 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
 			c.Log.WithError(err).Error("error insert refund transaction")
-			return errors.New("internal server error")
+			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	// 9. Update purchase total_price
 	newTotal := purchase.TotalPrice - (detail.BuyPrice * float64(detail.Qty))
 	if newTotal < 0 {
 		newTotal = 0
 	}
 	if err := c.PurchaseRepository.UpdateTotalPrice(tx, purchase.Code, newTotal); err != nil {
 		c.Log.WithError(err).Error("error updating purchase total_price")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
-	// 10. Jika semua detail sudah cancelled, update status purchase jadi CANCELLED
 	remaining, err := c.PurchaseDetailRepository.CountActiveByPurchaseCode(tx, purchase.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error counting remaining details")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 	if remaining == 0 {
 		if err := c.PurchaseRepository.Cancel(tx, purchase.Code); err != nil {
 			c.Log.WithError(err).Error("error updating purchase status")
-			return errors.New("internal server error")
+			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	// 11. Commit
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error committing cancel purchase detail")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil

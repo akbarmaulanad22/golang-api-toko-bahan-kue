@@ -136,11 +136,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
 
 	// POS (order barang masuk)
-	authRouter.HandleFunc("/purchases", route.PurchaseController.Create).Methods("POST")
-	authRouter.HandleFunc("/purchases", route.PurchaseController.List).Methods("GET")
-	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Cancel).Methods("DELETE")
-	authRouter.HandleFunc("/purchases/{code}", route.PurchaseController.Get).Methods("GET")
-	authRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", route.PurchaseDetailController.Cancel).Methods("DELETE")
+	authRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.Create)).Methods("POST")
+	authRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.List)).Methods("GET")
+	authRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Cancel)).Methods("DELETE")
+	authRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Get)).Methods("GET")
+	authRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.PurchaseDetailController.Cancel)).Methods("DELETE")
 
 	// laporan barang keluar [ list per tanggal ]
 	authRouter.HandleFunc("/sales-reports/daily", route.SaleReportController.ListDaily).Methods("GET")

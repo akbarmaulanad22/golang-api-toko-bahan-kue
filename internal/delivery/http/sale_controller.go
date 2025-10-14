@@ -127,7 +127,7 @@ func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) error {
 
 	code, ok := params["code"]
 	if !ok || code == "" {
-		return model.NewAppErr("invalid id parameter", nil)
+		return model.NewAppErr("invalid sale code parameter", nil)
 	}
 
 	request := &model.GetSaleRequest{

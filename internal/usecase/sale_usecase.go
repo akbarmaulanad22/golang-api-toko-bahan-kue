@@ -147,7 +147,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 
 	// Bulk update stok (pakai qtyBySize)
 	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, qtyBySize); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
+
 	}
 
 	// Insert sale
@@ -159,13 +160,16 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		CreatedAt:    now,
 	}
 	if err := c.SaleRepository.Create(tx, &sale); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
+
 	}
 	if err := c.SaleDetailRepository.CreateBulk(tx, details); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
+
 	}
 	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
+
 	}
 
 	// Insert payments (jika ada)
@@ -188,7 +192,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		if err := c.SalePaymentRepository.CreateBulk(tx, payments); err != nil {
-			return nil, err
+			return nil, model.NewAppErr("internal server error", nil)
+
 		}
 
 		cashBankTransaction := entity.CashBankTransaction{
@@ -200,7 +205,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			BranchID:        &request.BranchID,
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
-			return nil, err
+			return nil, model.NewAppErr("internal server error", nil)
+
 		}
 	}
 
@@ -230,7 +236,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			UpdatedAt: now,
 		}
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
-			return nil, err
+			return nil, model.NewAppErr("internal server error", nil)
+
 		}
 
 		if n := len(request.Debt.DebtPayments); n > 0 {
@@ -308,7 +315,7 @@ func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*
 	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting sale")
-		return nil, helper.GetNotFoundMessage("branch", err)
+		return nil, helper.GetNotFoundMessage("sale", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -407,7 +414,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, request.Code); err != nil {
 		c.Log.WithError(err).Errorf("SALE_CANCEL: failed get debt sale=%s", sale.Code)
-		return model.NewAppErr("internal server error", nil)
+		return helper.GetNotFoundMessage("debt", err)
 	}
 
 	if debt.ID != 0 {
