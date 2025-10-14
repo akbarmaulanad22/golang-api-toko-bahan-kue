@@ -163,21 +163,19 @@ func (route *RouteConfig) SetupAuthRoute() {
 
 	// pencatatan modal masuk/keluar
 	// authRouter.HandleFunc("/capitals/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
-	authRouter.HandleFunc("/capitals", route.CapitalController.Create).Methods("POST")
-	authRouter.HandleFunc("/capitals", route.CapitalController.List).Methods("GET")
-	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Update).Methods("PUT")
-	authRouter.HandleFunc("/capitals/{id}", route.CapitalController.Delete).Methods("DELETE")
+	authRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.Create)).Methods("POST")
+	authRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.List)).Methods("GET")
+	authRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Delete)).Methods("DELETE")
 
 	// pencatatan penerimaan/pengeluaran uang
-	authRouter.HandleFunc("/cash-bank-transactions", route.CashBankTransactionController.List).Methods("GET")
+	authRouter.HandleFunc("/cash-bank-transactions", middleware.WithErrorHandler(route.CashBankTransactionController.List)).Methods("GET")
 
 	// utang / piutang
 	authRouter.HandleFunc("/debt", route.DebtController.List).Methods("GET")
 	authRouter.HandleFunc("/debt/{id}", route.DebtController.Get).Methods("GET")
 	authRouter.HandleFunc("/debt/{debtID}/payments", route.DebtPaymentController.Create).Methods("POST")
 	authRouter.HandleFunc("/debt/{debtID}/payments/{id}", route.DebtPaymentController.Delete).Methods("DELETE")
-
-	// ============================ skip =============================== //
 
 	// ringkasan laporan keuangan [ owner only ]
 	authRouter.HandleFunc("/finance-report/summary", route.FinanceController.GetSummary).Methods("GET")
@@ -187,8 +185,6 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/finance-report/cashflow", route.FinanceController.GetCashFlow).Methods("GET")
 	// laporan keuangan neraca [ owner, admin cabang ]
 	authRouter.HandleFunc("/finance-report/balance-sheet", route.FinanceController.GetBalanceSheet).Methods("GET")
-
-	// ============================ skip =============================== //
 
 	// stok barang
 	authRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.List)).Methods("GET")

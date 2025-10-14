@@ -2,11 +2,11 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"strconv"
-	"strings"
 	"time"
 	"tokobahankue/internal/entity"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -42,18 +42,18 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting balance")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if request.Amount > balance && request.Type == "OUT" {
 		c.Log.Warnf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount)
-		return nil, errors.New("bad request")
+		return nil, model.NewAppErr("validation not match", fmt.Sprintf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount))
 	}
 
 	capital := &entity.Capital{
@@ -64,20 +64,16 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 	}
 
 	if err := c.CapitalRepository.Create(tx, capital); err != nil {
-
+		c.Log.WithError(err).Error("error creating capital")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
-					c.Log.Warn("branch doesnt exists")
-					return nil, errors.New("invalid branch id")
-				}
-				return nil, errors.New("foreign key constraint failed")
+				c.Log.WithError(err).Error("foreign key constraint failed")
+				return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
 			}
 		}
 
-		c.Log.WithError(err).Error("error creating capital")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	// masukin ke catatan keuangan
@@ -91,12 +87,12 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 	}
 
 	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
-		return nil, err
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating capital")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.CapitalToResponse(capital), nil
@@ -108,24 +104,24 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting balance")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if request.Amount > balance && request.Type == "OUT" {
 		c.Log.Warnf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount)
-		return nil, errors.New("bad request")
+		return nil, model.NewAppErr("validation not match", fmt.Sprintf("insufficient balance: available %.2f, requested %.2f", balance, request.Amount))
 	}
 
 	capital := new(entity.Capital)
 	if err := c.CapitalRepository.FindById(tx, capital, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting capital")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("capital", err)
 	}
 
 	if capital.Note == request.Note && capital.Amount == request.Amount && capital.Type == request.Type {
@@ -138,13 +134,13 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 
 	if err := c.CapitalRepository.Update(tx, capital); err != nil {
 		c.Log.WithError(err).Error("error updating capital")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
 	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "CAPITAL"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
-		return nil, errors.New("not found")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	cashBankTransaction.Amount = capital.Amount
@@ -153,12 +149,12 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 
 	if err := c.CashBankTransactionRepository.Update(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error updating cash bank transaction")
-		return nil, errors.New("internal server error")
+		return nil, helper.GetNotFoundMessage("cash bank transaction", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error updating capital")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.CapitalToResponse(capital), nil
@@ -170,34 +166,34 @@ func (c *CapitalUseCase) Delete(ctx context.Context, request *model.DeleteCapita
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return errors.New("bad request")
+		return helper.GetValidationMessage(err)
 	}
 
 	capital := new(entity.Capital)
 	if err := c.CapitalRepository.FindById(tx, capital, request.ID); err != nil {
 		c.Log.WithError(err).Error("error getting capital")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("capital", err)
 	}
 
 	cashBankTransaction := new(entity.CashBankTransaction)
 	if err := c.CashBankTransactionRepository.FindByKeyAndSource(tx, cashBankTransaction, request.ID, "CAPITAL"); err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transaction")
-		return errors.New("not found")
+		return helper.GetNotFoundMessage("cash bank transaction", err)
 	}
 
 	if err := c.CashBankTransactionRepository.Delete(tx, cashBankTransaction); err != nil {
 		c.Log.WithError(err).Error("error deleting cash bank transaction")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := c.CapitalRepository.Delete(tx, capital); err != nil {
 		c.Log.WithError(err).Error("error deleting capital")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error deleting capital")
-		return errors.New("internal server error")
+		return model.NewAppErr("internal server error", nil)
 	}
 
 	return nil
@@ -209,18 +205,18 @@ func (c *CapitalUseCase) Search(ctx context.Context, request *model.SearchCapita
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	capitals, total, err := c.CapitalRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting capitals")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting capitals")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.CapitalResponse, len(capitals))

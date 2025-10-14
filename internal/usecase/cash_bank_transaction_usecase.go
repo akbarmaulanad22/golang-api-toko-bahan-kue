@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/model/converter"
 	"tokobahankue/internal/repository"
@@ -35,18 +35,18 @@ func (c *CashBankTransactionUseCase) Search(ctx context.Context, request *model.
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	cashBankTransactions, total, err := c.CashBankTransactionRepository.Search(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transactions")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting cash bank transactions")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	responses := make([]model.CashBankTransactionResponse, len(cashBankTransactions))

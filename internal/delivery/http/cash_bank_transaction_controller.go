@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"math"
 	"net/http"
 	"strconv"
@@ -26,71 +25,56 @@ func NewCashBankTransactionController(useCase *usecase.CashBankTransactionUseCas
 	}
 }
 
-func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Request) {
+func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()
 
-	pageStr := params.Get("page")
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	pageInt, _ := strconv.Atoi(pageStr)
+	page := helper.ParseIntOrDefault(params.Get("page"), 1)
+	size := helper.ParseIntOrDefault(params.Get("size"), 10)
 
-	sizeStr := params.Get("size")
-	if sizeStr == "" {
-		sizeStr = "10"
-	}
-
-	sizeInt, _ := strconv.Atoi(sizeStr)
-
-	startAtStr := params.Get("start_at")
-	endAtStr := params.Get("end_at")
+	startAt := params.Get("start_at")
+	endAt := params.Get("end_at")
 
 	var (
-		startAtMili int64
-		endAtMili   int64
+		startAtMili int64 = 0
+		endAtMili   int64 = 0
 	)
 
-	if startAtStr != "" && endAtStr != "" {
-		startMilli, err := helper.ParseDateToMilli(startAtStr, false)
+	if startAt != "" && endAt != "" {
+		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid start at parameter")
+			return model.NewAppErr("invalid start at parameter", nil)
 		}
-		startAtMili = startMilli
+		startAtMili = startAt
 
-		endMilli, err := helper.ParseDateToMilli(endAtStr, true)
+		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			http.Error(w, "Invalid start_at format. Use YYYY-MM-DD", http.StatusBadRequest)
-			return
+			c.Log.WithError(err).Error("invalid end at parameter")
+			return model.NewAppErr("invalid end at parameter", nil)
 		}
-
-		endAtMili = endMilli
+		endAtMili = endAt
 	}
 
 	request := &model.SearchCashBankTransactionRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		Page:    pageInt,
-		Size:    sizeInt,
+		Page:    page,
+		Size:    size,
 		Search:  params.Get("search"),
 		Type:    params.Get("type"),
 		Source:  params.Get("source"),
 	}
 
+	branchID := params.Get("branch_id")
 	auth := middleware.GetUser(r)
-	if strings.ToUpper(auth.Role) == "OWNER" {
-		branchID := params.Get("branch_id")
-		if branchID != "" {
-			branchIDInt, err := strconv.Atoi(branchID)
-			if err != nil {
-				c.Log.WithError(err).Error("invalid branch id parameter")
-				http.Error(w, err.Error(), helper.GetStatusCode(err))
-				return
-			}
-			branchIDUint := uint(branchIDInt)
-			request.BranchID = &branchIDUint
+	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
+		branchIDInt, err := strconv.Atoi(branchID)
+		if err != nil {
+			c.Log.WithError(err).Error("invalid branch id parameter")
+			return model.NewAppErr("invalid branch id parameter", nil)
 		}
-
+		branchIDUint := uint(branchIDInt)
+		request.BranchID = &branchIDUint
 	} else {
 		request.BranchID = auth.BranchID
 	}
@@ -98,8 +82,7 @@ func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Requ
 	responses, total, err := c.UseCase.Search(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Error("error searching cash bank transaction")
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
-		return
+		return err
 	}
 
 	paging := &model.PageMetadata{
@@ -109,7 +92,7 @@ func (c *CashBankTransactionController) List(w http.ResponseWriter, r *http.Requ
 		TotalPage: int64(math.Ceil(float64(total) / float64(request.Size))),
 	}
 
-	json.NewEncoder(w).Encode(model.WebResponse[[]model.CashBankTransactionResponse]{
+	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[[]model.CashBankTransactionResponse]{
 		Data:   responses,
 		Paging: paging,
 	})

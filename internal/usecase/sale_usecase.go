@@ -188,7 +188,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		if totalPayment < totalPrice {
-			return nil, model.NewAppErr("bad request", "total payment is less than total price")
+			return nil, model.NewAppErr("validation error", "total payment is less than total price")
 		}
 
 		if err := c.SalePaymentRepository.CreateBulk(tx, payments); err != nil {
@@ -217,7 +217,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			paidAmount += p.Amount
 		}
 		if paidAmount > totalPrice {
-			return nil, model.NewAppErr("bad request", "total debt payment is more than total price")
+			return nil, model.NewAppErr("validation error", "total debt payment is more than total price")
 		}
 
 		debt := entity.Debt{
