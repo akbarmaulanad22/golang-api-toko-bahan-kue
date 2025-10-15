@@ -36,13 +36,13 @@ func NewExpenseUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.V
 }
 
 func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpenseRequest) (*model.ExpenseResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	expense := &entity.Expense{
 		Description: request.Description,
@@ -82,13 +82,13 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 }
 
 func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpenseRequest) (*model.ExpenseResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	expense := new(entity.Expense)
 	if err := c.ExpenseRepository.FindById(tx, expense, request.ID); err != nil {
@@ -131,13 +131,13 @@ func (c *ExpenseUseCase) Update(ctx context.Context, request *model.UpdateExpens
 }
 
 func (c *ExpenseUseCase) Delete(ctx context.Context, request *model.DeleteExpenseRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	expense := new(entity.Expense)
 	if err := c.ExpenseRepository.FindById(tx, expense, request.ID); err != nil {
@@ -170,13 +170,13 @@ func (c *ExpenseUseCase) Delete(ctx context.Context, request *model.DeleteExpens
 }
 
 func (c *ExpenseUseCase) Search(ctx context.Context, request *model.SearchExpenseRequest) ([]model.ExpenseResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	expenses, total, err := c.ExpenseRepository.Search(tx, request)
 	if err != nil {
@@ -198,13 +198,13 @@ func (c *ExpenseUseCase) Search(ctx context.Context, request *model.SearchExpens
 }
 
 func (c *ExpenseUseCase) ConsolidateReport(ctx context.Context, request *model.SearchConsolidateExpenseRequest) (*model.ConsolidatedExpenseResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	expenses, err := c.ExpenseRepository.ConsolidateReport(tx, request)
 	if err != nil {

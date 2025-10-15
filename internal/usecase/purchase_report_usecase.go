@@ -29,13 +29,13 @@ func NewPurchaseReportUseCase(db *gorm.DB, logger *logrus.Logger, validate *vali
 }
 
 func (c *PurchaseReportUseCase) SearchDaily(ctx context.Context, request *model.SearchPurchasesReportRequest) ([]model.PurchasesDailyReportResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	purchasesReports, total, err := c.PurchaseReportRepository.SearchDaily(tx, request)
 	if err != nil {

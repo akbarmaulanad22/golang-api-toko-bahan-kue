@@ -30,13 +30,13 @@ func NewCashBankTransactionUseCase(db *gorm.DB, logger *logrus.Logger, validate 
 }
 
 func (c *CashBankTransactionUseCase) Search(ctx context.Context, request *model.SearchCashBankTransactionRequest) ([]model.CashBankTransactionResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	cashBankTransactions, total, err := c.CashBankTransactionRepository.Search(tx, request)
 	if err != nil {

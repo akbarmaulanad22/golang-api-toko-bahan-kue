@@ -32,13 +32,13 @@ func NewBranchUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Va
 }
 
 func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchRequest) (*model.BranchResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branch := &entity.Branch{
 		Name:    request.Name,
@@ -63,13 +63,13 @@ func (c *BranchUseCase) Create(ctx context.Context, request *model.CreateBranchR
 }
 
 func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchRequest) (*model.BranchResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
@@ -102,13 +102,13 @@ func (c *BranchUseCase) Update(ctx context.Context, request *model.UpdateBranchR
 }
 
 func (c *BranchUseCase) Get(ctx context.Context, request *model.GetBranchRequest) (*model.BranchResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
@@ -125,13 +125,13 @@ func (c *BranchUseCase) Get(ctx context.Context, request *model.GetBranchRequest
 }
 
 func (c *BranchUseCase) Delete(ctx context.Context, request *model.DeleteBranchRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branch := new(entity.Branch)
 	if err := c.BranchRepository.FindById(tx, branch, request.ID); err != nil {
@@ -153,13 +153,13 @@ func (c *BranchUseCase) Delete(ctx context.Context, request *model.DeleteBranchR
 }
 
 func (c *BranchUseCase) Search(ctx context.Context, request *model.SearchBranchRequest) ([]model.BranchResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branches, total, err := c.BranchRepository.Search(tx, request)
 	if err != nil {

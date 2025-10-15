@@ -50,13 +50,13 @@ func NewDebtPaymentUseCase(
 }
 
 func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDebtPaymentRequest) (*model.DebtPaymentResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindById(tx, debt, request.DebtID); err != nil {
@@ -135,13 +135,13 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 }
 
 func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDebtPaymentRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	debtPayment := new(entity.DebtPayment)
 	if err := c.DebtPaymentRepository.FindById(tx, debtPayment, request.ID); err != nil {

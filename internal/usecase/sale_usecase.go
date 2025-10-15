@@ -64,13 +64,13 @@ func NewSaleUseCase(
 }
 
 func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleRequest) (*model.SaleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	if request.Debt == nil && len(request.Payments) == 0 || (request.Debt != nil && len(request.Payments) > 0) {
 		c.Log.Error("debt or payments must be provided")
@@ -296,13 +296,13 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 }
 
 func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleRequest) ([]model.SaleResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	sales, total, err := c.SaleRepository.Search(tx, request)
 	if err != nil {
@@ -324,13 +324,13 @@ func (c *SaleUseCase) Search(ctx context.Context, request *model.SearchSaleReque
 }
 
 func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*model.SaleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	sale, err := c.SaleRepository.FindByCode(tx, request.Code)
 	if err != nil {
@@ -347,13 +347,13 @@ func (c *SaleUseCase) Get(ctx context.Context, request *model.GetSaleRequest) (*
 }
 
 func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.Code, sale); err != nil {

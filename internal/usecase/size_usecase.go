@@ -33,13 +33,13 @@ func NewSizeUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Vali
 }
 
 func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeRequest) (*model.SizeResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	size := &entity.Size{
 		Name:       request.Name,
@@ -76,13 +76,13 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 }
 
 func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeRequest) (*model.SizeResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
@@ -116,13 +116,13 @@ func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeReque
 }
 
 func (c *SizeUseCase) Get(ctx context.Context, request *model.GetSizeRequest) (*model.SizeResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
@@ -139,13 +139,13 @@ func (c *SizeUseCase) Get(ctx context.Context, request *model.GetSizeRequest) (*
 }
 
 func (c *SizeUseCase) Delete(ctx context.Context, request *model.DeleteSizeRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	size := new(entity.Size)
 	if err := c.SizeRepository.FindByIdAndProductSKU(tx, size, request.ID, request.ProductSKU); err != nil {
@@ -167,13 +167,13 @@ func (c *SizeUseCase) Delete(ctx context.Context, request *model.DeleteSizeReque
 }
 
 func (c *SizeUseCase) Search(ctx context.Context, request *model.SearchSizeRequest) ([]model.SizeResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	sizes, total, err := c.SizeRepository.Search(tx, request)
 	if err != nil {

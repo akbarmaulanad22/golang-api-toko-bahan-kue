@@ -111,13 +111,13 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 
 func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.SearchInventoryMovementRequest) ([]model.InventoryMovementResponse, int64, error) {
 
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	inventoryMovements, total, err := c.InventoryMovementRepository.Search(tx, request)
 	if err != nil {
@@ -134,13 +134,13 @@ func (c *InventoryMovementUseCase) Search(ctx context.Context, request *model.Se
 }
 
 func (c *InventoryMovementUseCase) Summary(ctx context.Context, request *model.SearchInventoryMovementRequest) (*model.InventoryMovementSummaryResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	inventoryMovements, err := c.InventoryMovementRepository.Summary(tx, request)
 	if err != nil {

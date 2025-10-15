@@ -56,13 +56,13 @@ func (c *BranchInventoryUseCase) List(ctx context.Context, request *model.Search
 }
 
 func (c *BranchInventoryUseCase) Create(ctx context.Context, request *model.CreateBranchInventoryRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	inventory := &entity.BranchInventory{
 		BranchID: request.BranchID,
@@ -88,14 +88,13 @@ func (c *BranchInventoryUseCase) Create(ctx context.Context, request *model.Crea
 }
 
 func (c *BranchInventoryUseCase) Update(ctx context.Context, request *model.UpdateBranchInventoryRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
-
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	inventory := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindById(tx, inventory, request.ID); err != nil {
@@ -126,13 +125,13 @@ func (c *BranchInventoryUseCase) Update(ctx context.Context, request *model.Upda
 }
 
 func (c *BranchInventoryUseCase) Delete(ctx context.Context, request *model.DeleteBranchInventoryRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	branchInventory := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindById(tx, branchInventory, request.ID); err != nil {

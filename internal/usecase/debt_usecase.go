@@ -29,13 +29,13 @@ func NewDebtUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Vali
 }
 
 func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*model.DebtDetailResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	debt, err := c.DebtRepository.FindDetailById(tx, request)
 	if err != nil {
@@ -52,13 +52,13 @@ func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*
 }
 
 func (c *DebtUseCase) Search(ctx context.Context, request *model.SearchDebtRequest) ([]model.DebtResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	debts, total, err := c.DebtRepository.SearchRaw(tx, request)
 	if err != nil {

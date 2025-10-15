@@ -29,13 +29,13 @@ func NewSaleReportUseCase(db *gorm.DB, logger *logrus.Logger, validate *validato
 }
 
 func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesDailyReportResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	salesReports, total, err := c.SaleReportRepository.SearchDaily(tx, request)
 	if err != nil {
@@ -52,13 +52,13 @@ func (c *SaleReportUseCase) SearchDaily(ctx context.Context, request *model.Sear
 }
 
 func (c *SaleReportUseCase) SearchTopSellerProduct(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesTopSellerReportResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	salesReports, total, err := c.SaleReportRepository.SearchTopSellerProduct(tx, request)
 	if err != nil {
@@ -75,13 +75,13 @@ func (c *SaleReportUseCase) SearchTopSellerProduct(ctx context.Context, request 
 }
 
 func (c *SaleReportUseCase) SearchTopSellerCategory(ctx context.Context, request *model.SearchSalesReportRequest) ([]model.SalesCategoryResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	salesReports, total, err := c.SaleReportRepository.SearchTopSellerCategory(tx, request)
 	if err != nil {

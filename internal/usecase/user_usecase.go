@@ -36,14 +36,13 @@ func NewUserUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Vali
 }
 
 func (c *UserUseCase) Verify(ctx context.Context, request *model.VerifyUserRequest) (*model.Auth, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
-	err := c.Validate.Struct(request)
-	if err != nil {
+	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByToken(tx, user, request.Token); err != nil {
@@ -60,13 +59,13 @@ func (c *UserUseCase) Verify(ctx context.Context, request *model.VerifyUserReque
 }
 
 func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest) (*model.UserResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
@@ -83,13 +82,13 @@ func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest
 }
 
 func (c *UserUseCase) Login(ctx context.Context, request *model.LoginUserRequest) (*model.UserResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
@@ -117,13 +116,13 @@ func (c *UserUseCase) Login(ctx context.Context, request *model.LoginUserRequest
 }
 
 func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserRequest) (bool, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return false, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
@@ -149,14 +148,13 @@ func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserReque
 // general CRUD
 
 func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserRequest) (*model.UserResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
-	err := c.Validate.Struct(request)
-	if err != nil {
+	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -196,13 +194,13 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 }
 
 func (c *UserUseCase) Search(ctx context.Context, request *model.SearchUserRequest) ([]model.UserResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	users, total, err := c.UserRepository.Search(tx, request)
 	if err != nil {
@@ -224,13 +222,13 @@ func (c *UserUseCase) Search(ctx context.Context, request *model.SearchUserReque
 }
 
 func (c *UserUseCase) Get(ctx context.Context, request *model.GetUserRequest) (*model.UserResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
@@ -247,13 +245,13 @@ func (c *UserUseCase) Get(ctx context.Context, request *model.GetUserRequest) (*
 }
 
 func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserRequest) (*model.UserResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
@@ -300,13 +298,13 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 }
 
 func (c *UserUseCase) Delete(ctx context.Context, request *model.DeleteUserRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {

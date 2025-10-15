@@ -32,13 +32,13 @@ func NewProductUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.V
 }
 
 func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProductRequest) (*model.ProductResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	product := &entity.Product{
 		CategoryID: request.CategoryID,
@@ -70,13 +70,13 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 }
 
 func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProductRequest) (*model.ProductResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
@@ -115,14 +115,15 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 }
 
 func (c *ProductUseCase) Get(ctx context.Context, request *model.GetProductRequest) (*model.ProductResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
@@ -139,13 +140,13 @@ func (c *ProductUseCase) Get(ctx context.Context, request *model.GetProductReque
 }
 
 func (c *ProductUseCase) Delete(ctx context.Context, request *model.DeleteProductRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
@@ -167,13 +168,13 @@ func (c *ProductUseCase) Delete(ctx context.Context, request *model.DeleteProduc
 }
 
 func (c *ProductUseCase) Search(ctx context.Context, request *model.SearchProductRequest) ([]model.ProductResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	products, total, err := c.ProductRepository.Search(tx, request)
 	if err != nil {

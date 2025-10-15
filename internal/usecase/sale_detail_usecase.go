@@ -51,13 +51,13 @@ func NewSaleDetailUseCase(
 }
 
 func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSaleDetailRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.SaleCode, sale); err != nil {

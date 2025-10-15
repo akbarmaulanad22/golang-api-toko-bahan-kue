@@ -32,13 +32,13 @@ func NewRoleUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.Vali
 }
 
 func (c *RoleUseCase) Create(ctx context.Context, request *model.CreateRoleRequest) (*model.RoleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	role := &entity.Role{
 		Name: request.Name,
@@ -62,13 +62,13 @@ func (c *RoleUseCase) Create(ctx context.Context, request *model.CreateRoleReque
 }
 
 func (c *RoleUseCase) Update(ctx context.Context, request *model.UpdateRoleRequest) (*model.RoleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	role := new(entity.Role)
 	if err := c.RoleRepository.FindById(tx, role, request.ID); err != nil {
@@ -98,13 +98,13 @@ func (c *RoleUseCase) Update(ctx context.Context, request *model.UpdateRoleReque
 }
 
 func (c *RoleUseCase) Get(ctx context.Context, request *model.GetRoleRequest) (*model.RoleResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	role := new(entity.Role)
 	if err := c.RoleRepository.FindById(tx, role, request.ID); err != nil {
@@ -121,13 +121,13 @@ func (c *RoleUseCase) Get(ctx context.Context, request *model.GetRoleRequest) (*
 }
 
 func (c *RoleUseCase) Delete(ctx context.Context, request *model.DeleteRoleRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	role := new(entity.Role)
 	if err := c.RoleRepository.FindById(tx, role, request.ID); err != nil {
@@ -149,13 +149,13 @@ func (c *RoleUseCase) Delete(ctx context.Context, request *model.DeleteRoleReque
 }
 
 func (c *RoleUseCase) Search(ctx context.Context, request *model.SearchRoleRequest) ([]model.RoleResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	roles, total, err := c.RoleRepository.Search(tx, request)
 	if err != nil {

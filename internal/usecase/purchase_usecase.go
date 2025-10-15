@@ -64,12 +64,12 @@ func NewPurchaseUseCase(
 }
 
 func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurchaseRequest) (*model.PurchaseResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	if request.Debt == nil && len(request.Payments) == 0 || (request.Debt != nil && len(request.Payments) > 0) {
 		c.Log.Error("debt or payments must be provided")
@@ -282,13 +282,13 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 }
 
 func (c *PurchaseUseCase) Search(ctx context.Context, request *model.SearchPurchaseRequest) ([]model.PurchaseResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	purchases, total, err := c.PurchaseRepository.Search(tx, request)
 	if err != nil {
@@ -310,13 +310,13 @@ func (c *PurchaseUseCase) Search(ctx context.Context, request *model.SearchPurch
 }
 
 func (c *PurchaseUseCase) Get(ctx context.Context, request *model.GetPurchaseRequest) (*model.PurchaseResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	purchase, err := c.PurchaseRepository.FindByCode(tx, request.Code)
 	if err != nil {
@@ -333,13 +333,13 @@ func (c *PurchaseUseCase) Get(ctx context.Context, request *model.GetPurchaseReq
 }
 
 func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurchaseRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	purchaseEntity := new(entity.Purchase)
 	if err := c.PurchaseRepository.FindLockByCode(tx, request.Code, purchaseEntity); err != nil {

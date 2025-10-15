@@ -33,13 +33,13 @@ func NewCategoryUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.
 }
 
 func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCategoryRequest) (*model.CategoryResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	category := &entity.Category{
 		Name: request.Name,
@@ -63,13 +63,13 @@ func (c *CategoryUseCase) Create(ctx context.Context, request *model.CreateCateg
 }
 
 func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCategoryRequest) (*model.CategoryResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
@@ -101,13 +101,13 @@ func (c *CategoryUseCase) Update(ctx context.Context, request *model.UpdateCateg
 }
 
 func (c *CategoryUseCase) Get(ctx context.Context, request *model.GetCategoryRequest) (*model.CategoryResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
@@ -124,13 +124,13 @@ func (c *CategoryUseCase) Get(ctx context.Context, request *model.GetCategoryReq
 }
 
 func (c *CategoryUseCase) Delete(ctx context.Context, request *model.DeleteCategoryRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	category := new(entity.Category)
 	if err := c.CategoryRepository.FindById(tx, category, request.ID); err != nil {
@@ -152,13 +152,13 @@ func (c *CategoryUseCase) Delete(ctx context.Context, request *model.DeleteCateg
 }
 
 func (c *CategoryUseCase) Search(ctx context.Context, request *model.SearchTopSellerCategoryRequest) ([]model.CategoryResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	categories, total, err := c.CategoryRepository.Search(tx, request)
 	if err != nil {

@@ -37,13 +37,13 @@ func NewCapitalUseCase(db *gorm.DB, logger *logrus.Logger, validate *validator.V
 }
 
 func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapitalRequest) (*model.CapitalResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
 	if err != nil {
@@ -97,13 +97,13 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 }
 
 func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapitalRequest) (*model.CapitalResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	balance, err := c.CapitalRepository.GetBalance(tx, request.BranchID)
 	if err != nil {
@@ -159,13 +159,13 @@ func (c *CapitalUseCase) Update(ctx context.Context, request *model.UpdateCapita
 }
 
 func (c *CapitalUseCase) Delete(ctx context.Context, request *model.DeleteCapitalRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	capital := new(entity.Capital)
 	if err := c.CapitalRepository.FindById(tx, capital, request.ID); err != nil {
@@ -198,13 +198,13 @@ func (c *CapitalUseCase) Delete(ctx context.Context, request *model.DeleteCapita
 }
 
 func (c *CapitalUseCase) Search(ctx context.Context, request *model.SearchCapitalRequest) ([]model.CapitalResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	capitals, total, err := c.CapitalRepository.Search(tx, request)
 	if err != nil {

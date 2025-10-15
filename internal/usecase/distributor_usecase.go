@@ -33,13 +33,13 @@ func NewDistributorUseCase(db *gorm.DB, logger *logrus.Logger, validate *validat
 }
 
 func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDistributorRequest) (*model.DistributorResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	distributor := &entity.Distributor{
 		Name:    request.Name,
@@ -64,13 +64,13 @@ func (c *DistributorUseCase) Create(ctx context.Context, request *model.CreateDi
 }
 
 func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDistributorRequest) (*model.DistributorResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	distributor := new(entity.Distributor)
 	if err := c.DistributorRepository.FindById(tx, distributor, request.ID); err != nil {
@@ -103,13 +103,13 @@ func (c *DistributorUseCase) Update(ctx context.Context, request *model.UpdateDi
 }
 
 func (c *DistributorUseCase) Get(ctx context.Context, request *model.GetDistributorRequest) (*model.DistributorResponse, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	distributor := new(entity.Distributor)
 	if err := c.DistributorRepository.FindById(tx, distributor, request.ID); err != nil {
@@ -126,13 +126,13 @@ func (c *DistributorUseCase) Get(ctx context.Context, request *model.GetDistribu
 }
 
 func (c *DistributorUseCase) Delete(ctx context.Context, request *model.DeleteDistributorRequest) error {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	distributor := new(entity.Distributor)
 	if err := c.DistributorRepository.FindById(tx, distributor, request.ID); err != nil {
@@ -154,13 +154,13 @@ func (c *DistributorUseCase) Delete(ctx context.Context, request *model.DeleteDi
 }
 
 func (c *DistributorUseCase) Search(ctx context.Context, request *model.SearchDistributorRequest) ([]model.DistributorResponse, int64, error) {
-	tx := c.DB.WithContext(ctx).Begin()
-	defer tx.Rollback()
-
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
 		return nil, 0, helper.GetValidationMessage(err)
 	}
+
+	tx := c.DB.WithContext(ctx).Begin()
+	defer tx.Rollback()
 
 	distributors, total, err := c.DistributorRepository.Search(tx, request)
 	if err != nil {
