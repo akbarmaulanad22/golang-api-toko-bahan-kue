@@ -28,13 +28,13 @@ func NewCategoryController(useCase *usecase.CategoryUseCase, logger *logrus.Logg
 func (c *CategoryController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateCategoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create category: %+v", err)
+		c.Log.WithError(err).Error("error creating category")
 		return err
 	}
 
@@ -95,12 +95,13 @@ func (c *CategoryController) Update(w http.ResponseWriter, r *http.Request) erro
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateCategoryRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -108,7 +109,7 @@ func (c *CategoryController) Update(w http.ResponseWriter, r *http.Request) erro
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update category")
+		c.Log.WithError(err).Warnf("error to update category")
 		return err
 	}
 
@@ -119,6 +120,7 @@ func (c *CategoryController) Delete(w http.ResponseWriter, r *http.Request) erro
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

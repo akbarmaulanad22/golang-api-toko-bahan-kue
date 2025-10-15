@@ -25,7 +25,7 @@ func (c *DashboardController) Get(w http.ResponseWriter, r *http.Request) error 
 
 	response, err := c.UseCase.Get(r.Context())
 	if err != nil {
-		c.Log.WithError(err).Error("error getting count card dashboard")
+		c.Log.WithError(err).Error("error getting dashboard data")
 		return err
 	}
 

@@ -40,14 +40,14 @@ func (c *FinanceController) GetSummary(w http.ResponseWriter, r *http.Request) e
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -82,14 +82,14 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -126,14 +126,14 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -166,7 +166,8 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 
 	asOfMilli, err := helper.ParseDateToMilli(asOfStr, true)
 	if err != nil {
-		return model.NewAppErr("invalid as parameter. Use YYYY-MM-DD", nil)
+		c.Log.Warnf("error to parse as of parameter: %+v", err)
+		return model.NewAppErr("invalid as of parameter. Use YYYY-MM-DD", nil)
 	}
 
 	auth := middleware.GetUser(r)
@@ -179,7 +180,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
 		branchIDInt, err := strconv.Atoi(branchID)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid branch id parameter")
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
 			return model.NewAppErr("invalid branch id parameter", nil)
 		}
 		branchIDUint := uint(branchIDInt)

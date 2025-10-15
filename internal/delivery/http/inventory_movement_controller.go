@@ -29,7 +29,7 @@ func NewInventoryMovementController(useCase *usecase.InventoryMovementUseCase, l
 func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.BulkCreateInventoryMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -40,7 +40,7 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		c.Log.WithError(err).Error("error creating inventory movement")
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) error {
 	var request model.BulkCreateInventoryMovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -63,7 +63,7 @@ func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		c.Log.WithError(err).Error("error creating inventory movement")
 		return err
 	}
 
@@ -87,14 +87,14 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -114,7 +114,7 @@ func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Reques
 	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
 		branchIDInt, err := strconv.Atoi(branchID)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid branch id parameter")
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
 			return model.NewAppErr("invalid branch id parameter", nil)
 		}
 		branchIDUint := uint(branchIDInt)
@@ -157,14 +157,14 @@ func (c *InventoryMovementController) Summary(w http.ResponseWriter, r *http.Req
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -177,7 +177,7 @@ func (c *InventoryMovementController) Summary(w http.ResponseWriter, r *http.Req
 
 	response, err := c.UseCase.Summary(r.Context(), request)
 	if err != nil {
-		c.Log.Warnf("Failed to create inventory movement: %+v", err)
+		c.Log.WithError(err).Error("error getting summary inventory movement")
 		return err
 	}
 

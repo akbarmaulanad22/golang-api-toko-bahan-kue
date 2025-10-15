@@ -30,11 +30,12 @@ func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) e
 
 	var request model.CreateDebtPaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 	debtIDInt, err := strconv.Atoi(mux.Vars(r)["debtID"])
 	if err != nil {
+		c.Log.Warnf("error to parse debt id parameter: %+v", err)
 		return model.NewAppErr("invalid debt id parameter", nil)
 	}
 
@@ -45,7 +46,7 @@ func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) e
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create debt payment: %+v", err)
+		c.Log.WithError(err).Error("error creating debt payment")
 		return err
 	}
 
@@ -56,6 +57,7 @@ func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) e
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

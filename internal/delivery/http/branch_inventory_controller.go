@@ -31,12 +31,12 @@ func (c *BranchInventoryController) Create(w http.ResponseWriter, r *http.Reques
 
 	var request model.CreateBranchInventoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	if err := c.UseCase.Create(r.Context(), &request); err != nil {
-		c.Log.Warnf("Failed to create branch inventory: %+v", err)
+		c.Log.WithError(err).Error("error creating branch inventory")
 		return err
 	}
 
@@ -61,7 +61,7 @@ func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request)
 	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
 		branchIDInt, err := strconv.Atoi(branchID)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid branch id parameter")
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
 			return model.NewAppErr("invalid branch id parameter", nil)
 		}
 		branchIDUint := uint(branchIDInt)
@@ -94,20 +94,20 @@ func (c *BranchInventoryController) Update(w http.ResponseWriter, r *http.Reques
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	var request model.UpdateBranchInventoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	request.ID = uint(idInt)
 
 	if err := c.UseCase.Update(r.Context(), &request); err != nil {
-		c.Log.Warnf("Failed to update branch inventory: %+v", err)
-		http.Error(w, err.Error(), helper.GetStatusCode(err))
+		c.Log.Warnf("error to update branch inventory: %+v", err)
 		return err
 	}
 
@@ -118,6 +118,7 @@ func (c *BranchInventoryController) Delete(w http.ResponseWriter, r *http.Reques
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

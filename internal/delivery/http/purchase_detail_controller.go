@@ -29,16 +29,19 @@ func (c *PurchaseDetailController) Cancel(w http.ResponseWriter, r *http.Request
 
 	code, ok := params["code"]
 	if !ok || code == "" {
+		c.Log.Warnf("error to parse sale code parameter: missing or invalid sale code")
 		return model.NewAppErr("invalid sale code parameter", nil)
 	}
 
 	sizeID, ok := params["sizeID"]
 	if !ok || code == "" {
+		c.Log.Warnf("error to parse size id parameter: missing or invalid size id")
 		return model.NewAppErr("invalid size id parameter", nil)
 	}
 
 	sizeIDInt, err := strconv.Atoi(sizeID)
 	if err != nil {
+		c.Log.Warnf("error to parse size id: %+v", err)
 		return model.NewAppErr("invalid size id parameter", nil)
 	}
 
@@ -48,7 +51,7 @@ func (c *PurchaseDetailController) Cancel(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {
-		c.Log.WithError(err).Warnf("Failed to cancel sale")
+		c.Log.WithError(err).Warnf("error to cancel sale")
 		return err
 	}
 

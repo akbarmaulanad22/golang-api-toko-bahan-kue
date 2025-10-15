@@ -27,13 +27,13 @@ func NewProductController(useCase *usecase.ProductUseCase, logger *logrus.Logger
 func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateProductRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create product: %+v", err)
+		c.Log.Warnf("error to create product: %+v", err)
 		return err
 	}
 
@@ -90,7 +90,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) error
 
 	request := new(model.UpdateProductRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -98,7 +98,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) error
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update product")
+		c.Log.WithError(err).Warnf("error to update product")
 		return err
 	}
 

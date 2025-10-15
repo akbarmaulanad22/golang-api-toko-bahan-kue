@@ -30,12 +30,13 @@ func (c *SizeController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
+		c.Log.Warnf("error to parse product sku parameter: missing or invalid product sku")
 		return model.NewAppErr("invalid product sku parameter", nil)
 	}
 
 	var request model.CreateSizeRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -43,7 +44,7 @@ func (c *SizeController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create size: %+v", err)
+		c.Log.WithError(err).Error("error creating size")
 		return err
 	}
 
@@ -57,6 +58,7 @@ func (c *SizeController) List(w http.ResponseWriter, r *http.Request) error {
 
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
+		c.Log.Warnf("error to parse product sku parameter: missing or invalid product sku")
 		return model.NewAppErr("invalid product sku parameter", nil)
 	}
 	page := helper.ParseIntOrDefault(query.Get("page"), 1)
@@ -92,11 +94,13 @@ func (c *SizeController) Get(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
+		c.Log.Warnf("error to parse product sku parameter: missing or invalid product sku")
 		return model.NewAppErr("invalid product sku parameter", nil)
 	}
 
 	idInt, err := strconv.Atoi(params["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: missing or invalid id")
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
@@ -119,17 +123,19 @@ func (c *SizeController) Update(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
+		c.Log.Warnf("error to parse product sku parameter: missing or invalid product sku")
 		return model.NewAppErr("invalid product sku parameter", nil)
 	}
 
 	idInt, err := strconv.Atoi(params["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: missing or invalid id")
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateSizeRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -138,7 +144,7 @@ func (c *SizeController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update size")
+		c.Log.WithError(err).Warnf("error to update size")
 		return err
 	}
 
@@ -150,11 +156,13 @@ func (c *SizeController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	productSKU, ok := params["productSKU"]
 	if !ok || productSKU == "" {
+		c.Log.Warnf("error to parse product sku parameter: missing or invalid product sku")
 		return model.NewAppErr("invalid product sku parameter", nil)
 	}
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: missing or invalid id")
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

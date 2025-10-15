@@ -28,13 +28,13 @@ func NewUserController(useCase *usecase.UserUseCase, logger *logrus.Logger) *Use
 func (c *UserController) Register(w http.ResponseWriter, r *http.Request) error {
 	var request model.RegisterUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create user: %+v", err)
+		c.Log.WithError(err).Error("error creating user")
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (c *UserController) Current(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Current(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to get current user")
+		c.Log.WithError(err).Warnf("error to get current user")
 		return err
 	}
 
@@ -60,13 +60,13 @@ func (c *UserController) Current(w http.ResponseWriter, r *http.Request) error {
 func (c *UserController) Login(w http.ResponseWriter, r *http.Request) error {
 	var request model.LoginUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Login(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to login user: %+v", err)
+		c.Log.WithError(err).Error("error login user")
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (c *UserController) Logout(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Logout(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to logout user")
+		c.Log.WithError(err).Warnf("error to logout user")
 		return err
 	}
 
@@ -128,6 +128,7 @@ func (c *UserController) Get(w http.ResponseWriter, r *http.Request) error {
 	username := mux.Vars(r)["username"]
 
 	if username == "" {
+		c.Log.Warnf("error to parse username parameter: missing or invalid username")
 		return model.NewAppErr("invalid username parameter", nil)
 	}
 
@@ -149,14 +150,13 @@ func (c *UserController) Update(w http.ResponseWriter, r *http.Request) error {
 	username := mux.Vars(r)["username"]
 
 	if username == "" {
+		c.Log.Warnf("error to parse username parameter: missing or invalid username")
 		return model.NewAppErr("invalid username parameter", nil)
 	}
 
-	c.Log.Debug(username)
-
 	request := new(model.UpdateUserRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -164,7 +164,7 @@ func (c *UserController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update user")
+		c.Log.WithError(err).Warnf("error to update user")
 		return err
 	}
 
@@ -175,6 +175,7 @@ func (c *UserController) Delete(w http.ResponseWriter, r *http.Request) error {
 	username := mux.Vars(r)["username"]
 
 	if username == "" {
+		c.Log.Warnf("error to parse username parameter: missing or invalid username")
 		return model.NewAppErr("invalid username parameter", nil)
 	}
 

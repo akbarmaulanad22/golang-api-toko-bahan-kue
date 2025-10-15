@@ -31,7 +31,7 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) error
 
 	var request model.CreateCapitalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -40,7 +40,7 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) error
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create capital: %+v", err)
+		c.Log.WithError(err).Error("error creating capital")
 		return err
 	}
 
@@ -64,14 +64,14 @@ func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) error {
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -90,7 +90,7 @@ func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) error {
 	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
 		branchIDInt, err := strconv.Atoi(branchID)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid branch id parameter")
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
 			return model.NewAppErr("invalid branch id parameter", nil)
 		}
 		branchIDUint := uint(branchIDInt)
@@ -122,12 +122,13 @@ func (c *CapitalController) Update(w http.ResponseWriter, r *http.Request) error
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateCapitalRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -137,7 +138,7 @@ func (c *CapitalController) Update(w http.ResponseWriter, r *http.Request) error
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update capital")
+		c.Log.WithError(err).Warnf("error to update capital")
 		return err
 	}
 
@@ -148,6 +149,7 @@ func (c *CapitalController) Delete(w http.ResponseWriter, r *http.Request) error
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

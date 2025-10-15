@@ -28,13 +28,13 @@ func NewBranchController(useCase *usecase.BranchUseCase, logger *logrus.Logger) 
 func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateBranchRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create branch: %+v", err)
+		c.Log.WithError(err).Error("error creating branch")
 		return err
 	}
 
@@ -75,6 +75,7 @@ func (c *BranchController) List(w http.ResponseWriter, r *http.Request) error {
 func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) error {
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
@@ -95,12 +96,13 @@ func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) error 
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateBranchRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -108,7 +110,7 @@ func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) error 
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update branch")
+		c.Log.WithError(err).Warnf("error to update branch")
 		return err
 	}
 
@@ -119,6 +121,7 @@ func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) error 
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

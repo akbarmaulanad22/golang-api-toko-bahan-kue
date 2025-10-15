@@ -31,7 +31,7 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	var request model.CreateSaleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -42,7 +42,7 @@ func (c *SaleController) Create(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create sale: %+v", err)
+		c.Log.WithError(err).Error("error creating sale")
 		return err
 	}
 
@@ -67,14 +67,14 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) error {
 	if startAt != "" && endAt != "" {
 		startAt, err := helper.ParseDateToMilli(startAt, false)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid start at parameter")
+			c.Log.Warnf("error to parse start at parameter: %+v", err)
 			return model.NewAppErr("invalid start at parameter", nil)
 		}
 		startAtMili = startAt
 
 		endAt, err := helper.ParseDateToMilli(endAt, true)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid end at parameter")
+			c.Log.Warnf("error to parse end at parameter: %+v", err)
 			return model.NewAppErr("invalid end at parameter", nil)
 		}
 		endAtMili = endAt
@@ -94,7 +94,7 @@ func (c *SaleController) List(w http.ResponseWriter, r *http.Request) error {
 	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
 		branchIDInt, err := strconv.Atoi(branchID)
 		if err != nil {
-			c.Log.WithError(err).Error("invalid branch id parameter")
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
 			return model.NewAppErr("invalid branch id parameter", nil)
 		}
 		branchIDUint := uint(branchIDInt)
@@ -127,6 +127,7 @@ func (c *SaleController) Get(w http.ResponseWriter, r *http.Request) error {
 
 	code, ok := params["code"]
 	if !ok || code == "" {
+		c.Log.Warnf("error to parse sale code parameter: missing or invalid sale code")
 		return model.NewAppErr("invalid sale code parameter", nil)
 	}
 
@@ -149,6 +150,7 @@ func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) error {
 
 	code, ok := params["code"]
 	if !ok || code == "" {
+		c.Log.Warnf("error to parse sale code parameter: missing or invalid sale code")
 		return model.NewAppErr("invalid sale code parameter", nil)
 	}
 
@@ -157,7 +159,7 @@ func (c *SaleController) Cancel(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if err := c.UseCase.Cancel(r.Context(), &request); err != nil {
-		c.Log.WithError(err).Warnf("Failed to cancel sale")
+		c.Log.WithError(err).Warnf("error to cancel sale")
 		return err
 	}
 

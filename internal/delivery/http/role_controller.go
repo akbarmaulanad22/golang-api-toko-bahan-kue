@@ -28,13 +28,13 @@ func NewRoleController(useCase *usecase.RoleUseCase, logger *logrus.Logger) *Rol
 func (c *RoleController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateRoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create role: %+v", err)
+		c.Log.WithError(err).Error("error creating role")
 		return err
 	}
 
@@ -75,6 +75,7 @@ func (c *RoleController) List(w http.ResponseWriter, r *http.Request) error {
 func (c *RoleController) Get(w http.ResponseWriter, r *http.Request) error {
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
@@ -95,12 +96,13 @@ func (c *RoleController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateRoleRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -108,7 +110,7 @@ func (c *RoleController) Update(w http.ResponseWriter, r *http.Request) error {
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update role")
+		c.Log.WithError(err).Warnf("error to update role")
 		return err
 	}
 
@@ -119,6 +121,7 @@ func (c *RoleController) Delete(w http.ResponseWriter, r *http.Request) error {
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 

@@ -28,13 +28,13 @@ func NewDistributorController(useCase *usecase.DistributorUseCase, logger *logru
 func (c *DistributorController) Create(w http.ResponseWriter, r *http.Request) error {
 	var request model.CreateDistributorRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
-		c.Log.Warnf("Failed to create distributor: %+v", err)
+		c.Log.WithError(err).Error("error creating distributor")
 		return err
 	}
 
@@ -75,6 +75,7 @@ func (c *DistributorController) List(w http.ResponseWriter, r *http.Request) err
 func (c *DistributorController) Get(w http.ResponseWriter, r *http.Request) error {
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
@@ -95,12 +96,13 @@ func (c *DistributorController) Update(w http.ResponseWriter, r *http.Request) e
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
 	request := new(model.UpdateDistributorRequest)
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("Failed to parse request body: %+v", err)
+		c.Log.Warnf("error to parse request body: %+v", err)
 		return model.NewAppErr("invalid request body", nil)
 	}
 
@@ -108,7 +110,7 @@ func (c *DistributorController) Update(w http.ResponseWriter, r *http.Request) e
 
 	response, err := c.UseCase.Update(r.Context(), request)
 	if err != nil {
-		c.Log.WithError(err).Warnf("Failed to update distributor")
+		c.Log.WithError(err).Warnf("error to update distributor")
 		return err
 	}
 
@@ -119,6 +121,7 @@ func (c *DistributorController) Delete(w http.ResponseWriter, r *http.Request) e
 
 	idInt, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
+		c.Log.Warnf("error to parse id parameter: %+v", err)
 		return model.NewAppErr("invalid id parameter", nil)
 	}
 
