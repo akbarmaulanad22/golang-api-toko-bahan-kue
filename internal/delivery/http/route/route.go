@@ -13,6 +13,7 @@ type RouteConfig struct {
 
 	// middleware
 	AuthMiddleware mux.MiddlewareFunc
+	RoleMiddleware middleware.MiddlewareCustom
 
 	// all field controller
 
@@ -59,143 +60,152 @@ func (route *RouteConfig) SetupGuestRoute() {
 
 func (route *RouteConfig) SetupAuthRoute() {
 
-	// Buat subrouter khusus untuk route yang butuh auth
-	authRouter := route.Router.PathPrefix("/").Subrouter()
-	authRouter.Use(route.AuthMiddleware)
-
-	// logout
-	authRouter.HandleFunc("/gate/auth/logout", middleware.WithErrorHandler(route.UserController.Logout)).Methods("POST")
-
-	// profile
-	authRouter.HandleFunc("/gate/auth/me", middleware.WithErrorHandler(route.UserController.Current)).Methods("GET")
-
 	// base path
-	authRouter = route.Router.PathPrefix("/api/v1/").Subrouter()
+	apiRouter := route.Router.PathPrefix("/api/v1/").Subrouter()
+
+	// Subrouter dengan AuthMiddleware
+	authRouter := apiRouter.NewRoute().Subrouter()
 	authRouter.Use(route.AuthMiddleware)
+
+	// Subrouter khusus role tertentu (harus turun dari authRouter)
+	adminRouter := authRouter.NewRoute().Subrouter()
+	adminRouter.Use(route.RoleMiddleware("admin"))
+
+	ownerRouter := authRouter.NewRoute().Subrouter()
+	ownerRouter.Use(route.RoleMiddleware("owner"))
+
+	ownerOrAdminRouter := authRouter.NewRoute().Subrouter()
+	ownerOrAdminRouter.Use(route.RoleMiddleware("owner", "admin"))
+
+	cashierOrAdminRouter := authRouter.NewRoute().Subrouter()
+	cashierOrAdminRouter.Use(route.RoleMiddleware("cashier", "admin"))
+
+	authRouter.HandleFunc("/gate/auth/logout", middleware.WithErrorHandler(route.UserController.Logout)).Methods("POST")
+	authRouter.HandleFunc("/gate/auth/me", middleware.WithErrorHandler(route.UserController.Current)).Methods("GET")
 
 	// master data
 
 	// cabang
-	authRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.Create)).Methods("POST")
-	authRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.List)).Methods("GET")
-	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/branches", middleware.WithErrorHandler(route.BranchController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/branches/{id}", middleware.WithErrorHandler(route.BranchController.Get)).Methods("GET")
 
 	// jabatan/posisi
-	authRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.Create)).Methods("POST")
-	authRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.List)).Methods("GET")
-	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/roles", middleware.WithErrorHandler(route.RoleController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/roles/{id}", middleware.WithErrorHandler(route.RoleController.Get)).Methods("GET")
 
 	// kategori
-	authRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.Create)).Methods("POST")
-	authRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.List)).Methods("GET")
-	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/categories", middleware.WithErrorHandler(route.CategoryController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/categories/{id}", middleware.WithErrorHandler(route.CategoryController.Get)).Methods("GET")
 
 	// distributor
-	authRouter.HandleFunc("/distributors", middleware.WithErrorHandler(route.DistributorController.Create)).Methods("POST")
 	authRouter.HandleFunc("/distributors", middleware.WithErrorHandler(route.DistributorController.List)).Methods("GET")
-	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/distributors", middleware.WithErrorHandler(route.DistributorController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/distributors/{id}", middleware.WithErrorHandler(route.DistributorController.Get)).Methods("GET")
 	// end master data
 
 	// dashboard
-	authRouter.HandleFunc("/dashboard", middleware.WithErrorHandler(route.DashboardController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/dashboard", middleware.WithErrorHandler(route.DashboardController.Get)).Methods("GET")
 
 	// produk
-	authRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.Create)).Methods("POST")
-	authRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.List)).Methods("GET")
-	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/products", middleware.WithErrorHandler(route.ProductController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/products/{sku}", middleware.WithErrorHandler(route.ProductController.Get)).Methods("GET")
 
 	// karyawan/pengguna aplikasi
-	authRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.Register)).Methods("POST")
-	authRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.List)).Methods("GET")
-	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Get)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/users", middleware.WithErrorHandler(route.UserController.Register)).Methods("POST")
+	ownerRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/users/{username}", middleware.WithErrorHandler(route.UserController.Get)).Methods("GET")
 
 	// ukuran produk
-	authRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.Create)).Methods("POST")
-	authRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.List)).Methods("GET")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Delete)).Methods("DELETE")
-	authRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Get)).Methods("GET")
+	ownerRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/products/{productSKU}/sizes", middleware.WithErrorHandler(route.SizeController.List)).Methods("GET")
+	ownerRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Update)).Methods("PUT")
+	ownerRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/products/{productSKU}/sizes/{id}", middleware.WithErrorHandler(route.SizeController.Get)).Methods("GET")
 
 	// POS (order barang keluar)
-	authRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.Create)).Methods("POST")
 	authRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.List)).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Cancel)).Methods("DELETE")
 	authRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Get)).Methods("GET")
-	authRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.Create)).Methods("POST")
+	cashierOrAdminRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
 
 	// POS (order barang masuk)
-	authRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.Create)).Methods("POST")
 	authRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.List)).Methods("GET")
-	authRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Cancel)).Methods("DELETE")
 	authRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Get)).Methods("GET")
-	authRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.PurchaseDetailController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.Create)).Methods("POST")
+	cashierOrAdminRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.PurchaseDetailController.Cancel)).Methods("DELETE")
 
 	// laporan barang keluar [ list per tanggal ]
-	authRouter.HandleFunc("/sales-reports/daily", middleware.WithErrorHandler(route.SaleReportController.ListDaily)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/sales-reports/daily", middleware.WithErrorHandler(route.SaleReportController.ListDaily)).Methods("GET")
 
 	// laporan keseluruhan barang keluar [ list barang terlaris ]
-	authRouter.HandleFunc("/sales-reports/top-seller-products", middleware.WithErrorHandler(route.SaleReportController.ListTopSeller)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/sales-reports/top-seller-products", middleware.WithErrorHandler(route.SaleReportController.ListTopSeller)).Methods("GET")
 
 	// laporan keseluruhan barang keluar [ list barang terlaris per category ]
-	authRouter.HandleFunc("/sales-reports/top-seller-categories", middleware.WithErrorHandler(route.SaleReportController.ListCategory)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/sales-reports/top-seller-categories", middleware.WithErrorHandler(route.SaleReportController.ListCategory)).Methods("GET")
 
 	// laporan barang masuk [ list per tanggal ]
-	authRouter.HandleFunc("/purchases-reports/daily", middleware.WithErrorHandler(route.PurchaseReportController.ListDaily)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/purchases-reports/daily", middleware.WithErrorHandler(route.PurchaseReportController.ListDaily)).Methods("GET")
 
 	// pengeluaran
-	authRouter.HandleFunc("/expenses/consolidated", middleware.WithErrorHandler(route.ExpenseController.ConsolidatedReport)).Methods("GET")
-	authRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.Create)).Methods("POST")
-	authRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.List)).Methods("GET")
-	authRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Delete)).Methods("DELETE")
+	ownerOrAdminRouter.HandleFunc("/expenses/consolidated", middleware.WithErrorHandler(route.ExpenseController.ConsolidatedReport)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.Create)).Methods("POST")
+	ownerOrAdminRouter.HandleFunc("/expenses", middleware.WithErrorHandler(route.ExpenseController.List)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Update)).Methods("PUT")
+	ownerOrAdminRouter.HandleFunc("/expenses/{id}", middleware.WithErrorHandler(route.ExpenseController.Delete)).Methods("DELETE")
 
 	// pencatatan modal masuk/keluar
 	// authRouter.HandleFunc("/capitals/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
-	authRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.Create)).Methods("POST")
-	authRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.List)).Methods("GET")
-	authRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Update)).Methods("PUT")
-	authRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Delete)).Methods("DELETE")
+	ownerOrAdminRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.Create)).Methods("POST")
+	ownerOrAdminRouter.HandleFunc("/capitals", middleware.WithErrorHandler(route.CapitalController.List)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Update)).Methods("PUT")
+	ownerOrAdminRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Delete)).Methods("DELETE")
 
 	// pencatatan penerimaan/pengeluaran uang
-	authRouter.HandleFunc("/cash-bank-transactions", middleware.WithErrorHandler(route.CashBankTransactionController.List)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/cash-bank-transactions", middleware.WithErrorHandler(route.CashBankTransactionController.List)).Methods("GET")
 
 	// utang / piutang
 	authRouter.HandleFunc("/debt", middleware.WithErrorHandler(route.DebtController.List)).Methods("GET")
 	authRouter.HandleFunc("/debt/{id}", middleware.WithErrorHandler(route.DebtController.Get)).Methods("GET")
-	authRouter.HandleFunc("/debt/{debtID}/payments", middleware.WithErrorHandler(route.DebtPaymentController.Create)).Methods("POST")
-	authRouter.HandleFunc("/debt/{debtID}/payments/{id}", middleware.WithErrorHandler(route.DebtPaymentController.Delete)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/debt/{debtID}/payments", middleware.WithErrorHandler(route.DebtPaymentController.Create)).Methods("POST")
+	cashierOrAdminRouter.HandleFunc("/debt/{debtID}/payments/{id}", middleware.WithErrorHandler(route.DebtPaymentController.Delete)).Methods("DELETE")
 
 	// ringkasan laporan keuangan [ owner only ]
-	authRouter.HandleFunc("/finance-report/summary", middleware.WithErrorHandler(route.FinanceController.GetSummary)).Methods("GET")
+	ownerRouter.HandleFunc("/finance-report/summary", middleware.WithErrorHandler(route.FinanceController.GetSummary)).Methods("GET")
 	// laporan keuangan laba rugi [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/profit-loss", middleware.WithErrorHandler(route.FinanceController.GetProfitLoss)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/finance-report/profit-loss", middleware.WithErrorHandler(route.FinanceController.GetProfitLoss)).Methods("GET")
 	// laporan keuangan arus kas [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/cashflow", middleware.WithErrorHandler(route.FinanceController.GetCashFlow)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/finance-report/cashflow", middleware.WithErrorHandler(route.FinanceController.GetCashFlow)).Methods("GET")
 	// laporan keuangan neraca [ owner, admin cabang ]
-	authRouter.HandleFunc("/finance-report/balance-sheet", middleware.WithErrorHandler(route.FinanceController.GetBalanceSheet)).Methods("GET")
+	ownerOrAdminRouter.HandleFunc("/finance-report/balance-sheet", middleware.WithErrorHandler(route.FinanceController.GetBalanceSheet)).Methods("GET")
 
 	// stok barang
 	authRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.List)).Methods("GET")
-	authRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.Create)).Methods("POST")
-	authRouter.HandleFunc("/branch-inventory/{id}", middleware.WithErrorHandler(route.BranchInventoryController.Delete)).Methods("DELETE")
+	ownerRouter.HandleFunc("/branch-inventory", middleware.WithErrorHandler(route.BranchInventoryController.Create)).Methods("POST")
+	ownerRouter.HandleFunc("/branch-inventory/{id}", middleware.WithErrorHandler(route.BranchInventoryController.Delete)).Methods("DELETE")
 
 	// pergerakan stok barang masuk/keluar
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.List)).Methods("GET")
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.Create)).Methods("POST")
 	authRouter.HandleFunc("/inventory-movement/stock-opname", middleware.WithErrorHandler(route.InventoryMovementController.CreateStockOpname)).Methods("POST")
 	// [owner only]
-	authRouter.HandleFunc("/inventory-movement/summary", middleware.WithErrorHandler(route.InventoryMovementController.Summary)).Methods("GET")
+	ownerRouter.HandleFunc("/inventory-movement/summary", middleware.WithErrorHandler(route.InventoryMovementController.Summary)).Methods("GET")
 
 }

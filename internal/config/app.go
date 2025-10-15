@@ -106,10 +106,12 @@ func Bootstrap(config *BootstrapConfig) {
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
+	roleMiddleware := middleware.NewRolesMiddleware
 
 	routeConfig := route.RouteConfig{
 		Router:         config.Router,
 		AuthMiddleware: authMiddleware,
+		RoleMiddleware: roleMiddleware,
 		// master data controller
 		BranchController:      branchController,
 		RoleController:        roleController,
