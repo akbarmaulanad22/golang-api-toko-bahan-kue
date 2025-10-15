@@ -38,7 +38,7 @@ func (c *RoleController) Create(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.RoleResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.RoleResponse]{Data: response})
 }
 
 func (c *RoleController) List(w http.ResponseWriter, r *http.Request) error {
@@ -134,5 +134,5 @@ func (c *RoleController) Delete(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

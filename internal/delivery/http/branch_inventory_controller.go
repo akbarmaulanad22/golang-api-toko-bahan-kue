@@ -40,7 +40,7 @@ func (c *BranchInventoryController) Create(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[bool]{Data: true})
 }
 
 func (c *BranchInventoryController) List(w http.ResponseWriter, r *http.Request) error {
@@ -131,5 +131,5 @@ func (c *BranchInventoryController) Delete(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

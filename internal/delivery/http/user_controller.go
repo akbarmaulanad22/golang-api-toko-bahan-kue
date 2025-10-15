@@ -38,7 +38,7 @@ func (c *UserController) Register(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.UserResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.UserResponse]{Data: response})
 }
 
 func (c *UserController) Current(w http.ResponseWriter, r *http.Request) error {
@@ -80,13 +80,13 @@ func (c *UserController) Logout(w http.ResponseWriter, r *http.Request) error {
 		Username: auth.Username,
 	}
 
-	response, err := c.UseCase.Logout(r.Context(), request)
+	_, err := c.UseCase.Logout(r.Context(), request)
 	if err != nil {
 		c.Log.WithError(err).Warnf("error to logout user")
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: response})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 func (c *UserController) List(w http.ResponseWriter, r *http.Request) error {
@@ -188,5 +188,5 @@ func (c *UserController) Delete(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

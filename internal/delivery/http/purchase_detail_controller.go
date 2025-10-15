@@ -55,5 +55,5 @@ func (c *PurchaseDetailController) Cancel(w http.ResponseWriter, r *http.Request
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

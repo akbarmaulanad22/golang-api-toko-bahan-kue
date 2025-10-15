@@ -50,7 +50,7 @@ func (c *DebtPaymentController) Create(w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DebtPaymentResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.DebtPaymentResponse]{Data: response})
 }
 
 func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) error {
@@ -70,5 +70,5 @@ func (c *DebtPaymentController) Delete(w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

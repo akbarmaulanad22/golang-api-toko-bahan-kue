@@ -44,7 +44,7 @@ func (c *CapitalController) Create(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.CapitalResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.CapitalResponse]{Data: response})
 }
 
 func (c *CapitalController) List(w http.ResponseWriter, r *http.Request) error {
@@ -162,7 +162,7 @@ func (c *CapitalController) Delete(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 // func (c *CapitalController) ConsolidatedReport(w http.ResponseWriter, r *http.Request) {

@@ -38,7 +38,7 @@ func (c *CategoryController) Create(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.CategoryResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.CategoryResponse]{Data: response})
 }
 
 func (c *CategoryController) List(w http.ResponseWriter, r *http.Request) error {
@@ -133,5 +133,5 @@ func (c *CategoryController) Delete(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

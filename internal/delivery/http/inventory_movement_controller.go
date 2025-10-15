@@ -44,7 +44,7 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
 }
 
 func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) error {

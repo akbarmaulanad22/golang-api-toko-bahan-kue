@@ -46,7 +46,7 @@ func (c *PurchaseController) Create(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.PurchaseResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.PurchaseResponse]{Data: response})
 }
 
 func (c *PurchaseController) List(w http.ResponseWriter, r *http.Request) error {
@@ -163,5 +163,5 @@ func (c *PurchaseController) Cancel(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

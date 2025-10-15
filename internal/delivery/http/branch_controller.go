@@ -38,7 +38,7 @@ func (c *BranchController) Create(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BranchResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.BranchResponse]{Data: response})
 }
 
 func (c *BranchController) List(w http.ResponseWriter, r *http.Request) error {
@@ -89,7 +89,7 @@ func (c *BranchController) Get(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BranchResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.BranchResponse]{Data: response})
 }
 
 func (c *BranchController) Update(w http.ResponseWriter, r *http.Request) error {
@@ -134,5 +134,5 @@ func (c *BranchController) Delete(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }

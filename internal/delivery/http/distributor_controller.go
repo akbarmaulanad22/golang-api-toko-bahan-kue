@@ -38,7 +38,7 @@ func (c *DistributorController) Create(w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.DistributorResponse]{Data: response})
+	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.DistributorResponse]{Data: response})
 }
 
 func (c *DistributorController) List(w http.ResponseWriter, r *http.Request) error {
@@ -134,5 +134,5 @@ func (c *DistributorController) Delete(w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[bool]{Data: true})
+	return helper.WriteJSON(w, http.StatusNoContent, nil)
 }
