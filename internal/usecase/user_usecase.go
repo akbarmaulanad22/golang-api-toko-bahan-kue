@@ -41,18 +41,18 @@ func (c *UserUseCase) Verify(ctx context.Context, request *model.VerifyUserReque
 
 	err := c.Validate.Struct(request)
 	if err != nil {
-		c.Log.Warnf("Invalid request body : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByToken(tx, user, request.Token); err != nil {
-		c.Log.Warnf("Failed find user by token : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return nil, helper.GetNotFoundMessage("user", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error verify user")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -64,18 +64,18 @@ func (c *UserUseCase) Current(ctx context.Context, request *model.GetUserRequest
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Warnf("Invalid request body : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by username : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return nil, helper.GetNotFoundMessage("user", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -87,29 +87,29 @@ func (c *UserUseCase) Login(ctx context.Context, request *model.LoginUserRequest
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Warnf("Invalid request body  : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by username : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return nil, model.NewAppErr("unauthorized", nil)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)); err != nil {
-		c.Log.Warnf("Failed to compare user password with bcrype hash : %+v", err)
+		c.Log.WithError(err).Error("error compare user password")
 		return nil, model.NewAppErr("unauthorized", nil)
 	}
 
 	user.Token = uuid.New().String()
 	if err := c.UserRepository.Update(tx, user); err != nil {
-		c.Log.Warnf("Failed save user : %+v", err)
+		c.Log.WithError(err).Error("error login user")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error login user")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -121,25 +121,25 @@ func (c *UserUseCase) Logout(ctx context.Context, request *model.LogoutUserReque
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Warnf("Invalid request body : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return false, helper.GetValidationMessage(err)
 	}
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by username : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return false, helper.GetNotFoundMessage("branch", err)
 	}
 
 	user.Token = ""
 
 	if err := c.UserRepository.Update(tx, user); err != nil {
-		c.Log.Warnf("Failed save user : %+v", err)
+		c.Log.WithError(err).Error("error logout user")
 		return false, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error logout user")
 		return false, model.NewAppErr("internal server error", nil)
 	}
 
@@ -154,13 +154,13 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 
 	err := c.Validate.Struct(request)
 	if err != nil {
-		c.Log.Warnf("Invalid request body : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
 
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.Log.Warnf("Failed to generate bcrype hash : %+v", err)
+		c.Log.WithError(err).Error("error generate bcrype hash user password")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -174,14 +174,12 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 	}
 
 	if err := c.UserRepository.Create(tx, user); err != nil {
-		c.Log.Warnf("Failed create user to database : %+v", err)
+		c.Log.WithError(err).Error("error creating user")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
 				return nil, model.NewAppErr("referenced resource not found", "the specified role or branch does not exist.")
 			case 1062:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, model.NewAppErr("conflict", "username already exists")
 			}
 		}
@@ -190,7 +188,7 @@ func (c *UserUseCase) Create(ctx context.Context, request *model.RegisterUserReq
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error creating user")
 		return nil, errors.New("internal server error")
 	}
 
@@ -253,18 +251,18 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.Warnf("Invalid request body : %+v", err)
+		c.Log.WithError(err).Error("error validating request body")
 		return nil, helper.GetValidationMessage(err)
 	}
 
 	user := new(entity.User)
 	if err := c.UserRepository.FindByUsername(tx, user, request.Username); err != nil {
-		c.Log.Warnf("Failed find user by username : %+v", err)
+		c.Log.WithError(err).Error("error getting user")
 		return nil, helper.GetNotFoundMessage("user", err)
 	}
 
 	if strings.ToUpper(user.Role.Name) == "OWNER" {
-		c.Log.Warn("forbidden: cannot update owner data")
+		c.Log.Warn("cannot update owner data")
 		return nil, model.NewAppErr("forbidden", "cannot update owner")
 	}
 
@@ -275,20 +273,18 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 
 	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.Log.Warnf("Failed to generate bcrype hash : %+v", err)
+		c.Log.WithError(err).Error("error generate bcrype hash user password")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 	user.Password = string(password)
 
 	if err := c.UserRepository.Update(tx, user); err != nil {
-		c.Log.Warnf("Failed save user : %+v", err)
+		c.Log.WithError(err).Error("error updating user")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
 				return nil, model.NewAppErr("referenced resource not found", "the specified role or branch does not exist.")
 			case 1062:
-				c.Log.WithError(err).Error("unexpected duplicate entry")
 				return nil, model.NewAppErr("conflict", "username already exists")
 			}
 		}
@@ -296,7 +292,7 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.Warnf("Failed commit transaction : %+v", err)
+		c.Log.WithError(err).Error("error updating user")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -319,7 +315,7 @@ func (c *UserUseCase) Delete(ctx context.Context, request *model.DeleteUserReque
 	}
 
 	if strings.ToUpper(user.Role.Name) == "OWNER" {
-		c.Log.Warn("forbidden: cannot delete owner data")
+		c.Log.Warn("cannot delete owner data")
 		return model.NewAppErr("forbidden", "cannot delete owner")
 	}
 

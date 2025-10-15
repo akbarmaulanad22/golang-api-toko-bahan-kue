@@ -62,12 +62,12 @@ func (c *SaleReportUseCase) SearchTopSellerProduct(ctx context.Context, request 
 
 	salesReports, total, err := c.SaleReportRepository.SearchTopSellerProduct(tx, request)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting top seller sales reports")
+		c.Log.WithError(err).Error("error getting top seller product sales reports")
 		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting top seller sales reports")
+		c.Log.WithError(err).Error("error getting top seller product sales reports")
 		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 

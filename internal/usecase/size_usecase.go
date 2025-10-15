@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -54,10 +53,8 @@ func (c *SizeUseCase) Create(ctx context.Context, request *model.CreateSizeReque
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				c.Log.WithError(err).Error("duplicate entry")
 				return nil, model.NewAppErr("conflict", "size already exists")
 			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
 				return nil, model.NewAppErr("referenced resource not found", "the specified product does not exist.")
 			}
 		}
@@ -102,12 +99,11 @@ func (c *SizeUseCase) Update(ctx context.Context, request *model.UpdateSizeReque
 	size.BuyPrice = request.BuyPrice
 
 	if err := c.SizeRepository.Update(tx, size); err != nil {
+		c.Log.WithError(err).Error("error updating size")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			c.Log.Warn("size name already exists")
-			return nil, model.NewAppErr("conflict", fmt.Sprintf("size for %s already exists", request.ProductSKU))
+			return nil, model.NewAppErr("conflict", "size already exists")
 		}
 
-		c.Log.WithError(err).Error("error updating size")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 

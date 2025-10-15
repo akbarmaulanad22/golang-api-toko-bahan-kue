@@ -40,7 +40,7 @@ func (c *DebtUseCase) Get(ctx context.Context, request *model.GetDebtRequest) (*
 	debt, err := c.DebtRepository.FindDetailById(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return nil, helper.GetNotFoundMessage("sale", err)
+		return nil, helper.GetNotFoundMessage("debt", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {

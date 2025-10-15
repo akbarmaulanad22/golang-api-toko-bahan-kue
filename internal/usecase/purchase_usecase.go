@@ -72,6 +72,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	}
 
 	if request.Debt == nil && len(request.Payments) == 0 || (request.Debt != nil && len(request.Payments) > 0) {
+		c.Log.Error("debt or payments must be provided")
 		return nil, model.NewAppErr("bad request", "either debt or payments must be provided")
 	}
 
@@ -88,7 +89,8 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	// Ambil inventory
 	branchInvs, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, request.BranchID, sizeIDs)
 	if err != nil {
-		return nil, model.NewAppErr("internal server error", nil)
+		c.Log.WithError(err).Error("error getting inventories")
+		return nil, helper.GetNotFoundMessage("inventories", err)
 	}
 
 	branchInvMap := make(map[uint]*entity.BranchInventory, len(branchInvs))
@@ -110,6 +112,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	for i, d := range request.Details {
 		inv, exists := branchInvMap[d.SizeID]
 		if !exists {
+			c.Log.WithField("size_id", d.SizeID).Errorf("size not found")
 			return nil, model.NewAppErr("size not found", "stok tidak tersedia")
 		}
 
@@ -135,6 +138,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 
 	// Bulk update stok (1 query)
 	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, branchInvs, qtyBySize); err != nil {
+		c.Log.WithError(err).Error("error creating inventories")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -148,18 +152,22 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	}
 
 	if err := c.PurchaseRepository.Create(tx, &purchase); err != nil {
+		c.Log.WithError(err).Error("error creating purchase")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := c.PurchaseDetailRepository.CreateBulk(tx, details); err != nil {
+		c.Log.WithError(err).Error("error creating purchase details")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
+		c.Log.WithError(err).Error("error creating inventory movements")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := c.SizeRepository.BulkUpdateBuyPrice(tx, buyPriceBySize); err != nil {
+		c.Log.WithError(err).Error("error updating sizes")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
@@ -178,10 +186,12 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		}
 
 		if totalPayment < totalPrice {
-			return nil, model.NewAppErr("bad request", "total payment is less than total price")
+			c.Log.Error("total payment is less than total price")
+			return nil, model.NewAppErr("validation error", "total payment is less than total price")
 		}
 
 		if err := c.PurchasePaymentRepository.CreateBulk(tx, payments); err != nil {
+			c.Log.WithError(err).Error("error creating purchase payments")
 			return nil, model.NewAppErr("internal server error", nil)
 		}
 
@@ -194,6 +204,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			BranchID:        &request.BranchID,
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+			c.Log.WithError(err).Error("error creating cash bank transaction")
 			return nil, model.NewAppErr("internal server error", nil)
 		}
 	}
@@ -206,7 +217,8 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		}
 
 		if paidAmount > totalPrice {
-			return nil, model.NewAppErr("bad request", "total debt payment is more than total price")
+			c.Log.Error("total debt payment is more than total price")
+			return nil, model.NewAppErr("validation error", "total debt payment is more than total price")
 		}
 
 		debt := entity.Debt{
@@ -223,6 +235,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			Status: "PENDING",
 		}
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
+			c.Log.WithError(err).Error("error creating debt")
 			return nil, model.NewAppErr("internal server error", nil)
 
 		}
@@ -239,6 +252,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 				}
 			}
 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
+				c.Log.WithError(err).Error("error creating debt payments")
 				return nil, model.NewAppErr("internal server error", nil)
 
 			}
@@ -252,6 +266,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 				BranchID:        &request.BranchID,
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+				c.Log.WithError(err).Error("error cash bank transaction branch")
 				return nil, model.NewAppErr("internal server error", nil)
 
 			}
@@ -260,6 +275,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 
 	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error creating purchase")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 	return converter.PurchaseToResponse(&purchase), nil
@@ -333,12 +349,12 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 
 	createdTime := time.UnixMilli(purchaseEntity.CreatedAt)
 	if time.Since(createdTime).Hours() >= 24 {
-		c.Log.WithField("purchase", purchaseEntity.Code).Error("purchase_CANCEL: exceeded 24-hour window")
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("purchase cannot be deleted after 24 hours")
 		return model.NewAppErr("forbidden", "purchase cannot be deleted after 24 hours")
 	}
 
 	if purchaseEntity.Status == "CANCELLED" {
-		c.Log.WithField("purchase_code", purchaseEntity.Code).Warn("purchase already cancelled")
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("purchase already cancelled")
 		return model.NewAppErr("conflict", "purchase already cancelled")
 	}
 
@@ -354,7 +370,7 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	}
 
 	if len(qtyBySize) == 0 {
-		c.Log.Warnf("PURCHASE_CANCEL: all details already cancelled %s", request.Code)
+		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("all details already cancelled")
 		return model.NewAppErr("conflict", "all purchase detail already cancelled")
 	}
 
@@ -366,14 +382,14 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 
 	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, purchaseEntity.BranchID, sizeIDs)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting branch inventory")
+		c.Log.WithError(err).Error("error getting inventories")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
 
 	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs, purchaseEntity.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error get last buy prices")
-		return model.NewAppErr("internal server error", nil)
+		return helper.GetNotFoundMessage("purchase detail", err)
 	}
 
 	if len(lastPrices) > 0 {
@@ -390,15 +406,17 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	for sid, qty := range qtyBySize {
 		inv, ok := invBySize[sid]
 		if !ok {
-			return model.NewAppErr("size not found", fmt.Sprintf("branch_inventory not found for size_id %d", sid))
+			c.Log.WithField("size_id", sid).Errorf("size not found")
+			return model.NewAppErr("size not found", fmt.Sprintf("inventories not found for size_id %d", sid))
 		}
 		if inv.Stock < qty {
+			c.Log.WithField("size_id", sid).Errorf("size insufficient stock")
 			return model.NewAppErr("validation not match", fmt.Sprintf("insufficient stock for size_id %d: have %d need %d", sid, inv.Stock, qty))
 		}
 	}
 
 	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchaseEntity.BranchID, qtyBySize); err != nil {
-		c.Log.WithError(err).Error("error decreasing branch inventory")
+		c.Log.WithError(err).Error("error update inventories")
 		return model.NewAppErr("internal server error", nil)
 	}
 
@@ -429,7 +447,7 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 	}
 	if mvCount > 0 {
 		if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
-			c.Log.WithError(err).Error("error inserting inventory movements")
+			c.Log.WithError(err).Error("error creating inventory movements")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
@@ -457,10 +475,11 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 				BranchID:        &purchaseEntity.BranchID,
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
-				c.Log.WithError(err).Error("error insert refund transaction (debt)")
+				c.Log.WithError(err).Error("error creating cash bank transaction")
 				return model.NewAppErr("internal server error", nil)
 			}
 		}
+
 		debt.TotalAmount = 0
 		debt.PaidAmount = 0
 		debt.Status = "VOID"
@@ -468,6 +487,7 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 			c.Log.WithError(err).Error("error update debt")
 			return model.NewAppErr("internal server error", nil)
 		}
+
 	} else {
 		refundTx := entity.CashBankTransaction{
 			TransactionDate: time.Now().UnixMilli(),
@@ -479,21 +499,20 @@ func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurch
 			BranchID:        &purchaseEntity.BranchID,
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
-			c.Log.WithError(err).Error("error insert refund transaction")
+			c.Log.WithError(err).Error("error create cash bank transaction")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
 	if err := c.PurchaseRepository.Cancel(tx, purchaseEntity.Code); err != nil {
-		c.Log.WithError(err).Error("error updating purchase status")
+		c.Log.WithError(err).Error("error updating purchase")
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error committing cancel purchase")
+		c.Log.WithError(err).Error("error cancel purchase")
 		return model.NewAppErr("internal server error", nil)
 	}
 
-	c.Log.WithField("purchase_code", purchaseEntity.Code).Info("purchase cancelled successfully")
 	return nil
 }

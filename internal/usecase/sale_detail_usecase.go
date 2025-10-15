@@ -55,48 +55,48 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	defer tx.Rollback()
 
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("SALE_DETAIL_CANCEL: invalid request")
+		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
 
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.SaleCode, sale); err != nil {
-		c.Log.WithError(err).WithField("sale_code", request.SaleCode).Error("SALE_DETAIL_CANCEL: sale not found")
+		c.Log.WithError(err).Error("error getting sale")
 		return helper.GetNotFoundMessage("sale", err)
 	}
 
 	createdTime := time.UnixMilli(sale.CreatedAt)
 	if time.Since(createdTime).Hours() >= 24 {
-		c.Log.WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: exceeded 24-hour window")
+		c.Log.WithField("sale_code", sale.Code).Error("sale cannot be deleted after 24 hours")
 		return model.NewAppErr("forbidden", "sale cannot be deleted after 24 hours")
 	}
 
 	detail := new(entity.SaleDetail)
 	if err := c.SaleDetailRepository.FindPriceBySizeIDAndSaleCode(tx, sale.Code, request.SizeID, detail); err != nil {
-		c.Log.WithError(err).WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Error("SALE_DETAIL_CANCEL: sale detail not found")
+		c.Log.WithError(err).Error("error getting sale details")
 		return helper.GetNotFoundMessage("sale details", err)
 	}
 
 	if detail.IsCancelled {
-		c.Log.WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Warn("SALE_DETAIL_CANCEL: sale detail already cancelled")
+		c.Log.WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Error("sale already cancelled")
 		return model.NewAppErr("conflict", "sale detail already cancelled")
 	}
 
 	if err := c.SaleDetailRepository.CancelBySizeID(tx, sale.Code, request.SizeID); err != nil {
-		c.Log.WithError(err).WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Error("SALE_DETAIL_CANCEL: failed cancel detail")
+		c.Log.WithError(err).Error("error updating sale details")
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	branchInv := new(entity.BranchInventory)
 	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, sale.BranchID, detail.SizeID); err != nil {
-		c.Log.WithError(err).WithFields(logrus.Fields{"branch_id": sale.BranchID, "size_id": detail.SizeID}).Error("SALE_DETAIL_CANCEL: branch inventory not found")
+		c.Log.WithError(err).Error("error getting inventories")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
 
 	inventories := []entity.BranchInventory{*branchInv}
 	qtyMap := map[uint]int{detail.SizeID: detail.Qty}
 	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, inventories, qtyMap); err != nil {
-		c.Log.WithError(err).WithFields(logrus.Fields{"branch_id": sale.BranchID, "size_id": detail.SizeID, "qty": detail.Qty}).Error("SALE_DETAIL_CANCEL: failed increase stock")
+		c.Log.WithError(err).Error("error updating inventories")
 		return model.NewAppErr("internal server error", nil)
 	}
 
@@ -107,16 +107,17 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		ReferenceKey:      sale.Code,
 		CreatedAt:         time.Now().UnixMilli(),
 	}
+
 	if err := c.InventoryMovementRepository.Create(tx, &movement); err != nil {
-		c.Log.WithError(err).WithFields(logrus.Fields{"branch_inventory_id": branchInv.ID}).Error("SALE_DETAIL_CANCEL: failed create inventory movement")
+		c.Log.WithError(err).Error("error creating inventory movement")
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	cancelAmount := detail.SellPrice * float64(detail.Qty) // money to refund / reduce from sale
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, sale.Code); err != nil {
-		c.Log.WithError(err).WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: failed to find debt")
-		return model.NewAppErr("internal server error", nil)
+		c.Log.WithError(err).Error("error getting debt")
+		return helper.GetNotFoundMessage("debt", err)
 	}
 
 	if debt.ID != 0 {
@@ -139,7 +140,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 				UpdatedAt:       time.Now().UnixMilli(),
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &outTx); err != nil {
-				c.Log.WithError(err).Error("SALE_DETAIL_CANCEL: failed create cashbank refund transaction")
+				c.Log.WithError(err).Error("error creating cash bank transaction")
 				return model.NewAppErr("internal server error", nil)
 			}
 
@@ -155,9 +156,10 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		}
 
 		if err := c.DebtRepository.Update(tx, debt); err != nil {
-			c.Log.WithError(err).WithField("debt_id", debt.ID).Error("SALE_DETAIL_CANCEL: failed update debt")
+			c.Log.WithError(err).Error("error updating debt")
 			return model.NewAppErr("internal server error", nil)
 		}
+
 	} else {
 		outTx := entity.CashBankTransaction{
 			TransactionDate: time.Now().UnixMilli(),
@@ -171,6 +173,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 			UpdatedAt:       time.Now().UnixMilli(),
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &outTx); err != nil {
+			c.Log.WithError(err).Error("error creating cash bank transaction")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
@@ -180,18 +183,19 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		newTotal = 0
 	}
 	if err := c.SaleRepository.UpdateTotalPrice(tx, sale.Code, newTotal); err != nil {
-		c.Log.WithError(err).WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: failed update sale total_price")
+		c.Log.WithError(err).Error("error updating cash bank transaction")
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	remaining, err := c.SaleDetailRepository.CountActiveBySaleCode(tx, sale.Code)
 	if err != nil {
-		c.Log.WithError(err).WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: failed count active sale_details")
+		c.Log.WithError(err).Error("error getting sale details")
 		return model.NewAppErr("internal server error", nil)
 	}
+
 	if remaining == 0 {
 		if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
-			c.Log.WithError(err).WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: failed update sale status to CANCELLED")
+			c.Log.WithError(err).Error("error updating sale")
 			return model.NewAppErr("internal server error", nil)
 		}
 
@@ -201,15 +205,14 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 			debt.PaidAmount = 0
 
 			if err := c.DebtRepository.Update(tx, debt); err != nil {
-				c.Log.WithError(err).WithField("debt_id", debt.ID).Error("SALE_DETAIL_CANCEL: failed void debt")
+				c.Log.WithError(err).Error("error updating debt")
 				return model.NewAppErr("internal server error", nil)
 			}
 		}
 	}
 
-	// 11) commit
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).WithField("sale_code", sale.Code).Error("SALE_DETAIL_CANCEL: failed commit transaction")
+		c.Log.WithError(err).Error("error cancel sale detail")
 		return model.NewAppErr("internal server error", nil)
 	}
 

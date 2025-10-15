@@ -34,13 +34,13 @@ func (c *DashboardUseCase) Get(ctx context.Context) (*model.DashboardResponse, e
 
 	dashboard := new(model.DashboardResponse)
 	if err := c.DashboardRepository.CardCount(tx, dashboard); err != nil {
-		c.Log.WithError(err).Error("error getting count card dashboard")
-		return nil, helper.GetNotFoundMessage("dashbaord", err)
+		c.Log.WithError(err).Error("error getting dashboard data")
+		return nil, helper.GetNotFoundMessage("dashbaord data", err)
 
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error getting count card dashboard")
+		c.Log.WithError(err).Error("error getting dashboard data")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 

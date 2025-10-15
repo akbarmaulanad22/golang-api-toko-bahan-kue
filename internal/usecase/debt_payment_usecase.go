@@ -2,9 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"strconv"
-	"strings"
 	"time"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/helper"
@@ -57,18 +55,18 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, errors.New("bad request")
+		return nil, helper.GetValidationMessage(err)
 	}
 
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindById(tx, debt, request.DebtID); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
-		return nil, errors.New("not found")
+		return nil, helper.GetNotFoundMessage("debt payment", err)
 	}
 
 	if debt.Status == "VOID" {
-		c.Log.WithField("debt_id", request.DebtID).Error("error debt payment: status VOID")
-		return nil, errors.New("forbidden")
+		c.Log.WithField("debt_id", request.DebtID).Error("debt payment already cancelled")
+		return nil, model.NewAppErr("conflict", "debt payment already cancelled")
 	}
 
 	// Tambah paid amount
@@ -81,7 +79,7 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 
 	if err := c.DebtRepository.Update(tx, debt); err != nil {
 		c.Log.WithError(err).Error("error update paid amount debt")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	debtPayment := &entity.DebtPayment{
@@ -92,19 +90,13 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 	}
 
 	if err := c.DebtPaymentRepository.Create(tx, debtPayment); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			switch mysqlErr.Number {
-			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`debt_id`)") {
-					c.Log.Warn("debt doesnt exists")
-					return nil, errors.New("invalid debt id")
-				}
-				return nil, errors.New("foreign key constraint failed")
-			}
-		}
 
 		c.Log.WithError(err).Error("error creating debt payment")
-		return nil, errors.New("internal server error")
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+			return nil, model.NewAppErr("referenced resource not found", "the specified debt does not exist.")
+		}
+
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	var txType string
@@ -125,24 +117,18 @@ func (c *DebtPaymentUseCase) Create(ctx context.Context, request *model.CreateDe
 	}
 
 	if err := c.CashBankTransactionRepository.Create(tx, cashBankTransaction); err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			switch mysqlErr.Number {
-			case 1452:
-				if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_id`)") {
-					c.Log.Warn("branch doesnt exists")
-					return nil, errors.New("invalid branch id")
-				}
-				return nil, errors.New("foreign key constraint failed")
-			}
-		}
 
 		c.Log.WithError(err).Error("error creating cash bank transaction")
-		return nil, errors.New("internal server error")
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+			return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
+
+		}
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error creating debt payment")
-		return nil, errors.New("internal server error")
+		return nil, model.NewAppErr("internal server error", nil)
 	}
 
 	return converter.DebtPaymentToResponse(debtPayment), nil
@@ -194,7 +180,7 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 
 	createdAtTime := time.UnixMilli(debtPayment.CreatedAt)
 	if time.Since(createdAtTime) > time.Hour {
-		c.Log.WithField("debt", debt.ID).Error("DEBT_DELETE: exceeded 1-hour window")
+		c.Log.WithField("debt_id", debt.ID).Error("debt cannot be deleted after 1 hours")
 		return model.NewAppErr("forbidden", "debt cannot be deleted after 1 hours")
 	}
 
@@ -210,7 +196,7 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 	}
 
 	if err := c.DebtRepository.Update(tx, debt); err != nil {
-		c.Log.WithError(err).Error("error updating debt after delete payment")
+		c.Log.WithError(err).Error("error updating debt")
 		return model.NewAppErr("internal server error", nil)
 	}
 
@@ -227,7 +213,7 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 	}
 
 	if err := c.CashBankTransactionRepository.Create(tx, cashBankTransaction); err != nil {
-		c.Log.WithError(err).Error("error inserting cash bank transaction")
+		c.Log.WithError(err).Error("error creating cash bank transaction")
 		return model.NewAppErr("internal server error", nil)
 	}
 
@@ -237,7 +223,7 @@ func (c *DebtPaymentUseCase) Delete(ctx context.Context, request *model.DeleteDe
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error committing delete debt payment")
+		c.Log.WithError(err).Error("error delete debt payment")
 		return model.NewAppErr("internal server error", nil)
 	}
 

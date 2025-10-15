@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"strings"
 	"tokobahankue/internal/entity"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -58,20 +57,19 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 				Stock:    m.ChangeQty,
 			}
 			if err := c.BranchInventoryRepository.Create(tx, branchInv); err != nil {
-				if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-					switch mysqlErr.Number {
-					case 1452:
-						c.Log.WithError(err).Error("foreign key constraint failed")
-						return nil, model.NewAppErr("referenced resource not found", "the specified branch or size does not exist.")
-					}
+				c.Log.WithError(err).Error("error creating branch inventory")
+
+				if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+					return nil, model.NewAppErr("referenced resource not found", "the specified branch or size does not exist.")
 				}
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 		} else if err != nil {
-			c.Log.WithError(err).Error("error querying branch inventory")
+			c.Log.WithError(err).Error("error getting branch inventory")
 			return nil, model.NewAppErr("internal server error", nil)
 		} else {
 			if err := c.BranchInventoryRepository.UpdateStock(tx, branchInv.ID, m.ChangeQty); err != nil {
+				c.Log.WithError(err).Error("error update branch inventory")
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 		}
@@ -84,15 +82,10 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 			ReferenceKey:      request.ReferenceKey,
 		}
 		if err := c.InventoryMovementRepository.Create(tx, movement); err != nil {
-			if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-				switch mysqlErr.Number {
-				case 1452:
-					if strings.Contains(mysqlErr.Message, "FOREIGN KEY (`branch_inventory_id`)") {
-						c.Log.WithError(err).Error("foreign key constraint failed")
-						return nil, model.NewAppErr("referenced resource not found", "the specified branch inventory does not exist.")
-					}
-					return nil, model.NewAppErr("internal server error", nil)
-				}
+			c.Log.WithError(err).Error("error creating inventory movement")
+
+			if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+				return nil, model.NewAppErr("referenced resource not found", "the specified branch inventory does not exist.")
 			}
 			return nil, model.NewAppErr("internal server error", nil)
 		}
@@ -105,6 +98,7 @@ func (c *InventoryMovementUseCase) Create(ctx context.Context, request *model.Bu
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error creating inventory movement")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 

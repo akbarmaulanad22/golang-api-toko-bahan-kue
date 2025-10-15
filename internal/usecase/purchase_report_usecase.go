@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
 	"tokobahankue/internal/repository"
 
@@ -34,18 +34,18 @@ func (c *PurchaseReportUseCase) SearchDaily(ctx context.Context, request *model.
 
 	if err := c.Validate.Struct(request); err != nil {
 		c.Log.WithError(err).Error("error validating request body")
-		return nil, 0, errors.New("bad request")
+		return nil, 0, helper.GetValidationMessage(err)
 	}
 
 	purchasesReports, total, err := c.PurchaseReportRepository.SearchDaily(tx, request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting daily purchases reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error getting daily purchases reports")
-		return nil, 0, errors.New("internal server error")
+		return nil, 0, model.NewAppErr("internal server error", nil)
 	}
 
 	return purchasesReports, total, nil

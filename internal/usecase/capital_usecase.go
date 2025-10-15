@@ -65,12 +65,9 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 
 	if err := c.CapitalRepository.Create(tx, capital); err != nil {
 		c.Log.WithError(err).Error("error creating capital")
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			switch mysqlErr.Number {
-			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
-				return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
-			}
+
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+			return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
 		}
 
 		return nil, model.NewAppErr("internal server error", nil)
@@ -87,6 +84,7 @@ func (c *CapitalUseCase) Create(ctx context.Context, request *model.CreateCapita
 	}
 
 	if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+		c.Log.WithError(err).Error("error creating cash bank transaction")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 

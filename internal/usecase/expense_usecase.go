@@ -53,12 +53,8 @@ func (c *ExpenseUseCase) Create(ctx context.Context, request *model.CreateExpens
 	if err := c.ExpenseRepository.Create(tx, expense); err != nil {
 		c.Log.WithError(err).Error("error creating expense")
 
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			switch mysqlErr.Number {
-			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
-				return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
-			}
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1452 {
+			return nil, model.NewAppErr("referenced resource not found", "the specified branch does not exist.")
 		}
 
 		return nil, model.NewAppErr("internal server error", nil)

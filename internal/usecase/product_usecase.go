@@ -52,10 +52,8 @@ func (c *ProductUseCase) Create(ctx context.Context, request *model.CreateProduc
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				c.Log.WithError(err).Error("duplicate entry")
 				return nil, model.NewAppErr("conflict", "product sku or name already exists")
 			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
 				return nil, model.NewAppErr("referenced resource not found", "the specified category does not exist.")
 			}
 		}
@@ -99,10 +97,8 @@ func (c *ProductUseCase) Update(ctx context.Context, request *model.UpdateProduc
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
 			case 1062:
-				c.Log.WithError(err).Error("duplicate entry")
 				return nil, model.NewAppErr("conflict", "product sku or name already exists")
 			case 1452:
-				c.Log.WithError(err).Error("foreign key constraint failed")
 				return nil, model.NewAppErr("referenced resource not found", "the specified category does not exist.")
 			}
 		}
@@ -131,7 +127,7 @@ func (c *ProductUseCase) Get(ctx context.Context, request *model.GetProductReque
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return nil, helper.GetNotFoundMessage("branch", err)
+		return nil, helper.GetNotFoundMessage("product", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -154,7 +150,7 @@ func (c *ProductUseCase) Delete(ctx context.Context, request *model.DeleteProduc
 	product := new(entity.Product)
 	if err := c.ProductRepository.FindBySKU(tx, product, request.SKU); err != nil {
 		c.Log.WithError(err).Error("error getting product")
-		return helper.GetNotFoundMessage("branch", err)
+		return helper.GetNotFoundMessage("product", err)
 	}
 
 	if err := c.ProductRepository.Delete(tx, product); err != nil {
