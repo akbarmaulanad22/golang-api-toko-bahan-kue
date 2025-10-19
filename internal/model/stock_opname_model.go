@@ -33,7 +33,7 @@ type DeleteStockOpnameRequest struct {
 }
 
 type SearchStockOpnameRequest struct {
-	BranchID  uint   `json:"branch_id" validate:"omitempty"`
+	BranchID  *uint  `json:"branch_id" validate:"omitempty"`
 	Status    string `json:"status" validate:"omitempty,oneof=draft completed cancelled"`
 	CreatedBy string `json:"created_by" validate:"max=100"`
 	DateFrom  int64  `json:"date_from" validate:"omitempty"`

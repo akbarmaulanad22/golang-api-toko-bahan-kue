@@ -45,7 +45,7 @@ func (r *StockOpnameRepository) Search(db *gorm.DB, request *model.SearchStockOp
 
 func (r *StockOpnameRepository) FilterStockOpname(request *model.SearchStockOpnameRequest) func(tx *gorm.DB) *gorm.DB {
 	return func(tx *gorm.DB) *gorm.DB {
-		if request.BranchID != 0 {
+		if request.BranchID != nil {
 			tx = tx.Where("branch_id = ?", request.BranchID)
 		}
 
@@ -57,9 +57,9 @@ func (r *StockOpnameRepository) FilterStockOpname(request *model.SearchStockOpna
 			tx = tx.Where("created_by LIKE ?", "%"+request.CreatedBy+"%")
 		}
 
-		// if request.DateFrom != 0 && request.DateTo != 0 {
-		// 	tx = tx.Where("date BETWEEN ? AND ?", request.DateFrom, request.DateTo)
-		// }
+		if request.DateFrom != 0 && request.DateTo != 0 {
+			tx = tx.Where("date BETWEEN ? AND ?", request.DateFrom, request.DateTo)
+		}
 
 		return tx
 	}

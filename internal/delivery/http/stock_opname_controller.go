@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"tokobahankue/internal/delivery/http/middleware"
 	"tokobahankue/internal/helper"
 	"tokobahankue/internal/model"
@@ -116,7 +117,6 @@ func (c *StockOpnameController) List(w http.ResponseWriter, r *http.Request) err
 
 	page := helper.ParseIntOrDefault(params.Get("page"), 1)
 	size := helper.ParseIntOrDefault(params.Get("size"), 10)
-	branchID := helper.ParseIntOrDefault(params.Get("branch_id"), 0)
 	startAt := params.Get("start_at")
 	endAt := params.Get("end_at")
 
@@ -145,10 +145,23 @@ func (c *StockOpnameController) List(w http.ResponseWriter, r *http.Request) err
 		CreatedBy: params.Get("search"),
 		Page:      page,
 		Size:      size,
-		BranchID:  uint(branchID),
 		Status:    params.Get("search"),
 		DateFrom:  startAtMili,
 		DateTo:    endAtMili,
+	}
+
+	branchID := params.Get("branch_id")
+	auth := middleware.GetUser(r)
+	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
+		branchIDInt, err := strconv.Atoi(branchID)
+		if err != nil {
+			c.Log.Warnf("error to parse branch id parameter: %+v", err)
+			return model.NewAppErr("invalid branch id parameter", nil)
+		}
+		branchIDUint := uint(branchIDInt)
+		request.BranchID = &branchIDUint
+	} else {
+		request.BranchID = auth.BranchID
 	}
 
 	responses, total, err := c.UseCase.Search(r.Context(), request)
