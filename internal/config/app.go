@@ -51,6 +51,7 @@ func Bootstrap(config *BootstrapConfig) {
 	purchaseDetailRepository := repository.NewPurchaseDetailRepository(config.Log)
 	purchasePaymentRepository := repository.NewPurchasePaymentRepository(config.Log)
 	purchaseReportRepository := repository.NewPurchaseReportRepository(config.Log)
+	stockOpnameRepository := repository.NewStockOpnameRepository(config.Log)
 
 	// master data usecase
 	branchUseCase := usecase.NewBranchUseCase(config.DB, config.Log, config.Validate, branchRepository)
@@ -77,6 +78,7 @@ func Bootstrap(config *BootstrapConfig) {
 	saleDetailUseCase := usecase.NewSaleDetailUseCase(config.DB, config.Log, config.Validate, saleDetailRepository, saleRepository, inventoryMovementRepository, branchInventoryRepository, cashBankTransactionRepository, debtRepository)
 	purchaseDetailUseCase := usecase.NewPurchaseDetailUseCase(config.DB, config.Log, config.Validate, purchaseDetailRepository, purchaseRepository, branchInventoryRepository, inventoryMovementRepository, sizeRepository, debtRepository, cashBankTransactionRepository, purchasePaymentRepository)
 	purchaseReportUseCase := usecase.NewPurchaseReportUseCase(config.DB, config.Log, config.Validate, purchaseReportRepository)
+	stockOpnameUseCase := usecase.NewStockOpnameUseCase(config.DB, config.Log, config.Validate, stockOpnameRepository, branchInventoryRepository, inventoryMovementRepository, cashBankTransactionRepository)
 
 	// master data controller
 	branchController := http.NewBranchController(branchUseCase, config.Log)
@@ -103,6 +105,7 @@ func Bootstrap(config *BootstrapConfig) {
 	saleDetailController := http.NewSaleDetailController(saleDetailUseCase, config.Log)
 	purchaseDetailController := http.NewPurchaseDetailController(purchaseDetailUseCase, config.Log)
 	purchaseReportController := http.NewPurchaseReportController(purchaseReportUseCase, config.Log)
+	stockOpnameController := http.NewStockOpnameController(stockOpnameUseCase, config.Log)
 
 	// setup middleware
 	authMiddleware := middleware.NewAuth(userUseCase)
@@ -136,6 +139,7 @@ func Bootstrap(config *BootstrapConfig) {
 		SaleDetailController:          saleDetailController,
 		PurchaseDetailController:      purchaseDetailController,
 		PurchaseReportController:      purchaseReportController,
+		StockOpnameController:         stockOpnameController,
 	}
 	routeConfig.Setup()
 

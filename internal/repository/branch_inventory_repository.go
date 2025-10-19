@@ -23,6 +23,14 @@ func NewBranchInventoryRepository(log *logrus.Logger) *BranchInventoryRepository
 	}
 }
 
+func (r *BranchInventoryRepository) FindByBranchIDAndSizeIDWithSize(db *gorm.DB, branchID, sizeID uint) (*entity.BranchInventory, error) {
+	var inv entity.BranchInventory
+	err := db.Preload("Size").
+		Where("branch_id = ? AND size_id = ?", branchID, sizeID).
+		First(&inv).Error
+	return &inv, err
+}
+
 func (r *BranchInventoryRepository) FindByBranchIDAndSizeID(db *gorm.DB, branchInventory *entity.BranchInventory, branchID, sizeID uint) error {
 	return db.Where("branch_id = ? AND size_id = ?", branchID, sizeID).Take(branchInventory).Error
 }
@@ -39,45 +47,6 @@ func (r *BranchInventoryRepository) UpdateStock(db *gorm.DB, branchInventoryID u
 	}
 	return nil
 }
-
-// func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, details []entity.SaleDetail) error {
-// 	if len(details) == 0 {
-// 		return nil
-// 	}
-
-// 	// Build CASE WHEN
-// 	caseStmt := "CASE size_id"
-// 	sizeIDs := make([]string, len(details))
-// 	for i, d := range details {
-// 		caseStmt += fmt.Sprintf(" WHEN %d THEN stock - %d", d.SizeID, d.Qty)
-// 		sizeIDs[i] = fmt.Sprintf("%d", d.SizeID)
-// 	}
-// 	caseStmt += " END"
-
-// 	validateCase := "CASE size_id"
-// 	for _, d := range details {
-// 		validateCase += fmt.Sprintf(" WHEN %d THEN %d", d.SizeID, d.Qty)
-// 	}
-// 	validateCase += " END"
-
-// 	query := fmt.Sprintf(`
-//         UPDATE branch_inventory
-//         SET stock = %s
-//         WHERE branch_id = ?
-//           AND size_id IN (%s)
-//           AND stock >= %s
-//     `, caseStmt, strings.Join(sizeIDs, ","), validateCase)
-
-// 	tx := db.Exec(query, branchID)
-// 	if tx.Error != nil {
-// 		return tx.Error
-// 	}
-
-// 	if tx.RowsAffected != int64(len(details)) {
-// 		return fmt.Errorf("stok tidak cukup / ada record tidak ditemukan")
-// 	}
-// 	return nil
-// }
 
 func (r *BranchInventoryRepository) BulkDecreaseStock(db *gorm.DB, branchID uint, qtyBySize map[uint]int) error {
 	if len(qtyBySize) == 0 {
@@ -150,6 +119,7 @@ func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, inventories [
 func (r *BranchInventoryRepository) FindByBranchAndSizeIDs(db *gorm.DB, branchID uint, sizeIDs []uint) ([]entity.BranchInventory, error) {
 	var inventories []entity.BranchInventory
 	if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Size").
 		Where("branch_id = ? AND size_id IN ?", branchID, sizeIDs).
 		Find(&inventories).Error; err != nil {
 		return nil, err

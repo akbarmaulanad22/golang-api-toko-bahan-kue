@@ -47,28 +47,28 @@ func (c *InventoryMovementController) Create(w http.ResponseWriter, r *http.Requ
 	return helper.WriteJSON(w, http.StatusCreated, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
 }
 
-func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) error {
-	var request model.BulkCreateInventoryMovementRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		c.Log.Warnf("error to parse request body: %+v", err)
-		return model.NewAppErr("invalid request body", nil)
-	}
+// func (c *InventoryMovementController) CreateStockOpname(w http.ResponseWriter, r *http.Request) error {
+// 	var request model.BulkCreateInventoryMovementRequest
+// 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+// 		c.Log.Warnf("error to parse request body: %+v", err)
+// 		return model.NewAppErr("invalid request body", nil)
+// 	}
 
-	request.ReferenceType = "ADJUST"
+// 	request.ReferenceType = "ADJUST"
 
-	auth := middleware.GetUser(r)
-	if auth.BranchID != nil {
-		request.BranchID = *auth.BranchID
-	}
+// 	auth := middleware.GetUser(r)
+// 	if auth.BranchID != nil {
+// 		request.BranchID = *auth.BranchID
+// 	}
 
-	response, err := c.UseCase.Create(r.Context(), &request)
-	if err != nil {
-		c.Log.WithError(err).Error("error creating inventory movement")
-		return err
-	}
+// 	response, err := c.UseCase.Create(r.Context(), &request)
+// 	if err != nil {
+// 		c.Log.WithError(err).Error("error creating inventory movement")
+// 		return err
+// 	}
 
-	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
-}
+// 	return helper.WriteJSON(w, http.StatusOK, model.WebResponse[*model.BulkInventoryMovementResponse]{Data: response})
+// }
 
 func (c *InventoryMovementController) List(w http.ResponseWriter, r *http.Request) error {
 	params := r.URL.Query()

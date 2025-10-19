@@ -11,6 +11,6 @@ type BranchInventory struct {
 	Size      Size   `gorm:"foreignKey:SizeID;references:ID"`
 }
 
-func (BranchInventory) TableName() string {
+func (*BranchInventory) TableName() string {
 	return "branch_inventory"
 }

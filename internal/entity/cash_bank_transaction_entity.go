@@ -2,7 +2,7 @@ package entity
 
 type CashBankTransaction struct {
 	ID              uint    `gorm:"column:id;primaryKey"`
-	TransactionDate int64   `gorm:"column:transaction_date"`
+	TransactionDate int64   `gorm:"column:transaction_date;autoCreateTime:milli"`
 	Type            string  `gorm:"column:type"`
 	Source          string  `gorm:"column:source"`
 	Amount          float64 `gorm:"column:amount"`

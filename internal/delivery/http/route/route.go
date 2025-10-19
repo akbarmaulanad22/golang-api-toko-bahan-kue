@@ -42,6 +42,7 @@ type RouteConfig struct {
 	SaleDetailController          *http.SaleDetailController
 	PurchaseDetailController      *http.PurchaseDetailController
 	PurchaseReportController      *http.PurchaseReportController
+	StockOpnameController         *http.StockOpnameController
 }
 
 func (route *RouteConfig) Setup() {
@@ -204,8 +205,14 @@ func (route *RouteConfig) SetupAuthRoute() {
 	// pergerakan stok barang masuk/keluar
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.List)).Methods("GET")
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.Create)).Methods("POST")
-	authRouter.HandleFunc("/inventory-movement/stock-opname", middleware.WithErrorHandler(route.InventoryMovementController.CreateStockOpname)).Methods("POST")
 	// [owner only]
 	ownerRouter.HandleFunc("/inventory-movement/summary", middleware.WithErrorHandler(route.InventoryMovementController.Summary)).Methods("GET")
+
+	// cek stok fisik dan digital
+	authRouter.HandleFunc("/stock-opname", middleware.WithErrorHandler(route.StockOpnameController.List)).Methods("GET")
+	authRouter.HandleFunc("/stock-opname", middleware.WithErrorHandler(route.StockOpnameController.Create)).Methods("POST")
+	authRouter.HandleFunc("/stock-opname/{id}", middleware.WithErrorHandler(route.StockOpnameController.Update)).Methods("PUT")
+	authRouter.HandleFunc("/stock-opname/{id}", middleware.WithErrorHandler(route.StockOpnameController.Delete)).Methods("DELETE")
+	authRouter.HandleFunc("/stock-opname/{id}", middleware.WithErrorHandler(route.StockOpnameController.Get)).Methods("GET")
 
 }
