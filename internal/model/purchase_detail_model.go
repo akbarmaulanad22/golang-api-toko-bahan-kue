@@ -1,11 +1,12 @@
 package model
 
 type PurchaseDetailResponse struct {
-	SizeID      uint          `json:"size_id,omitempty"`
-	Qty         int           `json:"qty,omitempty"`
-	BuyPrice    float64       `json:"buy_price,omitempty"`
-	IsCancelled bool          `json:"is_cancelled,omitempty"`
-	Size        *SizeResponse `json:"size,omitempty"`
+	ID          uint             `json:"id"`
+	Size        *SizeResponse    `json:"size"`
+	Product     *ProductResponse `json:"product"`
+	Qty         int              `json:"qty"`
+	Price       float64          `json:"price"`
+	IsCancelled int              `json:"is_cancelled"`
 }
 
 type CreatePurchaseDetailRequest struct {
@@ -15,6 +16,6 @@ type CreatePurchaseDetailRequest struct {
 }
 
 type CancelPurchaseDetailRequest struct {
-	SizeID       uint   `json:"-" validate:"required"`
+	ID           uint   `json:"-" validate:"required"`
 	PurchaseCode string `json:"-" validate:"required"`
 }

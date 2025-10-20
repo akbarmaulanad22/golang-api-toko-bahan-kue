@@ -82,9 +82,9 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		return model.NewAppErr("conflict", "sale detail already cancelled")
 	}
 
-	if err := c.SaleDetailRepository.CancelByID(tx, request.ID); err != nil {
+	if err := c.SaleDetailRepository.CancelByCodeAndID(tx, request.SaleCode, request.ID); err != nil {
 		c.Log.WithError(err).Error("error updating sale detail")
-		return model.NewAppErr("internal server error", nil)
+		return helper.GetNotFoundMessage("sale detail", err)
 	}
 
 	branchInv := new(entity.BranchInventory)

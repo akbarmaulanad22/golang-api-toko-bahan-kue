@@ -21,13 +21,22 @@ func (r *SaleDetailRepository) CreateBulk(db *gorm.DB, details []entity.SaleDeta
 	return db.CreateInBatches(&details, 100).Error
 }
 
-func (r *SaleDetailRepository) CancelByID(db *gorm.DB, id uint) error {
-	return db.Model(&entity.SaleDetail{}).
-		Where("id = ? AND is_cancelled = 0", id).
+func (r *SaleDetailRepository) CancelByCodeAndID(db *gorm.DB, code string, id uint) error {
+	tx := db.Model(&entity.PurchaseDetail{}).
+		Where("sale_code = ? AND id = ? AND is_cancelled = 0", code, id).
 		Updates(map[string]interface{}{
 			"is_cancelled": 1,
-		}).
-		Error
+		})
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
 
 func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string) error {

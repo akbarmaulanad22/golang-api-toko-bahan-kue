@@ -1,0 +1,2 @@
+ALTER TABLE purchases
+ADD COLUMN updated_at BIGINT NOT NULL;

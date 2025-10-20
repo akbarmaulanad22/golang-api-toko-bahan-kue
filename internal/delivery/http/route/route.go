@@ -151,7 +151,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Get)).Methods("GET")
 	cashierOrAdminRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.Create)).Methods("POST")
 	cashierOrAdminRouter.HandleFunc("/purchases/{code}", middleware.WithErrorHandler(route.PurchaseController.Cancel)).Methods("DELETE")
-	cashierOrAdminRouter.HandleFunc("/purchases/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.PurchaseDetailController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/purchases/{code}/cancel/{id}", middleware.WithErrorHandler(route.PurchaseDetailController.Cancel)).Methods("DELETE")
 
 	// laporan barang keluar [ list per tanggal ]
 	ownerOrAdminRouter.HandleFunc("/sales-reports/daily", middleware.WithErrorHandler(route.SaleReportController.ListDaily)).Methods("GET")

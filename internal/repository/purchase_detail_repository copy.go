@@ -22,13 +22,22 @@ func (r *PurchaseDetailRepository) CreateBulk(db *gorm.DB, details []entity.Purc
 	return db.CreateInBatches(&details, 100).Error
 }
 
-func (r *PurchaseDetailRepository) CancelBySizeID(db *gorm.DB, purchaseCode string, sizeID uint) error {
-	return db.Model(&entity.PurchaseDetail{}).
-		Where("purchase_code = ? AND size_id = ? AND is_cancelled = 0", purchaseCode, sizeID).
+func (r *PurchaseDetailRepository) CancelByCodeAndID(db *gorm.DB, code string, id uint) error {
+	tx := db.Model(&entity.PurchaseDetail{}).
+		Where("purchase_code = ? AND id = ? AND is_cancelled = 0", code, id).
 		Updates(map[string]interface{}{
 			"is_cancelled": 1,
-		}).
-		Error
+		})
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
 
 func (r *PurchaseDetailRepository) Cancel(db *gorm.DB, purchaseCode string) error {
@@ -39,9 +48,9 @@ func (r *PurchaseDetailRepository) Cancel(db *gorm.DB, purchaseCode string) erro
 		}).Error
 }
 
-func (r *PurchaseDetailRepository) FindPriceBySizeIDAndPurchaseCode(db *gorm.DB, purchaseCode string, sizeID uint, detail *entity.PurchaseDetail) error {
+func (r *PurchaseDetailRepository) FindPriceByID(db *gorm.DB, id uint, detail *entity.PurchaseDetail) error {
 	return db.Model(&entity.PurchaseDetail{}).
-		Where("purchase_code = ? AND size_id = ?", purchaseCode, sizeID).
+		Where("id = ?", id).
 		Take(&detail).
 		Error
 }

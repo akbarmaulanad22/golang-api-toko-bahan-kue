@@ -10,16 +10,8 @@ type PurchaseResponse struct {
 	DistributorName string                    `json:"distributor_name,omitempty"`
 	TotalQty        int                       `json:"total_qty,omitempty"`
 	TotalPrice      float64                   `json:"total_price,omitempty"`
-	Items           []PurchaseItemResponse    `json:"items,omitempty"`
+	Items           []PurchaseDetailResponse  `json:"items,omitempty"`
 	Payments        []PurchasePaymentResponse `json:"payments,omitempty"`
-}
-
-type PurchaseItemResponse struct {
-	Size        *SizeResponse    `json:"size"`
-	Product     *ProductResponse `json:"product"`
-	Qty         int              `json:"qty"`
-	Price       float64          `json:"price"`
-	IsCancelled int              `json:"is_cancelled"`
 }
 
 type SearchPurchaseRequest struct {

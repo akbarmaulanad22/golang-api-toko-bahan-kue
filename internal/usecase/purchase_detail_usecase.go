@@ -78,18 +78,18 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 	}
 
 	detail := new(entity.PurchaseDetail)
-	if err := c.PurchaseDetailRepository.FindPriceBySizeIDAndPurchaseCode(tx, purchase.Code, request.SizeID, detail); err != nil {
+	if err := c.PurchaseDetailRepository.FindPriceByID(tx, request.ID, detail); err != nil {
 		c.Log.WithError(err).Error("error getting purchase detail")
-		return helper.GetNotFoundMessage("purchase details", err)
+		return helper.GetNotFoundMessage("purchase detail", err)
 	}
 	if detail.IsCancelled {
-		c.Log.WithField("purchase_code", purchase.Code).Error("purchase detail already cancelled")
+		c.Log.WithField("purchase_detail_id", detail.ID).Error("purchase detail already cancelled")
 		return model.NewAppErr("conflict", "purchase detail already cancelled")
 	}
 
-	if err := c.PurchaseDetailRepository.CancelBySizeID(tx, purchase.Code, request.SizeID); err != nil {
+	if err := c.PurchaseDetailRepository.CancelByCodeAndID(tx, request.PurchaseCode, request.ID); err != nil {
 		c.Log.WithError(err).Error("error updating purchase detail")
-		return model.NewAppErr("internal server error", nil)
+		return helper.GetNotFoundMessage("purchase detail", err)
 	}
 
 	inv := new(entity.BranchInventory)

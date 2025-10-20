@@ -7,6 +7,7 @@ type Purchase struct {
 	BranchID      uint              `gorm:"column:branch_id"`
 	DistributorID uint              `gorm:"column:distributor_id"`
 	CreatedAt     int64             `gorm:"column:created_at;autoCreateTime:milli"`
+	UpdatedAt     int64             `gorm:"column:updated_at;autoCreateTime:milli;autoUpdateTime:milli"`
 	Details       []PurchaseDetail  `gorm:"foreignKey:PurchaseCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Payments      []PurchasePayment `gorm:"foreignKey:PurchaseCode;references:Code;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Debt          *Debt             `gorm:"foreignKey:ReferenceCode;references:Code;"`
