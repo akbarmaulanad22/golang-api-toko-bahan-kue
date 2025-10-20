@@ -27,7 +27,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 		SELECT 
 			s.code, s.customer_name, s.status, s.created_at, s.total_price, s.branch_id,
 			b.name AS branch_name,
-			sd.size_id, sd.qty, sd.sell_price AS item_sell_price, sd.is_cancelled,
+			sd.id, sd.size_id, sd.qty, sd.sell_price AS item_sell_price, sd.is_cancelled,
 			sz.name AS size_name, sz.sell_price AS size_sell_price,
 			p.sku AS product_sku, p.name AS product_name,
 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
@@ -53,7 +53,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 			saleCode, customerName, status, branchName string
 			branchID                                   uint
 			createdAt                                  int64
-			sizeID, qty, isCancelled                   int
+			saleDetailID, sizeID, qty, isCancelled     int
 			itemSellPrice, sizeSellPrice, totalPrice   float64
 			sizeName, productSKU, productName          string
 
@@ -64,7 +64,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 
 		if err := rows.Scan(
 			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchID, &branchName,
-			&sizeID, &qty, &itemSellPrice, &isCancelled,
+			&saleDetailID, &sizeID, &qty, &itemSellPrice, &isCancelled,
 			&sizeName, &sizeSellPrice,
 			&productSKU, &productName,
 			&paymentMethod, &amount, &note, &paymentCreatedAt,
@@ -82,13 +82,14 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 				BranchName:   branchName,
 				TotalQty:     0,
 				TotalPrice:   totalPrice,
-				Items:        []model.SaleItemResponse{},
+				Items:        []model.SaleDetailResponse{},
 				Payments:     []model.SalePaymentResponse{},
 			}
 		}
 
 		// tambahkan item
-		sale.Items = append(sale.Items, model.SaleItemResponse{
+		sale.Items = append(sale.Items, model.SaleDetailResponse{
+			ID: uint(saleDetailID),
 			Size: &model.SizeResponse{
 				Name:      sizeName,
 				SellPrice: sizeSellPrice,
@@ -102,9 +103,7 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 			IsCancelled: isCancelled,
 		})
 
-		// akumulasi total qty & price
 		sale.TotalQty += qty
-		// sale.TotalPrice += float64(qty) * itemSellPrice
 
 		// tambahkan payment kalau ada
 		if paymentMethod.Valid && paymentCreatedAt.Valid {
@@ -123,6 +122,106 @@ func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleRespon
 
 	return sale, nil
 }
+
+// func (r *SaleRepository) FindByCode(db *gorm.DB, code string) (*model.SaleResponse, error) {
+// 	query := `
+// 		SELECT
+// 			s.code, s.customer_name, s.status, s.created_at, s.total_price, s.branch_id,
+// 			b.name AS branch_name,
+// 			sd.size_id, sd.qty, sd.sell_price AS item_sell_price, sd.is_cancelled,
+// 			sz.name AS size_name, sz.sell_price AS size_sell_price,
+// 			p.sku AS product_sku, p.name AS product_name,
+// 			sp.payment_method, sp.amount, sp.note, sp.created_at AS payment_created_at
+// 		FROM sales s
+// 		JOIN branches b ON s.branch_id = b.id
+// 		JOIN sale_details sd ON s.code = sd.sale_code
+// 		JOIN sizes sz ON sd.size_id = sz.id
+// 		JOIN products p ON sz.product_sku = p.sku
+// 		LEFT JOIN sale_payments sp ON s.code = sp.sale_code
+// 		WHERE s.code = ?
+// 	`
+
+// 	rows, err := db.Raw(query, code).Rows()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+
+// 	var sale *model.SaleResponse
+
+// 	for rows.Next() {
+// 		var (
+// 			saleCode, customerName, status, branchName string
+// 			branchID                                   uint
+// 			createdAt                                  int64
+// 			sizeID, qty, isCancelled                   int
+// 			itemSellPrice, sizeSellPrice, totalPrice   float64
+// 			sizeName, productSKU, productName          string
+
+// 			paymentMethod, note sql.NullString
+// 			amount              sql.NullFloat64
+// 			paymentCreatedAt    sql.NullInt64
+// 		)
+
+// 		if err := rows.Scan(
+// 			&saleCode, &customerName, &status, &createdAt, &totalPrice, &branchID, &branchName,
+// 			&sizeID, &qty, &itemSellPrice, &isCancelled,
+// 			&sizeName, &sizeSellPrice,
+// 			&productSKU, &productName,
+// 			&paymentMethod, &amount, &note, &paymentCreatedAt,
+// 		); err != nil {
+// 			return nil, err
+// 		}
+
+// 		// inisialisasi sekali
+// 		if sale == nil {
+// 			sale = &model.SaleResponse{
+// 				Code:         saleCode,
+// 				CustomerName: customerName,
+// 				Status:       status,
+// 				CreatedAt:    createdAt,
+// 				BranchName:   branchName,
+// 				TotalQty:     0,
+// 				TotalPrice:   totalPrice,
+// 				Items:        []model.SaleDetailResponse{},
+// 				Payments:     []model.SalePaymentResponse{},
+// 			}
+// 		}
+
+// 		// tambahkan item
+// 		sale.Items = append(sale.Items, model.SaleDetailResponse{
+// 			Size: &model.SizeResponse{
+// 				Name:      sizeName,
+// 				SellPrice: sizeSellPrice,
+// 			},
+// 			Product: &model.ProductResponse{
+// 				SKU:  productSKU,
+// 				Name: productName,
+// 			},
+// 			Qty:         qty,
+// 			Price:       itemSellPrice,
+// 			IsCancelled: isCancelled,
+// 		})
+
+// 		sale.TotalQty += qty
+
+// 		// tambahkan payment kalau ada
+// 		if paymentMethod.Valid && paymentCreatedAt.Valid {
+// 			sale.Payments = append(sale.Payments, model.SalePaymentResponse{
+// 				PaymentMethod: paymentMethod.String,
+// 				Amount:        amount.Float64,
+// 				Note:          note.String,
+// 				CreatedAt:     paymentCreatedAt.Int64,
+// 			})
+// 		}
+// 	}
+
+// 	if sale == nil {
+// 		return nil, gorm.ErrRecordNotFound
+// 	}
+
+// 	return sale, nil
+// }
 
 func (r *SaleRepository) Search(db *gorm.DB, request *model.SearchSaleRequest) ([]entity.Sale, int64, error) {
 	var sales []entity.Sale

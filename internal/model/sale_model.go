@@ -9,16 +9,8 @@ type SaleResponse struct {
 	BranchID     uint                  `json:"branch_id,omitempty"`
 	TotalQty     int                   `json:"total_qty,omitempty"`
 	TotalPrice   float64               `json:"total_price,omitempty"`
-	Items        []SaleItemResponse    `json:"items,omitempty"`
+	Items        []SaleDetailResponse  `json:"items,omitempty"`
 	Payments     []SalePaymentResponse `json:"payments,omitempty"`
-}
-
-type SaleItemResponse struct {
-	Size        *SizeResponse    `json:"size"`
-	Product     *ProductResponse `json:"product"`
-	Qty         int              `json:"qty"`
-	Price       float64          `json:"price"`
-	IsCancelled int              `json:"is_cancelled"`
 }
 
 type SearchSaleRequest struct {

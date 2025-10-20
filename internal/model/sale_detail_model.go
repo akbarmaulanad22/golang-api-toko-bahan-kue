@@ -1,11 +1,12 @@
 package model
 
 type SaleDetailResponse struct {
-	SizeID      uint          `json:"size_id,omitempty"`
-	Qty         int           `json:"qty,omitempty"`
-	SellPrice   float64       `json:"sell_price,omitempty"`
-	IsCancelled bool          `json:"is_cancelled,omitempty"`
-	Size        *SizeResponse `json:"size,omitempty"`
+	ID          uint             `json:"id"`
+	Size        *SizeResponse    `json:"size"`
+	Product     *ProductResponse `json:"product"`
+	Qty         int              `json:"qty"`
+	Price       float64          `json:"price"`
+	IsCancelled int              `json:"is_cancelled"`
 }
 
 type CreateSaleDetailRequest struct {
@@ -15,7 +16,6 @@ type CreateSaleDetailRequest struct {
 }
 
 type CancelSaleDetailRequest struct {
-	BranchID uint   `json:"-" validate:"required"`
-	SizeID   uint   `json:"-" validate:"required"`
+	ID       uint   `json:"-" validate:"required"`
 	SaleCode string `json:"-" validate:"required"`
 }

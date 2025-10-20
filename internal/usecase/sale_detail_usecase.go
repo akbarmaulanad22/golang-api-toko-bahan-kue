@@ -72,18 +72,18 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	}
 
 	detail := new(entity.SaleDetail)
-	if err := c.SaleDetailRepository.FindPriceBySizeIDAndSaleCode(tx, sale.Code, request.SizeID, detail); err != nil {
-		c.Log.WithError(err).Error("error getting sale details")
-		return helper.GetNotFoundMessage("sale details", err)
+	if err := c.SaleDetailRepository.FindPriceByID(tx, request.ID, detail); err != nil {
+		c.Log.WithError(err).Error("error getting sale detail")
+		return helper.GetNotFoundMessage("sale detail", err)
 	}
 
 	if detail.IsCancelled {
-		c.Log.WithFields(logrus.Fields{"sale_code": sale.Code, "size_id": request.SizeID}).Error("sale already cancelled")
+		c.Log.WithField("sale_detail_id", detail.ID).Error("sale detail already cancelled")
 		return model.NewAppErr("conflict", "sale detail already cancelled")
 	}
 
-	if err := c.SaleDetailRepository.CancelBySizeID(tx, sale.Code, request.SizeID); err != nil {
-		c.Log.WithError(err).Error("error updating sale details")
+	if err := c.SaleDetailRepository.CancelByID(tx, request.ID); err != nil {
+		c.Log.WithError(err).Error("error updating sale detail")
 		return model.NewAppErr("internal server error", nil)
 	}
 
@@ -189,7 +189,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 
 	remaining, err := c.SaleDetailRepository.CountActiveBySaleCode(tx, sale.Code)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting sale details")
+		c.Log.WithError(err).Error("error counting sale detail")
 		return model.NewAppErr("internal server error", nil)
 	}
 

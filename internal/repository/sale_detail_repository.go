@@ -21,9 +21,9 @@ func (r *SaleDetailRepository) CreateBulk(db *gorm.DB, details []entity.SaleDeta
 	return db.CreateInBatches(&details, 100).Error
 }
 
-func (r *SaleDetailRepository) CancelBySizeID(db *gorm.DB, saleCode string, sizeID uint) error {
+func (r *SaleDetailRepository) CancelByID(db *gorm.DB, id uint) error {
 	return db.Model(&entity.SaleDetail{}).
-		Where("sale_code = ? AND size_id = ? AND is_cancelled = 0", saleCode, sizeID).
+		Where("id = ? AND is_cancelled = 0", id).
 		Updates(map[string]interface{}{
 			"is_cancelled": 1,
 		}).
@@ -39,9 +39,9 @@ func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string) error {
 		Error
 }
 
-func (r *SaleDetailRepository) FindPriceBySizeIDAndSaleCode(db *gorm.DB, saleCode string, sizeID uint, detail *entity.SaleDetail) error {
+func (r *SaleDetailRepository) FindPriceByID(db *gorm.DB, id uint, detail *entity.SaleDetail) error {
 	return db.Model(&entity.SaleDetail{}).
-		Where("sale_code = ? AND size_id = ?", saleCode, sizeID).
+		Where("id = ?", id).
 		Take(&detail).
 		Error
 }

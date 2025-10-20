@@ -144,7 +144,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	authRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Get)).Methods("GET")
 	cashierOrAdminRouter.HandleFunc("/sales", middleware.WithErrorHandler(route.SaleController.Create)).Methods("POST")
 	cashierOrAdminRouter.HandleFunc("/sales/{code}", middleware.WithErrorHandler(route.SaleController.Cancel)).Methods("DELETE")
-	cashierOrAdminRouter.HandleFunc("/sales/{code}/cancel/{sizeID}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
+	cashierOrAdminRouter.HandleFunc("/sales/{code}/cancel/{id}", middleware.WithErrorHandler(route.SaleDetailController.Cancel)).Methods("DELETE")
 
 	// POS (order barang masuk)
 	authRouter.HandleFunc("/purchases", middleware.WithErrorHandler(route.PurchaseController.List)).Methods("GET")
