@@ -82,24 +82,29 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		return model.NewAppErr("conflict", "sale detail already cancelled")
 	}
 
+	// cancel detail
 	if err := c.SaleDetailRepository.CancelByCodeAndID(tx, request.SaleCode, request.ID); err != nil {
 		c.Log.WithError(err).Error("error updating sale detail")
 		return helper.GetNotFoundMessage("sale detail", err)
 	}
 
+	// ambil branch inventory langsung via BranchInventoryID
 	branchInv := new(entity.BranchInventory)
-	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, branchInv, sale.BranchID, detail.SizeID); err != nil {
+	if err := c.BranchInventoryRepository.FindById(tx, branchInv, detail.BranchInventoryID); err != nil {
 		c.Log.WithError(err).Error("error getting inventories")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
 
+	// tingkatkan stok langsung by BranchInventoryID
 	inventories := []entity.BranchInventory{*branchInv}
-	qtyMap := map[uint]int{detail.SizeID: detail.Qty}
-	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, inventories, qtyMap); err != nil {
+	qtyMap := map[uint]int{detail.BranchInventoryID: detail.Qty}
+
+	if err := c.BranchInventoryRepository.BulkIncreaseStockNew(tx, inventories, qtyMap); err != nil {
 		c.Log.WithError(err).Error("error updating inventories")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// catat inventory movement
 	movement := entity.InventoryMovement{
 		BranchInventoryID: branchInv.ID,
 		ChangeQty:         detail.Qty,
@@ -113,7 +118,8 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		return model.NewAppErr("internal server error", nil)
 	}
 
-	cancelAmount := detail.SellPrice * float64(detail.Qty) // money to refund / reduce from sale
+	// hitung refund / pengurangan
+	cancelAmount := detail.SellPrice * float64(detail.Qty)
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, sale.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
@@ -130,7 +136,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 			refund := debt.PaidAmount - debt.TotalAmount
 			outTx := entity.CashBankTransaction{
 				TransactionDate: time.Now().UnixMilli(),
-				Type:            "OUT", // money going out to customer
+				Type:            "OUT",
 				Source:          "SALE_DEBT_CANCELLED",
 				Amount:          refund,
 				Description:     fmt.Sprintf("Refund pembatalan penjualan per item %s", sale.Code),
@@ -143,7 +149,6 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 				c.Log.WithError(err).Error("error creating cash bank transaction")
 				return model.NewAppErr("internal server error", nil)
 			}
-
 			debt.PaidAmount = debt.TotalAmount
 		}
 
@@ -163,7 +168,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	} else {
 		outTx := entity.CashBankTransaction{
 			TransactionDate: time.Now().UnixMilli(),
-			Type:            "OUT", // refund to customer
+			Type:            "OUT",
 			Source:          "SALE_CANCELLED",
 			Amount:          cancelAmount,
 			Description:     fmt.Sprintf("Refund pembatalan penjualan per item %s", sale.Code),
@@ -178,15 +183,17 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 		}
 	}
 
+	// update total sale
 	newTotal := sale.TotalPrice - cancelAmount
 	if newTotal < 0 {
 		newTotal = 0
 	}
 	if err := c.SaleRepository.UpdateTotalPrice(tx, sale.Code, newTotal); err != nil {
-		c.Log.WithError(err).Error("error updating cash bank transaction")
+		c.Log.WithError(err).Error("error updating total sale")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// jika semua detail sudah dibatalkan → void sale
 	remaining, err := c.SaleDetailRepository.CountActiveBySaleCode(tx, sale.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error counting sale detail")
@@ -195,7 +202,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 
 	if remaining == 0 {
 		if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
-			c.Log.WithError(err).Error("error updating sale")
+			c.Log.WithError(err).Error("error cancelling sale")
 			return model.NewAppErr("internal server error", nil)
 		}
 
@@ -212,7 +219,7 @@ func (c *SaleDetailUseCase) Cancel(ctx context.Context, request *model.CancelSal
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error cancel sale detail")
+		c.Log.WithError(err).Error("error committing cancel sale detail")
 		return model.NewAppErr("internal server error", nil)
 	}
 

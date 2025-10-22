@@ -1,1 +1,1 @@
-ALTER TABLE sales DELETE COLUMN total_price;
+ALTER TABLE sales DROP COLUMN total_price;

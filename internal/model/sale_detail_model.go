@@ -1,7 +1,8 @@
 package model
 
 type SaleDetailResponse struct {
-	ID          uint             `json:"id"`
+	ID uint `json:"id"`
+	// BranchInventoryID uint             `json:"branch_inventory_id"`
 	Size        *SizeResponse    `json:"size"`
 	Product     *ProductResponse `json:"product"`
 	Qty         int              `json:"qty"`
@@ -10,9 +11,9 @@ type SaleDetailResponse struct {
 }
 
 type CreateSaleDetailRequest struct {
-	SizeID    uint    `json:"size_id" validate:"required"`
-	Qty       int     `json:"qty" validate:"required,min=1"`
-	SellPrice float64 `json:"-"`
+	BranchInventoryID uint    `json:"branch_inventory_id" validate:"required"`
+	Qty               int     `json:"qty" validate:"required,min=1"`
+	SellPrice         float64 `json:"-"`
 }
 
 type CancelSaleDetailRequest struct {

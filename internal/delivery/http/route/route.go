@@ -180,9 +180,11 @@ func (route *RouteConfig) SetupAuthRoute() {
 	ownerOrAdminRouter.HandleFunc("/capitals/{id}", middleware.WithErrorHandler(route.CapitalController.Delete)).Methods("DELETE")
 
 	// pencatatan penerimaan/pengeluaran uang
+	// ownerOrAdminRouter.HandleFunc("/cash-bank-transactions/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	ownerOrAdminRouter.HandleFunc("/cash-bank-transactions", middleware.WithErrorHandler(route.CashBankTransactionController.List)).Methods("GET")
 
 	// utang / piutang
+	// ownerOrAdminRouter.HandleFunc("/debt/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	authRouter.HandleFunc("/debt", middleware.WithErrorHandler(route.DebtController.List)).Methods("GET")
 	authRouter.HandleFunc("/debt/{id}", middleware.WithErrorHandler(route.DebtController.Get)).Methods("GET")
 	cashierOrAdminRouter.HandleFunc("/debt/{debtID}/payments", middleware.WithErrorHandler(route.DebtPaymentController.Create)).Methods("POST")
@@ -203,6 +205,7 @@ func (route *RouteConfig) SetupAuthRoute() {
 	ownerRouter.HandleFunc("/branch-inventory/{id}", middleware.WithErrorHandler(route.BranchInventoryController.Delete)).Methods("DELETE")
 
 	// pergerakan stok barang masuk/keluar
+	// ownerOrAdminRouter.HandleFunc("/inventory-movement/consolidated", route.ExpenseController.ConsolidatedReport).Methods("GET")
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.List)).Methods("GET")
 	authRouter.HandleFunc("/inventory-movement", middleware.WithErrorHandler(route.InventoryMovementController.Create)).Methods("POST")
 	// [owner only]

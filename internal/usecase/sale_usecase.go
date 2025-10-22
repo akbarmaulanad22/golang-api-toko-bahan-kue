@@ -72,79 +72,60 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
-	if request.Debt == nil && len(request.Payments) == 0 || (request.Debt != nil && len(request.Payments) > 0) {
-		c.Log.Error("debt or payments must be provided")
+	if (request.Debt == nil && len(request.Payments) == 0) || (request.Debt != nil && len(request.Payments) > 0) {
+		c.Log.Error("debt or payments must be provided exclusively")
 		return nil, model.NewAppErr("bad request", "either debt or payments must be provided")
 	}
 
-	// Ambil harga per size
-	sizeIDs := make([]uint, len(request.Details))
+	// Ambil semua branch_inventory sesuai request
+	invIDs := make([]uint, len(request.Details))
 	for i, d := range request.Details {
-		sizeIDs[i] = d.SizeID
+		invIDs[i] = d.BranchInventoryID
 	}
 
-	sizesWithProduct, err := c.SizeRepository.FindSizesWithProductByIDs(tx, sizeIDs)
-	if err != nil {
-		c.Log.WithError(err).Error("error getting sizes")
-		return nil, model.NewAppErr("internal server error", nil)
-	}
-	sizeMap := make(map[uint]model.SizeWithProduct, len(sizesWithProduct))
-	for _, s := range sizesWithProduct {
-		sizeMap[s.ID] = s
-	}
-
-	// Ambil inventory
-	branchInvs, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, request.BranchID, sizeIDs)
+	inventories, err := c.BranchInventoryRepository.FindByIDsWithSize(tx, invIDs)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventories")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
-	branchInvMap := make(map[uint]*entity.BranchInventory, len(branchInvs))
-	for i := range branchInvs {
-		branchInvMap[branchInvs[i].SizeID] = &branchInvs[i]
+	invMap := make(map[uint]*entity.BranchInventory, len(inventories))
+	for i := range inventories {
+		invMap[inventories[i].ID] = &inventories[i]
 	}
 
 	// Buat kode sale
 	saleCode := "SALE-" + time.Now().Format("20060102150405")
 
-	// Build sale details & movements
 	n := len(request.Details)
 	details := make([]entity.SaleDetail, n)
 	movements := make([]entity.InventoryMovement, n)
+	qtyByBranchInventory := make(map[uint]int, n)
 	var totalPrice float64
 	now := time.Now().UnixMilli()
 
-	// Juga siapkan qtyBySize untuk BulkDecreaseStock
-	qtyBySize := make(map[uint]int, len(request.Details))
-
 	for i, d := range request.Details {
-		size, ok := sizeMap[d.SizeID]
+		inv, ok := invMap[d.BranchInventoryID]
 		if !ok {
-			c.Log.WithField("size_id", d.SizeID).Errorf("size not found")
-			return nil, model.NewAppErr("size not found", nil)
-		}
-
-		inv, exists := branchInvMap[d.SizeID]
-		if !exists {
-			c.Log.WithField("size_id", d.SizeID).Errorf("inventories not found for product %s, size %s", size.Size, size.ProductName)
-			return nil, model.NewAppErr("size not found", fmt.Sprintf("inventories not found for product %s, size %s", size.Size, size.ProductName))
+			c.Log.WithField("branch_inventory_id", d.BranchInventoryID).Error("inventory not found")
+			return nil, model.NewAppErr("validation error", "stok tidak ditemukan")
 		}
 
 		if inv.Stock < d.Qty {
-			c.Log.WithField("size_id", d.SizeID).Errorf("size insufficient stock")
+			c.Log.WithField("branch_inventory_id", d.BranchInventoryID).Error("insufficient stock")
 			return nil, model.NewAppErr("validation error", "stok tidak cukup")
 		}
 
-		totalPrice += size.SellPrice * float64(d.Qty)
-		qtyBySize[d.SizeID] += d.Qty
+		totalPrice += inv.Size.SellPrice * float64(d.Qty)
+		qtyByBranchInventory[d.BranchInventoryID] += d.Qty
 
 		details[i] = entity.SaleDetail{
-			SaleCode:  saleCode,
-			SizeID:    d.SizeID,
-			Qty:       d.Qty,
-			SellPrice: size.SellPrice,
+			SaleCode:          saleCode,
+			BranchInventoryID: d.BranchInventoryID,
+			Qty:               d.Qty,
+			SellPrice:         inv.Size.SellPrice,
 		}
+
 		movements[i] = entity.InventoryMovement{
 			BranchInventoryID: inv.ID,
 			ChangeQty:         -d.Qty,
@@ -154,13 +135,11 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 	}
 
-	// Bulk update stok (pakai qtyBySize)
-	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, request.BranchID, qtyBySize); err != nil {
-		c.Log.WithError(err).Error("error update inventories")
+	if err := c.BranchInventoryRepository.BulkDecreaseStockNew(tx, qtyByBranchInventory); err != nil {
+		c.Log.WithError(err).Error("error updating stock")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 
-	// Insert sale
 	sale := entity.Sale{
 		Code:         saleCode,
 		BranchID:     request.BranchID,
@@ -168,23 +147,22 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		TotalPrice:   totalPrice,
 		CreatedAt:    now,
 	}
+
 	if err := c.SaleRepository.Create(tx, &sale); err != nil {
 		c.Log.WithError(err).Error("error creating sale")
 		return nil, model.NewAppErr("internal server error", nil)
-
 	}
+
 	if err := c.SaleDetailRepository.CreateBulk(tx, details); err != nil {
 		c.Log.WithError(err).Error("error creating sale details")
 		return nil, model.NewAppErr("internal server error", nil)
-
 	}
+
 	if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
 		c.Log.WithError(err).Error("error creating inventory movements")
 		return nil, model.NewAppErr("internal server error", nil)
-
 	}
 
-	// Insert payments (jika ada)
 	if n := len(request.Payments); n > 0 {
 		payments := make([]entity.SalePayment, n)
 		var totalPayment float64
@@ -200,14 +178,11 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		if totalPayment < totalPrice {
-			c.Log.Error("total payment is less than total price")
 			return nil, model.NewAppErr("validation error", "total payment is less than total price")
 		}
 
 		if err := c.SalePaymentRepository.CreateBulk(tx, payments); err != nil {
-			c.Log.WithError(err).Error("error creating sale payments")
 			return nil, model.NewAppErr("internal server error", nil)
-
 		}
 
 		cashBankTransaction := entity.CashBankTransaction{
@@ -219,9 +194,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			BranchID:        &request.BranchID,
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
-			c.Log.WithError(err).Error("error creating cash bank transaction")
 			return nil, model.NewAppErr("internal server error", nil)
-
 		}
 	}
 
@@ -231,8 +204,8 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		for _, p := range request.Debt.DebtPayments {
 			paidAmount += p.Amount
 		}
+
 		if paidAmount > totalPrice {
-			c.Log.Error("total debt payment is more than total price")
 			return nil, model.NewAppErr("validation error", "total debt payment is more than total price")
 		}
 
@@ -252,9 +225,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			UpdatedAt: now,
 		}
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
-			c.Log.WithError(err).Error("error creating debt")
 			return nil, model.NewAppErr("internal server error", nil)
-
 		}
 
 		if n := len(request.Debt.DebtPayments); n > 0 {
@@ -268,7 +239,6 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 				}
 			}
 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
-				c.Log.WithError(err).Error("error creating debt payments")
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 			cashBankTransaction := entity.CashBankTransaction{
@@ -281,17 +251,15 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 				BranchID:        &request.BranchID,
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
-				c.Log.WithError(err).Error("error cash bank transaction branch")
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 		}
 	}
 
-	// Commit transaksi
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error creating sale")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
+
 	return converter.SaleToResponse(&sale), nil
 }
 
@@ -355,6 +323,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	// === 1. Lock sale ===
 	sale := new(entity.Sale)
 	if err := c.SaleRepository.FindLockByCode(tx, request.Code, sale); err != nil {
 		c.Log.WithError(err).Error("error getting sale")
@@ -372,44 +341,49 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 		return model.NewAppErr("conflict", "sale already cancelled")
 	}
 
-	details, err := c.SaleDetailRepository.FindBySaleCode(tx, request.Code)
+	// === 2. Ambil sale detail (dengan branch_inventory) ===
+	details, err := c.SaleDetailRepository.FindWithBranchInventory(tx, request.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting sale details")
 		return helper.GetNotFoundMessage("sale details", err)
 	}
 
-	qtyBySize := map[uint]int{}
+	// === 3. Hitung qty per branch_inventory ===
+	qtyByBranchInv := map[uint]int{}
 	for _, d := range details {
 		if !d.IsCancelled {
-			qtyBySize[d.SizeID] += d.Qty
+			qtyByBranchInv[d.BranchInventoryID] += d.Qty
 		}
 	}
 
-	if len(qtyBySize) == 0 {
+	if len(qtyByBranchInv) == 0 {
 		c.Log.WithField("sale_code", sale.Code).Error("all details already cancelled")
 		return model.NewAppErr("conflict", "all sale detail already cancelled")
 	}
 
-	sizeIDs := make([]uint, 0, len(qtyBySize))
-	for sid := range qtyBySize {
-		sizeIDs = append(sizeIDs, sid)
+	// === 4. Ambil inventory dengan lock ===
+	branchInvIDs := make([]uint, 0, len(qtyByBranchInv))
+	for id := range qtyByBranchInv {
+		branchInvIDs = append(branchInvIDs, id)
 	}
-	slices.Sort(sizeIDs)
+	slices.Sort(branchInvIDs)
 
-	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, sale.BranchID, sizeIDs)
+	inventories, err := c.BranchInventoryRepository.FindByIDsWithSize(tx, branchInvIDs)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventories")
 		return helper.GetNotFoundMessage("inventories", err)
 	}
 
-	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, inventories, qtyBySize); err != nil {
-		c.Log.WithError(err).Error("error creating inventories")
+	// === 5. Kembalikan stok (bulk increase) ===
+	if err := c.BranchInventoryRepository.BulkIncreaseStockNew(tx, inventories, qtyByBranchInv); err != nil {
+		c.Log.WithError(err).Error("error increasing inventories")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// === 6. Buat inventory movement ===
 	movements := make([]entity.InventoryMovement, 0, len(inventories))
 	for _, inv := range inventories {
-		addQty := qtyBySize[inv.SizeID]
+		addQty := qtyByBranchInv[inv.ID]
 		if addQty == 0 {
 			continue
 		}
@@ -426,11 +400,13 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// === 7. Update sale detail jadi cancelled ===
 	if err := c.SaleDetailRepository.Cancel(tx, request.Code); err != nil {
 		c.Log.WithError(err).Error("error updating sale detail")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// === 8. Handle debt dan cashbank transaction ===
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindBySaleCodeOrInit(tx, debt, request.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt payment")
@@ -438,6 +414,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 	}
 
 	if debt.ID != 0 {
+		// kalau ada hutang, void + keluarkan uang kembali
 		if debt.PaidAmount > 0 {
 			outTx := entity.CashBankTransaction{
 				TransactionDate: time.Now().UnixMilli(),
@@ -454,7 +431,6 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 				c.Log.WithError(err).Error("error creating cash bank transaction")
 				return model.NewAppErr("internal server error", nil)
 			}
-
 		}
 
 		debt.Status = "VOID"
@@ -465,6 +441,7 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 			return model.NewAppErr("internal server error", nil)
 		}
 	} else {
+		// kalau non-debt
 		outTx := entity.CashBankTransaction{
 			TransactionDate: time.Now().UnixMilli(),
 			Type:            "OUT",
@@ -482,11 +459,13 @@ func (c *SaleUseCase) Cancel(ctx context.Context, request *model.CancelSaleReque
 		}
 	}
 
+	// === 9. Update status sale jadi CANCELLED ===
 	if err := c.SaleRepository.Cancel(tx, sale.Code); err != nil {
 		c.Log.WithError(err).Error("error updating sale")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// === 10. Commit ===
 	if err := tx.Commit().Error; err != nil {
 		c.Log.WithError(err).Error("error cancel sale")
 		return model.NewAppErr("internal server error", nil)

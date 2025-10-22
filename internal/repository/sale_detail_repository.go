@@ -22,7 +22,7 @@ func (r *SaleDetailRepository) CreateBulk(db *gorm.DB, details []entity.SaleDeta
 }
 
 func (r *SaleDetailRepository) CancelByCodeAndID(db *gorm.DB, code string, id uint) error {
-	tx := db.Model(&entity.PurchaseDetail{}).
+	tx := db.Model(&entity.SaleDetail{}).
 		Where("sale_code = ? AND id = ? AND is_cancelled = 0", code, id).
 		Updates(map[string]interface{}{
 			"is_cancelled": 1,
@@ -46,6 +46,14 @@ func (r *SaleDetailRepository) Cancel(db *gorm.DB, saleCode string) error {
 			"is_cancelled": 1,
 		}).
 		Error
+}
+
+func (r *SaleDetailRepository) FindWithBranchInventory(db *gorm.DB, saleCode string) ([]entity.SaleDetail, error) {
+	var details []entity.SaleDetail
+	err := db.Preload("BranchInventory.Size").
+		Where("sale_code = ?", saleCode).
+		Find(&details).Error
+	return details, err
 }
 
 func (r *SaleDetailRepository) FindPriceByID(db *gorm.DB, id uint, detail *entity.SaleDetail) error {

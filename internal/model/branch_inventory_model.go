@@ -1,10 +1,10 @@
 package model
 
 type BranchInventorySizeResponse struct {
-	SizeID    uint    `json:"size_id"`
-	Size      string  `json:"size"`
-	Stock     int     `json:"stock"`
-	SellPrice float64 `json:"sell_price"`
+	BranchInventoryID uint    `json:"branch_inventory_id"`
+	Size              string  `json:"size"`
+	Stock             int     `json:"stock"`
+	SellPrice         float64 `json:"sell_price"`
 }
 
 type BranchInventoryProductResponse struct {
