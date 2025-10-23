@@ -65,6 +65,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
+	// Ambil purchase dengan lock
 	purchase := new(entity.Purchase)
 	if err := c.PurchaseRepository.FindLockByCode(tx, request.PurchaseCode, purchase); err != nil {
 		c.Log.WithError(err).Error("error getting purchase")
@@ -77,6 +78,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 		return model.NewAppErr("forbidden", "purchase cannot be deleted after 24 hours")
 	}
 
+	// Ambil purchase detail
 	detail := new(entity.PurchaseDetail)
 	if err := c.PurchaseDetailRepository.FindPriceByID(tx, request.ID, detail); err != nil {
 		c.Log.WithError(err).Error("error getting purchase detail")
@@ -87,50 +89,58 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 		return model.NewAppErr("conflict", "purchase detail already cancelled")
 	}
 
+	// Cancel purchase detail
 	if err := c.PurchaseDetailRepository.CancelByCodeAndID(tx, request.PurchaseCode, request.ID); err != nil {
 		c.Log.WithError(err).Error("error updating purchase detail")
 		return helper.GetNotFoundMessage("purchase detail", err)
 	}
 
+	// Ambil branch inventory terkait
 	inv := new(entity.BranchInventory)
-	if err := c.BranchInventoryRepository.FindByBranchIDAndSizeID(tx, inv, purchase.BranchID, detail.SizeID); err != nil {
+	if err := c.BranchInventoryRepository.FindById(tx, inv, detail.BranchInventoryID); err != nil {
 		c.Log.WithError(err).Error("error getting branch inventory")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
+
+	// Cek stock
 	if inv.Stock < detail.Qty {
-		c.Log.WithField("size_id", detail.SizeID).Error("insufficient stock")
-		return model.NewAppErr("validation not match", fmt.Sprintf("insufficient stock for size_id %d: have %d need %d", detail.SizeID, inv.Stock, detail.Qty))
+		c.Log.WithField("purchase_detail_id", detail.ID).Error("insufficient stock")
+		return model.NewAppErr("validation not match", fmt.Sprintf("insufficient stock for size_id %d: have %d need %d", inv.SizeID, inv.Stock, detail.Qty))
 	}
-	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchase.BranchID, map[uint]int{detail.SizeID: detail.Qty}); err != nil {
+
+	// Kurangi stock
+	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchase.BranchID, map[uint]int{inv.SizeID: detail.Qty}); err != nil {
 		c.Log.WithError(err).Error("error updating inventory stock")
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// Buat inventory movement
 	mv := entity.InventoryMovement{
 		BranchInventoryID: inv.ID,
 		ChangeQty:         -detail.Qty,
 		ReferenceType:     "PURCHASE_DETAIL_CANCELLED",
 		ReferenceKey:      purchase.Code,
 	}
-
 	if err := c.InventoryMovementRepository.Create(tx, &mv); err != nil {
 		c.Log.WithError(err).Error("error creating inventory movement")
 		return model.NewAppErr("internal server error", nil)
 	}
 
-	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, []uint{detail.SizeID}, purchase.Code)
+	// Ambil harga terakhir berdasarkan size_id
+	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, []uint{inv.SizeID}, purchase.Code)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting purchase")
+		c.Log.WithError(err).Error("error getting last buy price")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
 
-	if lastPrice, ok := lastPrices[detail.SizeID]; ok {
-		if err := c.SizeRepository.BulkUpdateBuyPrice(tx, map[uint]float64{detail.SizeID: lastPrice}); err != nil {
+	if lastPrice, ok := lastPrices[inv.SizeID]; ok {
+		if err := c.SizeRepository.BulkUpdateBuyPrice(tx, map[uint]float64{inv.SizeID: lastPrice}); err != nil {
 			c.Log.WithError(err).Error("error updating size")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
+	// Update debt atau purchase refund
 	debt := new(entity.Debt)
 	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchase.Code); err != nil {
 		c.Log.WithError(err).Error("error getting debt")
@@ -167,7 +177,6 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 			debt.Status = "VOID"
 		} else if debt.PaidAmount >= debt.TotalAmount {
 			debt.Status = "PAID"
-
 			payment := &entity.PurchasePayment{
 				PurchaseCode:  purchase.Code,
 				PaymentMethod: "CASH",
@@ -207,6 +216,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 		}
 	}
 
+	// Update total price final
 	newTotal := purchase.TotalPrice - (detail.BuyPrice * float64(detail.Qty))
 	if newTotal < 0 {
 		newTotal = 0
@@ -216,6 +226,7 @@ func (c *PurchaseDetailUseCase) Cancel(ctx context.Context, request *model.Cance
 		return model.NewAppErr("internal server error", nil)
 	}
 
+	// Cek apakah semua detail sudah dibatalkan
 	remaining, err := c.PurchaseDetailRepository.CountActiveByPurchaseCode(tx, purchase.Code)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting purchase detail")

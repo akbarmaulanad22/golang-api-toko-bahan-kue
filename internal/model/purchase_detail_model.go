@@ -10,9 +10,9 @@ type PurchaseDetailResponse struct {
 }
 
 type CreatePurchaseDetailRequest struct {
-	SizeID   uint    `json:"size_id" validate:"required"`
-	Qty      int     `json:"qty" validate:"required,min=1"`
-	BuyPrice float64 `json:"buy_price" validate:"required"`
+	BranchInventoryID uint    `json:"branch_inventory_id" validate:"required"`
+	Qty               int     `json:"qty" validate:"required,min=1"`
+	BuyPrice          float64 `json:"buy_price" validate:"required"`
 }
 
 type CancelPurchaseDetailRequest struct {

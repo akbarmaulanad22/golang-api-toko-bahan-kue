@@ -178,10 +178,12 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		if totalPayment < totalPrice {
+			c.Log.Error("total payment is less than total price")
 			return nil, model.NewAppErr("validation error", "total payment is less than total price")
 		}
 
 		if err := c.SalePaymentRepository.CreateBulk(tx, payments); err != nil {
+			c.Log.WithError(err).Error("error creating sale payments")
 			return nil, model.NewAppErr("internal server error", nil)
 		}
 
@@ -194,6 +196,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			BranchID:        &request.BranchID,
 		}
 		if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+			c.Log.WithError(err).Error("error creating cash bank transaction")
 			return nil, model.NewAppErr("internal server error", nil)
 		}
 	}
@@ -206,6 +209,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 		}
 
 		if paidAmount > totalPrice {
+			c.Log.Error("total debt payment is more than total price")
 			return nil, model.NewAppErr("validation error", "total debt payment is more than total price")
 		}
 
@@ -225,6 +229,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 			UpdatedAt: now,
 		}
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
+			c.Log.WithError(err).Error("error creating debt")
 			return nil, model.NewAppErr("internal server error", nil)
 		}
 
@@ -239,6 +244,7 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 				}
 			}
 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
+				c.Log.WithError(err).Error("error creating debt payments")
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 			cashBankTransaction := entity.CashBankTransaction{
@@ -251,12 +257,14 @@ func (c *SaleUseCase) Create(ctx context.Context, request *model.CreateSaleReque
 				BranchID:        &request.BranchID,
 			}
 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
+				c.Log.WithError(err).Error("error cash bank transaction branch")
 				return nil, model.NewAppErr("internal server error", nil)
 			}
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		c.Log.WithError(err).Error("error creating sales")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
 

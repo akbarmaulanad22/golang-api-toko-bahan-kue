@@ -76,18 +76,20 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		return nil, model.NewAppErr("bad request", "either debt or payments must be provided")
 	}
 
-	qtyBySize := map[uint]int{}
+	// Kumpulkan qty per branch_inventory_id
+	qtyByInv := map[uint]int{}
 	for _, d := range request.Details {
-		qtyBySize[d.SizeID] += d.Qty
+		qtyByInv[d.BranchInventoryID] += d.Qty
 	}
-	sizeIDs := make([]uint, 0, len(qtyBySize))
-	for sid := range qtyBySize {
-		sizeIDs = append(sizeIDs, sid)
-	}
-	slices.Sort(sizeIDs)
 
 	// Ambil inventory
-	branchInvs, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, request.BranchID, sizeIDs)
+	invIDs := make([]uint, 0, len(qtyByInv))
+	for id := range qtyByInv {
+		invIDs = append(invIDs, id)
+	}
+	slices.Sort(invIDs)
+
+	branchInvs, err := c.BranchInventoryRepository.FindByIDs(tx, invIDs)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting inventories")
 		return nil, helper.GetNotFoundMessage("inventories", err)
@@ -95,7 +97,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 
 	branchInvMap := make(map[uint]*entity.BranchInventory, len(branchInvs))
 	for i := range branchInvs {
-		branchInvMap[branchInvs[i].SizeID] = &branchInvs[i]
+		branchInvMap[branchInvs[i].ID] = &branchInvs[i]
 	}
 
 	// Buat kode purchase
@@ -107,23 +109,24 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 	movements := make([]entity.InventoryMovement, n)
 	var totalPrice float64
 	now := time.Now().UnixMilli()
-	buyPriceBySize := map[uint]float64{}
+	buyPriceBySize := map[uint]float64{} // pakai SizeID sebagai key
 
 	for i, d := range request.Details {
-		inv, exists := branchInvMap[d.SizeID]
+		inv, exists := branchInvMap[d.BranchInventoryID]
 		if !exists {
-			c.Log.WithField("size_id", d.SizeID).Errorf("size not found")
-			return nil, model.NewAppErr("size not found", "stok tidak tersedia")
+			c.Log.WithField("branch_inventory_id", d.BranchInventoryID).Errorf("branch inventory not found")
+			return nil, model.NewAppErr("inventory not found", "stok tidak tersedia")
 		}
 
 		totalPrice += d.BuyPrice * float64(d.Qty)
 
 		details[i] = entity.PurchaseDetail{
-			PurchaseCode: purchaseCode,
-			SizeID:       d.SizeID,
-			Qty:          d.Qty,
-			BuyPrice:     d.BuyPrice,
+			PurchaseCode:      purchaseCode,
+			BranchInventoryID: d.BranchInventoryID,
+			Qty:               d.Qty,
+			BuyPrice:          d.BuyPrice,
 		}
+
 		movements[i] = entity.InventoryMovement{
 			BranchInventoryID: inv.ID,
 			ChangeQty:         d.Qty,
@@ -132,12 +135,12 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			CreatedAt:         now,
 		}
 
-		// Simpan harga beli terbaru
-		buyPriceBySize[d.SizeID] = d.BuyPrice
+		// Simpan harga beli terbaru berdasarkan SizeID
+		buyPriceBySize[inv.SizeID] = d.BuyPrice
 	}
 
 	// Bulk update stok (1 query)
-	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, branchInvs, qtyBySize); err != nil {
+	if err := c.BranchInventoryRepository.BulkIncreaseStock(tx, branchInvs, qtyByInv); err != nil {
 		c.Log.WithError(err).Error("error creating inventories")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
@@ -237,12 +240,10 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		if err := c.DebtRepository.Create(tx, &debt); err != nil {
 			c.Log.WithError(err).Error("error creating debt")
 			return nil, model.NewAppErr("internal server error", nil)
-
 		}
 
 		if n := len(request.Debt.DebtPayments); n > 0 {
 			debtPayments := make([]entity.DebtPayment, n)
-
 			for i, p := range request.Debt.DebtPayments {
 				debtPayments[i] = entity.DebtPayment{
 					DebtID:      debt.ID,
@@ -254,8 +255,8 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			if err := c.DebtPaymentRepository.CreateBulk(tx, debtPayments); err != nil {
 				c.Log.WithError(err).Error("error creating debt payments")
 				return nil, model.NewAppErr("internal server error", nil)
-
 			}
+
 			cashBankTransaction := entity.CashBankTransaction{
 				TransactionDate: now,
 				Type:            "OUT",
@@ -268,7 +269,6 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 			if err := c.CashBankTransactionRepository.Create(tx, &cashBankTransaction); err != nil {
 				c.Log.WithError(err).Error("error cash bank transaction branch")
 				return nil, model.NewAppErr("internal server error", nil)
-
 			}
 		}
 	}
@@ -278,6 +278,7 @@ func (c *PurchaseUseCase) Create(ctx context.Context, request *model.CreatePurch
 		c.Log.WithError(err).Error("error creating purchase")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
+
 	return converter.PurchaseToResponse(&purchase), nil
 }
 
@@ -334,183 +335,137 @@ func (c *PurchaseUseCase) Get(ctx context.Context, request *model.GetPurchaseReq
 
 func (c *PurchaseUseCase) Cancel(ctx context.Context, request *model.CancelPurchaseRequest) error {
 	if err := c.Validate.Struct(request); err != nil {
-		c.Log.WithError(err).Error("error validating request body")
 		return helper.GetValidationMessage(err)
 	}
 
 	tx := c.DB.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
-	purchaseEntity := new(entity.Purchase)
-	if err := c.PurchaseRepository.FindLockByCode(tx, request.Code, purchaseEntity); err != nil {
-		c.Log.WithError(err).Error("error getting purchase")
+	purchase := new(entity.Purchase)
+	if err := c.PurchaseRepository.FindLockByCode(tx, request.Code, purchase); err != nil {
 		return helper.GetNotFoundMessage("purchase", err)
 	}
 
-	createdTime := time.UnixMilli(purchaseEntity.CreatedAt)
-	if time.Since(createdTime).Hours() >= 24 {
-		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("purchase cannot be deleted after 24 hours")
-		return model.NewAppErr("forbidden", "purchase cannot be deleted after 24 hours")
+	if time.Since(time.UnixMilli(purchase.CreatedAt)).Hours() >= 24 {
+		return model.NewAppErr("forbidden", "purchase cannot be cancelled after 24 hours")
 	}
 
-	if purchaseEntity.Status == "CANCELLED" {
-		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("purchase already cancelled")
+	if purchase.Status == "CANCELLED" {
 		return model.NewAppErr("conflict", "purchase already cancelled")
 	}
 
-	details, err := c.PurchaseDetailRepository.FindByPurchaseCode(tx, request.Code)
+	details, err := c.PurchaseDetailRepository.FindByPurchaseCode(tx, purchase.Code)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting purchase details")
 		return helper.GetNotFoundMessage("purchase details", err)
 	}
 
-	qtyBySize := make(map[uint]int, len(details))
+	qtyByInv := map[uint]int{}
+	invIDs := []uint{}
 	for _, d := range details {
-		qtyBySize[d.SizeID] += d.Qty
+		if !d.IsCancelled {
+			qtyByInv[d.BranchInventoryID] += d.Qty
+			invIDs = append(invIDs, d.BranchInventoryID)
+		}
 	}
 
-	if len(qtyBySize) == 0 {
-		c.Log.WithField("purchase_code", purchaseEntity.Code).Error("all details already cancelled")
-		return model.NewAppErr("conflict", "all purchase detail already cancelled")
+	if len(qtyByInv) == 0 {
+		return model.NewAppErr("conflict", "all purchase details already cancelled")
 	}
 
-	sizeIDs := make([]uint, 0, len(qtyBySize))
-	for sid := range qtyBySize {
-		sizeIDs = append(sizeIDs, sid)
-	}
-	slices.Sort(sizeIDs)
-
-	inventories, err := c.BranchInventoryRepository.FindByBranchAndSizeIDs(tx, purchaseEntity.BranchID, sizeIDs)
+	inventories, err := c.BranchInventoryRepository.FindByIDs(tx, invIDs)
 	if err != nil {
-		c.Log.WithError(err).Error("error getting inventories")
 		return helper.GetNotFoundMessage("inventory", err)
 	}
 
-	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs, purchaseEntity.Code)
+	invByID := map[uint]entity.BranchInventory{}
+	sizeIDs := []uint{}
+	for _, inv := range inventories {
+		invByID[inv.ID] = inv
+		sizeIDs = append(sizeIDs, inv.SizeID)
+	}
+
+	for invID, qty := range qtyByInv {
+		if invByID[invID].Stock < qty {
+			return model.NewAppErr("validation not match", fmt.Sprintf(
+				"insufficient stock for branch_inventory_id %d: have %d need %d",
+				invID, invByID[invID].Stock, qty,
+			))
+		}
+	}
+
+	lastPrices, err := c.PurchaseDetailRepository.FindLastBuyPricesBySizeIDs(tx, sizeIDs, purchase.Code)
 	if err != nil {
-		c.Log.WithError(err).Error("error get last buy prices")
 		return helper.GetNotFoundMessage("purchase detail", err)
 	}
 
 	if len(lastPrices) > 0 {
 		if err := c.SizeRepository.BulkUpdateBuyPrice(tx, lastPrices); err != nil {
-			c.Log.WithError(err).Error("error bulk update buy price")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	invBySize := make(map[uint]entity.BranchInventory, len(inventories))
-	for _, inv := range inventories {
-		invBySize[inv.SizeID] = inv
-	}
-	for sid, qty := range qtyBySize {
-		inv, ok := invBySize[sid]
-		if !ok {
-			c.Log.WithField("size_id", sid).Errorf("size not found")
-			return model.NewAppErr("size not found", fmt.Sprintf("inventories not found for size_id %d", sid))
-		}
-		if inv.Stock < qty {
-			c.Log.WithField("size_id", sid).Errorf("size insufficient stock")
-			return model.NewAppErr("validation not match", fmt.Sprintf("insufficient stock for size_id %d: have %d need %d", sid, inv.Stock, qty))
-		}
-	}
-
-	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchaseEntity.BranchID, qtyBySize); err != nil {
-		c.Log.WithError(err).Error("error update inventories")
+	if err := c.BranchInventoryRepository.BulkDecreaseStock(tx, purchase.BranchID, qtyByInv); err != nil {
 		return model.NewAppErr("internal server error", nil)
 	}
 
-	mvCount := 0
-	for sid, qty := range qtyBySize {
-		if qty > 0 {
-			if _, ok := invBySize[sid]; ok {
-				mvCount++
-			}
-		}
-	}
-	movements := make([]entity.InventoryMovement, mvCount)
-	idx := 0
+	movements := []entity.InventoryMovement{}
 	now := time.Now().UnixMilli()
-	for sid, qty := range qtyBySize {
-		if qty == 0 {
-			continue
+	for invID, qty := range qtyByInv {
+		if qty > 0 {
+			movements = append(movements, entity.InventoryMovement{
+				BranchInventoryID: invID,
+				ChangeQty:         -qty,
+				ReferenceType:     "PURCHASE_CANCELLED",
+				ReferenceKey:      purchase.Code,
+				CreatedAt:         now,
+			})
 		}
-		inv := invBySize[sid]
-		movements[idx] = entity.InventoryMovement{
-			BranchInventoryID: inv.ID,
-			ChangeQty:         -qty,
-			ReferenceType:     "PURCHASE_CANCELLED",
-			ReferenceKey:      purchaseEntity.Code,
-			CreatedAt:         now,
-		}
-		idx++
 	}
-	if mvCount > 0 {
+
+	if len(movements) > 0 {
 		if err := c.InventoryMovementRepository.CreateBulk(tx, movements); err != nil {
-			c.Log.WithError(err).Error("error creating inventory movements")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	if err := c.PurchaseDetailRepository.Cancel(tx, purchaseEntity.Code); err != nil {
-		c.Log.WithError(err).Error("error updating purchase details")
+	if err := c.PurchaseDetailRepository.Cancel(tx, purchase.Code); err != nil {
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	debt := new(entity.Debt)
-	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchaseEntity.Code); err != nil {
-		c.Log.WithError(err).Error("error getting debt")
+	if err := c.DebtRepository.FindByPurchaseCodeOrInit(tx, debt, purchase.Code); err != nil {
 		return helper.GetNotFoundMessage("debt", err)
 	}
 
+	refundAmount := purchase.TotalPrice
 	if debt.ID != 0 {
-		if debt.PaidAmount > 0 {
-			refundTx := entity.CashBankTransaction{
-				TransactionDate: time.Now().UnixMilli(),
-				Type:            "IN",
-				Source:          "PURCHASE_DEBT_CANCELLED",
-				Amount:          debt.PaidAmount,
-				Description:     "Refund karena pembatalan pembelian " + purchaseEntity.Code,
-				ReferenceKey:    purchaseEntity.Code,
-				BranchID:        &purchaseEntity.BranchID,
-			}
-			if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
-				c.Log.WithError(err).Error("error creating cash bank transaction")
-				return model.NewAppErr("internal server error", nil)
-			}
-		}
-
+		refundAmount = debt.PaidAmount
 		debt.TotalAmount = 0
 		debt.PaidAmount = 0
 		debt.Status = "VOID"
 		if err := c.DebtRepository.Update(tx, debt); err != nil {
-			c.Log.WithError(err).Error("error update debt")
-			return model.NewAppErr("internal server error", nil)
-		}
-
-	} else {
-		refundTx := entity.CashBankTransaction{
-			TransactionDate: time.Now().UnixMilli(),
-			Type:            "IN",
-			Source:          "PURCHASE_CANCELLED",
-			Amount:          purchaseEntity.TotalPrice,
-			Description:     "Refund karena pembatalan pembelian " + purchaseEntity.Code,
-			ReferenceKey:    purchaseEntity.Code,
-			BranchID:        &purchaseEntity.BranchID,
-		}
-		if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
-			c.Log.WithError(err).Error("error create cash bank transaction")
 			return model.NewAppErr("internal server error", nil)
 		}
 	}
 
-	if err := c.PurchaseRepository.Cancel(tx, purchaseEntity.Code); err != nil {
-		c.Log.WithError(err).Error("error updating purchase")
+	refundTx := entity.CashBankTransaction{
+		TransactionDate: now,
+		Type:            "IN",
+		Source:          "PURCHASE_CANCELLED",
+		Amount:          refundAmount,
+		Description:     fmt.Sprintf("Refund pembatalan purchase %s", purchase.Code),
+		ReferenceKey:    purchase.Code,
+		BranchID:        &purchase.BranchID,
+	}
+	if err := c.CashBankTransactionRepository.Create(tx, &refundTx); err != nil {
+		return model.NewAppErr("internal server error", nil)
+	}
+
+	if err := c.PurchaseRepository.Cancel(tx, purchase.Code); err != nil {
 		return model.NewAppErr("internal server error", nil)
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		c.Log.WithError(err).Error("error cancel purchase")
 		return model.NewAppErr("internal server error", nil)
 	}
 

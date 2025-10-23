@@ -84,38 +84,42 @@ func (r *PurchaseDetailRepository) FindLastBuyPricesBySizeIDs(db *gorm.DB, sizeI
 	if excludeCode != "" {
 		// versi dengan exclude purchase tertentu
 		rows, err = db.Raw(`
-            SELECT pd.size_id, pd.buy_price
+            SELECT bi.size_id, pd.buy_price
             FROM purchase_details pd
             JOIN purchases p ON p.code = pd.purchase_code
+            JOIN branch_inventory bi ON bi.id = pd.branch_inventory_id
             JOIN (
-                SELECT pd2.size_id, MAX(p2.created_at) AS last_created
+                SELECT bi2.size_id, MAX(p2.created_at) AS last_created
                 FROM purchase_details pd2
                 JOIN purchases p2 ON p2.code = pd2.purchase_code
-                WHERE pd2.size_id IN ? 
+                JOIN branch_inventory bi2 ON bi2.id = pd2.branch_inventory_id
+                WHERE bi2.size_id IN ? 
                   AND pd2.is_cancelled <> 1 
                   AND p2.status <> 'CANCELLED'
                   AND p2.code <> ?                 -- exclude current purchase
-                GROUP BY pd2.size_id
+                GROUP BY bi2.size_id
             ) latest
-            ON latest.size_id = pd.size_id 
+            ON latest.size_id = bi.size_id 
             AND latest.last_created = p.created_at
         `, sizeIDs, excludeCode).Rows()
 	} else {
 		// versi tanpa exclude
 		rows, err = db.Raw(`
-            SELECT pd.size_id, pd.buy_price
+            SELECT bi.size_id, pd.buy_price
             FROM purchase_details pd
             JOIN purchases p ON p.code = pd.purchase_code
+            JOIN branch_inventory bi ON bi.id = pd.branch_inventory_id
             JOIN (
-                SELECT pd2.size_id, MAX(p2.created_at) AS last_created
+                SELECT bi2.size_id, MAX(p2.created_at) AS last_created
                 FROM purchase_details pd2
                 JOIN purchases p2 ON p2.code = pd2.purchase_code
-                WHERE pd2.size_id IN ? 
+                JOIN branch_inventory bi2 ON bi2.id = pd2.branch_inventory_id
+                WHERE bi2.size_id IN ? 
                   AND pd2.is_cancelled <> 1 
                   AND p2.status <> 'CANCELLED'
-                GROUP BY pd2.size_id
+                GROUP BY bi2.size_id
             ) latest
-            ON latest.size_id = pd.size_id 
+            ON latest.size_id = bi.size_id 
             AND latest.last_created = p.created_at
         `, sizeIDs).Rows()
 	}

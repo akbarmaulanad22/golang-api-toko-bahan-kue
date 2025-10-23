@@ -183,6 +183,23 @@ func (r *BranchInventoryRepository) BulkIncreaseStock(db *gorm.DB, inventories [
 	return db.Exec(sql, ids).Error
 }
 
+func (r *BranchInventoryRepository) FindByIDs(db *gorm.DB, ids []uint) ([]entity.BranchInventory, error) {
+	if len(ids) == 0 {
+		return []entity.BranchInventory{}, nil
+	}
+
+	var inventories []entity.BranchInventory
+	if err := db.
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id IN ?", ids).
+		Order("id").
+		Find(&inventories).Error; err != nil {
+		return nil, err
+	}
+
+	return inventories, nil
+}
+
 func (r *BranchInventoryRepository) FindByIDsWithSize(db *gorm.DB, ids []uint) ([]entity.BranchInventory, error) {
 	if len(ids) == 0 {
 		return []entity.BranchInventory{}, nil
