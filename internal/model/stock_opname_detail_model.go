@@ -11,9 +11,9 @@ type StockOpnameDetailResponse struct {
 }
 
 type CreateStockOpnameDetailInput struct {
-	SizeID      uint   `json:"size_id" validate:"required"`
-	PhysicalQty int64  `json:"physical_qty" validate:"min=0"`
-	Notes       string `json:"notes" validate:"max=255"`
+	BranchInventoryID uint   `json:"branch_inventory_id" validate:"required"`
+	PhysicalQty       int64  `json:"physical_qty" validate:"min=0"`
+	Notes             string `json:"notes" validate:"max=255"`
 }
 
 type UpdateStockOpnameDetailRequest struct {

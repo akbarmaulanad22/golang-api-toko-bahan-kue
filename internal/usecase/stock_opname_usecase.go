@@ -60,31 +60,35 @@ func (c *StockOpnameUseCase) Create(ctx context.Context, req *model.CreateStockO
 		Status:    "draft",
 	}
 
-	sizeIDs := make([]uint, 0, len(req.Details))
+	// ambil semua branch_inventory_id dari request
+	invIDs := make([]uint, 0, len(req.Details))
 	for _, d := range req.Details {
-		sizeIDs = append(sizeIDs, d.SizeID)
+		invIDs = append(invIDs, d.BranchInventoryID)
 	}
 
-	inventories, err := c.BranchInventoryRepo.FindByBranchAndSizeIDs(tx, req.BranchID, sizeIDs)
+	// ambil semua data inventory berdasarkan ID tersebut
+	inventories, err := c.BranchInventoryRepo.FindByIDs(tx, invIDs)
 	if err != nil {
 		c.Log.WithError(err).Error("error finding branch inventories")
 		return nil, model.NewAppErr("internal server error", nil)
 	}
-	if len(inventories) != len(sizeIDs) {
-		c.Log.Warnf("some branch inventories not found for branch_id=%d, expected=%d got=%d", req.BranchID, len(sizeIDs), len(inventories))
-		return nil, model.NewAppErr("not found", "some inventories not found for provided size_ids")
+	if len(inventories) != len(invIDs) {
+		c.Log.Warnf("some branch inventories not found, expected=%d got=%d", len(invIDs), len(inventories))
+		return nil, model.NewAppErr("not found", "some inventories not found for provided branch_inventory_ids")
 	}
 
+	// bikin map biar lookup cepat
 	invMap := make(map[uint]entity.BranchInventory, len(inventories))
 	for _, inv := range inventories {
-		invMap[inv.SizeID] = inv
+		invMap[inv.ID] = inv
 	}
 
+	// bangun detail opname
 	for _, input := range req.Details {
-		inv, ok := invMap[input.SizeID]
+		inv, ok := invMap[input.BranchInventoryID]
 		if !ok {
-			c.Log.Warnf("branch inventory not found for size_id=%d", input.SizeID)
-			return nil, model.NewAppErr("size not found", "some size not found")
+			c.Log.Warnf("branch inventory not found for id=%d", input.BranchInventoryID)
+			return nil, model.NewAppErr("inventory not found", "some branch inventory not found")
 		}
 
 		opname.Details = append(opname.Details, entity.StockOpnameDetail{
@@ -92,10 +96,11 @@ func (c *StockOpnameUseCase) Create(ctx context.Context, req *model.CreateStockO
 			SystemQty:         int64(inv.Stock),
 			PhysicalQty:       input.PhysicalQty,
 			Notes:             input.Notes,
-			Difference:        input.PhysicalQty,
+			Difference:        input.PhysicalQty - int64(inv.Stock),
 		})
 	}
 
+	// simpan opname & detail
 	if err := c.StockOpnameRepository.Create(tx, opname); err != nil {
 		c.Log.WithError(err).Error("error creating stock opname draft with details")
 		return nil, model.NewAppErr("internal server error", nil)
