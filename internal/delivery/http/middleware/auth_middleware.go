@@ -16,14 +16,18 @@ func NewAuth(userUseCase *usecase.UserUseCase) mux.MiddlewareFunc {
 			if token == "" {
 				token = "NOT_FOUND"
 			}
-
 			userUseCase.Log.Debugf("Authorization : %s", token)
 
 			request := &model.VerifyUserRequest{Token: token}
 			auth, err := userUseCase.Verify(r.Context(), request)
 			if err != nil {
 				userUseCase.Log.Warnf("Failed find user by token : %+v", err)
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+
+				appErr := &model.AppError{
+					Message: "unauthorized",
+				}
+				ctx := context.WithValue(r.Context(), "middleware_error", appErr)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 

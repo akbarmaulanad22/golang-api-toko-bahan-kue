@@ -10,6 +10,5 @@ func RoleToResponse(branch *entity.Role) *model.RoleResponse {
 		ID:        branch.ID,
 		Name:      branch.Name,
 		CreatedAt: branch.CreatedAt,
-		UpdatedAt: branch.UpdatedAt,
 	}
 }

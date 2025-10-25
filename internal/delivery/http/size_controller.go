@@ -65,7 +65,7 @@ func (c *SizeController) List(w http.ResponseWriter, r *http.Request) error {
 	size := helper.ParseIntOrDefault(query.Get("size"), 10)
 
 	request := &model.SearchSizeRequest{
-		Name:       query.Get("name"),
+		Name:       query.Get("search"),
 		ProductSKU: productSKU,
 		Page:       page,
 		Size:       size,

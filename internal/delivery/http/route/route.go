@@ -81,8 +81,10 @@ func (route *RouteConfig) SetupAuthRoute() {
 	cashierOrAdminRouter := authRouter.NewRoute().Subrouter()
 	cashierOrAdminRouter.Use(route.RoleMiddleware("cashier", "admin"))
 
-	authRouter.HandleFunc("/gate/auth/logout", middleware.WithErrorHandler(route.UserController.Logout)).Methods("POST")
-	authRouter.HandleFunc("/gate/auth/me", middleware.WithErrorHandler(route.UserController.Current)).Methods("GET")
+	gateRouter := route.Router.NewRoute().Subrouter()
+	gateRouter.Use(route.AuthMiddleware)
+	gateRouter.HandleFunc("/gate/auth/logout", middleware.WithErrorHandler(route.UserController.Logout)).Methods("POST")
+	gateRouter.HandleFunc("/gate/auth/me", middleware.WithErrorHandler(route.UserController.Current)).Methods("GET")
 
 	// master data
 

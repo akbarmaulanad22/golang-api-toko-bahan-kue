@@ -11,6 +11,16 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
 
 func WithErrorHandler(h func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if errVal := r.Context().Value("middleware_error"); errVal != nil {
+			if appErr, ok := errVal.(*model.AppError); ok {
+				status := helper.MapAppErrorToHTTPStatus(appErr)
+				helper.WriteJSON(w, status, map[string]any{
+					"error": appErr,
+				})
+				return
+			}
+		}
+
 		if err := h(w, r); err != nil {
 			var appErr *model.AppError
 			if errors.As(err, &appErr) {
