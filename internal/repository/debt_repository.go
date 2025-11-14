@@ -101,6 +101,9 @@ func (r *DebtRepository) SearchRaw(db *gorm.DB, request *model.SearchDebtRequest
 func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtRequest) (*model.DebtDetailResponse, error) {
 	var debt model.DebtDetailResponse
 
+	// Default empty slice (bukan nil)
+	debt.Items = []model.DebtItemResponse{}
+
 	// Ambil data utama hutang
 	if err := db.Raw(`
 		SELECT id, reference_type, reference_code, total_amount, paid_amount, due_date, status, created_at
@@ -122,15 +125,37 @@ func (r *DebtRepository) FindDetailById(db *gorm.DB, request *model.GetDebtReque
 	}
 	debt.Payments = payments
 
-	// Ambil items kalau SALE
-	if debt.ReferenceType == "SALE" {
+	// Ambil items
+	switch debt.ReferenceType {
+	case "SALE":
 		var items []model.DebtItemResponse
 		if err := db.Raw(`
-			SELECT p.name AS product_name, s.name AS size_name, sd.qty, sd.sell_price
+			SELECT p.name AS product_name,
+				   s.name AS size_name,
+				   sd.qty,
+				   sd.sell_price
 			FROM sale_details sd
-			JOIN sizes s ON sd.size_id = s.id
+			JOIN branch_inventory bi ON sd.branch_inventory_id = bi.id
+			JOIN sizes s ON bi.size_id = s.id
 			JOIN products p ON s.product_sku = p.sku
 			WHERE sd.sale_code = ?
+		`, debt.ReferenceCode).Scan(&items).Error; err != nil {
+			return nil, err
+		}
+		debt.Items = items
+
+	case "PURCHASE":
+		var items []model.DebtItemResponse
+		if err := db.Raw(`
+			SELECT p.name AS product_name,
+				   s.name AS size_name,
+				   pd.qty,
+				   pd.buy_price
+			FROM purchase_details pd
+			JOIN branch_inventory bi ON pd.branch_inventory_id = bi.id
+			JOIN sizes s ON bi.size_id = s.id
+			JOIN products p ON s.product_sku = p.sku
+			WHERE pd.purchase_code = ?
 		`, debt.ReferenceCode).Scan(&items).Error; err != nil {
 			return nil, err
 		}
