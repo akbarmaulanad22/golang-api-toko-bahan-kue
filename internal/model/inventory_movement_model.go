@@ -35,8 +35,8 @@ type SearchInventoryMovementRequest struct {
 	Search   string `json:"search"` // bisa untuk search branch name/product name/size label/type/reference key
 	StartAt  int64  `json:"start_at"`
 	EndAt    int64  `json:"end_at"`
-	Page     int    `json:"page" validate:"min=1"`
-	Size     int    `json:"size" validate:"min=1,max=100"`
+	Page     int    `json:"page"`
+	Size     int    `json:"size"`
 }
 
 type InventoryMovementBranchSummary struct {
