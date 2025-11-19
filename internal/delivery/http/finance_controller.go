@@ -99,7 +99,7 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		Role:    auth.Role,
+		Role:    strings.ToUpper(auth.Role),
 	}
 
 	response, err := c.UseCase.GetProfitLoss(r.Context(), &request)
@@ -143,7 +143,7 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 	request := model.GetFinanceBasicRequest{
 		StartAt: startAtMili,
 		EndAt:   endAtMili,
-		Role:    auth.Role,
+		Role:    strings.ToUpper(auth.Role),
 	}
 
 	response, err := c.UseCase.GetCashFlow(r.Context(), &request)
@@ -173,7 +173,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 	auth := middleware.GetUser(r)
 	request := model.GetFinanceBalanceSheetRequest{
 		AsOf: asOfMilli,
-		Role: auth.Role,
+		Role: strings.ToUpper(auth.Role),
 	}
 
 	branchID := params.Get("branch_id")

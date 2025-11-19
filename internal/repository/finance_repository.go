@@ -242,7 +242,7 @@ func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBa
 		query += " AND cbt.created_at BETWEEN ? AND ? "
 		args = append(args, request.StartAt, request.EndAt)
 	}
-	if request.Role != "Owner" {
+	if request.Role != "OWNER" {
 		query += " AND cbt.branch_id = ? "
 		args = append(args, request.BranchID)
 	}
@@ -265,7 +265,7 @@ func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBa
 	}
 
 	// --- Owner: breakdown per cabang ---
-	if request.Role == "Owner" {
+	if request.Role == "OWNER" {
 		var byBranch []model.BranchCashFlow
 		queryBranch := `
 			SELECT 
@@ -308,7 +308,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 		FROM cash_bank_transactions
 		WHERE created_at <= ?`
 	argsCash := []interface{}{request.AsOf}
-	if request.Role != "Owner" || request.BranchID != nil {
+	if request.Role != "OWNER" || request.BranchID != nil {
 		queryCash += " AND branch_id = ?"
 		argsCash = append(argsCash, request.BranchID)
 	}
@@ -318,7 +318,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 
 	// --- Accounts Receivable (piutang dari SALE) ---
 	var receivable float64
-	if request.Role == "Owner" && request.BranchID == nil {
+	if request.Role == "OWNER" && request.BranchID == nil {
 		// Semua cabang
 		if err := db.Raw(`
 			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
@@ -346,7 +346,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 
 	// --- Accounts Payable (utang dari PURCHASE) ---
 	var payable float64
-	if request.Role == "Owner" && request.BranchID == nil {
+	if request.Role == "OWNER" && request.BranchID == nil {
 		if err := db.Raw(`
 			SELECT COALESCE(SUM(GREATEST(d.total_amount - d.paid_amount, 0)), 0)
 			FROM debts d
@@ -378,7 +378,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 		JOIN sizes s ON bi.size_id = s.id
 		WHERE 1=1`
 	argsInv := []interface{}{}
-	if request.Role != "Owner" || request.BranchID != nil {
+	if request.Role != "OWNER" || request.BranchID != nil {
 		queryInv += " AND bi.branch_id = ?"
 		argsInv = append(argsInv, request.BranchID)
 	}
@@ -393,7 +393,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 		FROM capitals
 		WHERE created_at <= ?`
 	argsCap := []interface{}{request.AsOf}
-	if request.Role != "Owner" || request.BranchID != nil {
+	if request.Role != "OWNER" || request.BranchID != nil {
 		queryCap += " AND branch_id = ?"
 		argsCap = append(argsCap, request.BranchID)
 	}
@@ -409,7 +409,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 	expCond := ""
 	argsRE := []interface{}{request.AsOf, request.AsOf, request.AsOf}
 
-	if request.Role != "Owner" || request.BranchID != nil {
+	if request.Role != "OWNER" || request.BranchID != nil {
 		salesCond = " AND s.branch_id = ?"
 		purchCond = " AND p.branch_id = ?"
 		expCond = " AND e.branch_id = ?"
@@ -468,7 +468,7 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 	}
 
 	// Kalau filter cabang, ganti branch_id dan branch_name
-	if request.Role != "Owner" || request.BranchID != nil {
+	if request.Role != "OWNER" || request.BranchID != nil {
 		resp.BranchID = request.BranchID
 		var branchName string
 		if err := db.Raw("SELECT name FROM branches WHERE id = ?", request.BranchID).Scan(&branchName).Error; err == nil {
@@ -487,7 +487,7 @@ func buildFilter(base string, startAt, endAt int64, role string, branchID uint, 
 		args = append(args, startAt, endAt)
 	}
 	// branch filter
-	if role != "Owner" {
+	if role != "OWNER" {
 		base += fmt.Sprintf(" AND %s.branch_id = ? ", alias)
 		args = append(args, branchID)
 	}
