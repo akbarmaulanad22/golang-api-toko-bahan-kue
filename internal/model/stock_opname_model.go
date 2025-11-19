@@ -36,8 +36,8 @@ type SearchStockOpnameRequest struct {
 	BranchID  *uint  `json:"branch_id" validate:"omitempty"`
 	Status    string `json:"status" validate:"omitempty,oneof=draft completed cancelled"`
 	CreatedBy string `json:"created_by" validate:"max=100"`
-	DateFrom  int64  `json:"date_from" validate:"omitempty"`
-	DateTo    int64  `json:"date_to" validate:"omitempty"`
+	DateFrom  int64  `json:"start_at" validate:"omitempty"`
+	DateTo    int64  `json:"end_at" validate:"omitempty"`
 	Page      int    `json:"page" validate:"min=1"`
 	Size      int    `json:"size" validate:"min=1,max=100"`
 }

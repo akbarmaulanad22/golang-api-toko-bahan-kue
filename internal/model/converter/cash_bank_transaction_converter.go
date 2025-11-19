@@ -6,6 +6,12 @@ import (
 )
 
 func CashBankTransactionToResponse(e *entity.CashBankTransaction) *model.CashBankTransactionResponse {
+	branchName := ""
+
+	if e.Branch != nil {
+		branchName = e.Branch.Name
+	}
+
 	return &model.CashBankTransactionResponse{
 		ID:              e.ID,
 		TransactionDate: e.TransactionDate,
@@ -14,6 +20,6 @@ func CashBankTransactionToResponse(e *entity.CashBankTransaction) *model.CashBan
 		Amount:          e.Amount,
 		Description:     e.Description,
 		CreatedAt:       e.CreatedAt,
-		BranchName:      e.Branch.Name,
+		BranchName:      branchName,
 	}
 }

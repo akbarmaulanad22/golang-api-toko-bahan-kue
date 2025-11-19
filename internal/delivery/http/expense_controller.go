@@ -36,7 +36,9 @@ func (c *ExpenseController) Create(w http.ResponseWriter, r *http.Request) error
 	}
 
 	auth := middleware.GetUser(r)
-	request.BranchID = auth.BranchID
+	if strings.ToUpper(auth.Role) != "OWNER" {
+		request.BranchID = auth.BranchID
+	}
 
 	response, err := c.UseCase.Create(r.Context(), &request)
 	if err != nil {
