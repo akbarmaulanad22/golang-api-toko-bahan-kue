@@ -46,7 +46,7 @@ type GetUserRequest struct {
 
 type UpdateUserRequest struct {
 	Username string `json:"-" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password"`
 	Name     string `json:"name" validate:"required"`
 	Address  string `json:"address" validate:"required"`
 	RoleID   uint   `json:"role_id" validate:"required"`

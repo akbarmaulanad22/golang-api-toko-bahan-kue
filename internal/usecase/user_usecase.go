@@ -264,19 +264,30 @@ func (c *UserUseCase) Update(ctx context.Context, request *model.UpdateUserReque
 		return nil, model.NewAppErr("forbidden", "cannot update owner")
 	}
 
-	user.Name = request.Name
-	user.Address = request.Address
-	user.RoleID = request.RoleID
-	user.BranchID = request.BranchID
+	// user.Name = request.Name
+	// user.Address = request.Address
+	// user.RoleID = request.RoleID
+	// user.BranchID = request.BranchID
 
-	password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.Log.WithError(err).Error("error generate bcrype hash user password")
-		return nil, model.NewAppErr("internal server error", nil)
+	// c.Log.Infof("BRANCH ID: %d", *user.BranchID)
+	if request.Password != "" {
+		password, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.Log.WithError(err).Error("error generate bcrype hash user password")
+			return nil, model.NewAppErr("internal server error", nil)
+		}
+		request.Password = string(password)
 	}
-	user.Password = string(password)
 
-	if err := c.UserRepository.Update(tx, user); err != nil {
+	if err := tx.Model(&entity.User{}).
+		Where("username = ?", request.Username).
+		Updates(map[string]any{
+			"name":      request.Name,
+			"address":   request.Address,
+			"role_id":   request.RoleID,
+			"branch_id": request.BranchID, // pointer *uint aman
+			"password":  request.Password,
+		}).Error; err != nil {
 		c.Log.WithError(err).Error("error updating user")
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			switch mysqlErr.Number {
