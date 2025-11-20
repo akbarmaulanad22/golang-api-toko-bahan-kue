@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 	"tokobahankue/internal/delivery/http/middleware"
@@ -150,6 +149,10 @@ func (c *FinanceController) GetCashFlow(w http.ResponseWriter, r *http.Request) 
 		Role:    strings.ToUpper(auth.Role),
 	}
 
+	if strings.ToUpper(auth.Role) != "OWNER" {
+		request.BranchID = *auth.BranchID
+	}
+
 	response, err := c.UseCase.GetCashFlow(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance cash flow")
@@ -180,16 +183,7 @@ func (c *FinanceController) GetBalanceSheet(w http.ResponseWriter, r *http.Reque
 		Role: strings.ToUpper(auth.Role),
 	}
 
-	branchID := params.Get("branch_id")
-	if strings.ToUpper(auth.Role) == "OWNER" && branchID != "" {
-		branchIDInt, err := strconv.Atoi(branchID)
-		if err != nil {
-			c.Log.Warnf("error to parse branch id parameter: %+v", err)
-			return model.NewAppErr("invalid branch id parameter", nil)
-		}
-		branchIDUint := uint(branchIDInt)
-		request.BranchID = &branchIDUint
-	} else {
+	if strings.ToUpper(auth.Role) != "OWNER" {
 		request.BranchID = auth.BranchID
 	}
 

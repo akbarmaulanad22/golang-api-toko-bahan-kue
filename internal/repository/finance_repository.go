@@ -227,6 +227,8 @@ func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.GetFinance
 }
 
 func (r *FinanceRepository) GetCashFlow(db *gorm.DB, request *model.GetFinanceBasicRequest) (*model.FinanceCashFlowResponse, error) {
+	r.Log.Info("============ REQUEST ===========", request)
+
 	var cashIn, cashOut, balance float64
 
 	// --- Query Total ---
