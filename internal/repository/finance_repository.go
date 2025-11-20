@@ -164,6 +164,8 @@ func (r *FinanceRepository) GetOwnerSummary(db *gorm.DB, request *model.GetFinan
 }
 
 func (r *FinanceRepository) GetProfitLoss(db *gorm.DB, request *model.GetFinanceBasicRequest) (*model.FinanceProfitLossResponse, error) {
+	r.Log.Info("======= ROLE: ", request.Role, request.BranchID, " ============")
+
 	var totalSales float64
 	var totalHPP float64
 	var totalExpenses int64
@@ -482,11 +484,12 @@ func (r *FinanceRepository) GetBalanceSheet(db *gorm.DB, request *model.GetFinan
 func buildFilter(base string, startAt, endAt int64, role string, branchID uint, alias string) (string, []interface{}) {
 	args := []interface{}{}
 	// date filter
-	if startAt > 0 && endAt > 0 {
-		base += fmt.Sprintf(" AND %s.created_at BETWEEN ? AND ? ", alias)
-		args = append(args, startAt, endAt)
-	}
+	// if startAt > 0 && endAt > 0 {
+	// 	base += fmt.Sprintf(" AND %s.created_at BETWEEN ? AND ? ", alias)
+	// 	args = append(args, startAt, endAt)
+	// }
 	// branch filter
+
 	if role != "OWNER" {
 		base += fmt.Sprintf(" AND %s.branch_id = ? ", alias)
 		args = append(args, branchID)

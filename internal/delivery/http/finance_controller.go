@@ -102,6 +102,10 @@ func (c *FinanceController) GetProfitLoss(w http.ResponseWriter, r *http.Request
 		Role:    strings.ToUpper(auth.Role),
 	}
 
+	if strings.ToUpper(auth.Role) != "OWNER" {
+		request.BranchID = *auth.BranchID
+	}
+
 	response, err := c.UseCase.GetProfitLoss(r.Context(), &request)
 	if err != nil {
 		c.Log.WithError(err).Error("error getting finance profit loss")
